@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
@@ -14,7 +14,8 @@ class Input(BaseModel):
 
 class TournamentInput(Input):
     name: Title
-    sport: Literal['Calcio', 'Calcio a 5', 'Basket', 'Pallamano'] = 'Calcio'
+    sport: Literal['Calcio', 'Calcio a 5', 'Basket', 'Pallamano', 'Badminton', 'Tennis', 'Volley', 'Pallavolo', 'Pallacanestro'] = 'Calcio'
+    sport_id: Optional[int] = None
     format: Literal['round_robin', 'knockout', 'groups'] = 'round_robin'
     description: str = Field(default='', max_length=1000)
     participant_kind: Literal['team', 'individual'] = 'team'
@@ -26,6 +27,8 @@ class TournamentInput(Input):
     qualifiers: int = Field(default=2, strict=True, ge=1, le=2)
     random_seed: Annotated[int, Field(strict=True, ge=0, le=2147483647)] | None = None
     team_names: list[Name] = Field(default_factory=list, max_length=32)
+    tournament_type: Literal['general', 'championship', 'cup'] = 'general'
+    scoring_system: Literal['points', 'sets', 'time'] = 'points'
 
     @model_validator(mode='after')
     def names_unique(self):
