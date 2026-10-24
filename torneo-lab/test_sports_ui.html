@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Sport UI - Open Score</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+        }
+        .sport-card {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 10px 0;
+            background: #fafafa;
+        }
+        .sport-card h3 {
+            margin-top: 0;
+            color: #34495e;
+        }
+        .sport-stats {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            background: #e8f4f8;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        select, textarea, input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .btn-secondary {
+            background-color: #95a5a6;
+        }
+        .btn-secondary:hover {
+            background-color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Open Score - Test Sport UI</h1>
+        <p>Interfaccia di test per la selezione degli sport e configurazioni sportive</p>
+        
+        <div class="form-group">
+            <label for="sport-select">Seleziona Sport:</label>
+            <select id="sport-select">
+                <option value="">-- Seleziona uno sport --</option>
+                <option value="Calcio">Calcio</option>
+                <option value="Calcio a 5">Calcio a 5</option>
+                <option value="Basket">Basket</option>
+                <option value="Pallamano">Pallamano</option>
+                <option value="Badminton">Badminton</option>
+                <option value="Tennis">Tennis</option>
+                <option value="Volley">Volley</option>
+                <option value="Pallavolo">Pallavolo</option>
+                <option value="Pallacanestro">Pallacanestro</option>
+            </select>
+        </div>
+        
+        <div id="sport-details" style="display: none;">
+            <h2 id="sport-name">Dettagli Sport</h2>
+            <div id="sport-description"></div>
+            
+            <h3>Configurazioni Sportive</h3>
+            <div id="sport-config"></div>
+            
+            <h3>Limiti Squadre</h3>
+            <div id="team-size-range"></div>
+            
+            <button id="create-tournament-btn" class="btn-secondary">Crea Torneo</button>
+        </div>
+        
+        <h2>Elenco Sport Disponibili</h2>
+        <div id="sports-list"></div>
+    </div>
+
+    <script>
+        // Sport data (in realtà dovrebbe venire dall'API)
+        const sports = {
+            "Calcio": {
+                name: "Calcio",
+                description: "Sport di squadra con regole classiche di calcio",
+                rules: {
+                    max_team_size: 11,
+                    min_team_size: 7,
+                    field_type: "grass",
+                    ball_type: "standard"
+                }
+            },
+            "Calcio a 5": {
+                name: "Calcio a 5",
+                description: "Calcio su campo ridotto con 5 giocatori per squadra",
+                rules: {
+                    max_team_size: 5,
+                    min_team_size: 5,
+                    field_type: "grass",
+                    ball_type: "small"
+                }
+            },
+            "Basket": {
+                name: "Basket",
+                description: "Sport di squadra con palla e canestro",
+                rules: {
+                    max_team_size: 5,
+                    min_team_size: 5,
+                    court_type: "indoor",
+                    ball_type: "basket"
+                }
+            },
+            "Pallamano": {
+                name: "Pallamano",
+                description: "Sport con palla e rete",
+                rules: {
+                    max_team_size: 7,
+                    min_team_size: 7,
+                    court_type: "indoor",
+                    ball_type: "handball"
+                }
+            },
+            "Badminton": {
+                name: "Badminton",
+                description: "Sport con racchetta e volano",
+                rules: {
+                    max_team_size: 2,
+                    min_team_size: 1,
+                    court_type: "indoor",
+                    net_type: "standard"
+                }
+            },
+            "Tennis": {
+                name: "Tennis",
+                description: "Sport con racchetta e palla",
+                rules: {
+                    max_team_size: 2,
+                    min_team_size: 1,
+                    court_type: "outdoor",
+                    surface: "clay"
+                }
+            },
+            "Volley": {
+                name: "Volley",
+                description: "Sport di squadra con rete",
+                rules: {
+                    max_team_size: 6,
+                    min_team_size: 6,
+                    court_type: "indoor",
+                    net_type: "standard"
+                }
+            },
+            "Pallavolo": {
+                name: "Pallavolo",
+                description: "Sport con palla e rete",
+                rules: {
+                    max_team_size: 6,
+                    min_team_size: 6,
+                    court_type: "indoor",
+                    net_type: "standard"
+                }
+            },
+            "Pallacanestro": {
+                name: "Pallacanestro",
+                description: "Basket specifico (pallacanestro)",
+                rules: {
+                    max_team_size: 5,
+                    min_team_size: 5,
+                    court_type: "indoor",
+                    ball_type: "basket"
+                }
+            }
+        };
+
+        // Display all sports
+        function displaySportsList() {
+            const container = document.getElementById('sports-list');
+            container.innerHTML = '';
+            
+            for (const [name, sport] of Object.entries(sports)) {
+                const sportCard = document.createElement('div');
+                sportCard.className = 'sport-card';
+                sportCard.innerHTML = `
+                    <h3>${sport.name}</h3>
+                    <p>${sport.description}</p>
+                    <div class="sport-stats">
+                        <div class="stat-item">Min: ${sport.rules.min_team_size} squadre</div>
+                        <div class="stat-item">Max: ${sport.rules.max_team_size} squadre</div>
+                        <div class="stat-item">${sport.rules.field_type || sport.rules.court_type || 'Tipo campo'}</div>
+                    </div>
+                `;
+                container.appendChild(sportCard);
+            }
+        }
+
+        // Show sport details
+        document.getElementById('sport-select').addEventListener('change', function() {
+            const sportName = this.value;
+            const detailsDiv = document.getElementById('sport-details');
+            
+            if (!sportName) {
+                detailsDiv.style.display = 'none';
+                return;
+            }
+            
+            const sport = sports[sportName];
+            document.getElementById('sport-name').textContent = sport.name;
+            document.getElementById('sport-description').textContent = sport.description;
+            
+            // Display config
+            const configDiv = document.getElementById('sport-config');
+            configDiv.innerHTML = '<ul>' + 
+                Object.entries(sport.rules).map(([key, value]) => `<li>${key}: ${value}</li>`).join('') + 
+                '</ul>';
+            
+            // Display team size
+            const teamSizeDiv = document.getElementById('team-size-range');
+            teamSizeDiv.innerHTML = `Dimensioni squadra: ${
+                sport.rules.min_team_size === sport.rules.max_team_size 
+                ? `${sport.rules.min_team_size}`
+                : `${sport.rules.min_team_size} - ${sport.rules.max_team_size}`
+            } giocatori`;
+            
+            detailsDiv.style.display = 'block';
+        });
+
+        // Initialize
+        displaySportsList();
+        
+        // Handle create tournament
+        document.getElementById('create-tournament-btn').addEventListener('click', function() {
+            const selectedSport = document.getElementById('sport-select').value;
+            if (selectedSport) {
+                alert(`Creazione torneo per: ${selectedSport}\nInserisci altri dettagli dal form principale.`);
+            } else {
+                alert('Seleziona uno sport prima di creare il torneo');
+            }
+        });
+    </script>
+</body>
+</html>
