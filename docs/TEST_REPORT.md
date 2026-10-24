@@ -47,4 +47,8 @@ La copertura end-to-end indicata nella matrice si riferisce a queste prove manua
 
 Nessuna prova su hardware mobile reale o su tutti i browser. La UI ha regole responsive fino a schermi piccoli; l'anteprima osservata verifica una larghezza intermedia. Nessuna verifica di carico, account, autorizzazioni di produzione, scheduler globale, sport a set o formati avanzati: non sono implementati.
 
-È incluso un workflow GitHub Actions per Python 3.11 e 3.14 su Linux. Il risultato CI va distinto dall'esecuzione locale: il file del workflow da solo non dimostra che i job remoti siano già passati.
+## Verifica GitHub Actions
+
+Il workflow con matrice Python 3.11 e 3.14 su Linux ha completato con **successo** il controllo del commit applicativo `234273f`. Lo stato `completed / success` è stato letto dall'API pubblica GitHub dopo il push: [esecuzione 40115770441](https://github.com/Leonardo-Lalli/Open-score/actions/runs/40115770441).
+
+Questo esito è distinto dagli 85 test eseguiti localmente su Windows. L'aggiornamento successivo registra il risultato nella documentazione, senza modificare il codice verificato.
