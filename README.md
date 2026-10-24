@@ -2,7 +2,7 @@
 
 **Il tuo campo di gioco.** Una demo originale per organizzare tornei sportivi a scuola: partecipanti, gironi, risultati e un percorso fino alla finale.
 
-Progetto di **Leonardo Lalli e del suo collaboratore**, da discutere con il professore di scienze motorie. Nome e scelte di prodotto restano provvisori. La proposta iniziale è conservata in [docs/PROPOSTA_PROGETTO.md](docs/PROPOSTA_PROGETTO.md).
+Progetto di **Leonardo Lalli e Maximiliam Cichello**, da discutere con il professore di scienze motorie. Nome e scelte di prodotto restano provvisori. La proposta iniziale è conservata in [docs/PROPOSTA_PROGETTO.md](docs/PROPOSTA_PROGETTO.md).
 
 ## Prova la demo
 
