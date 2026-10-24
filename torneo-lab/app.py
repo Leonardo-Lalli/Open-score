@@ -13,6 +13,7 @@ from db import BASE, database, initialize
 from demo import load_examples
 from schemas import ClearInput, ResultInput, ScheduleInput, TeamInput, TournamentInput
 import services as svc
+import sport_rules
 
 
 def create_app(db_path: str | Path | None = None, seed: bool = True) -> FastAPI:
@@ -63,7 +64,11 @@ def create_app(db_path: str | Path | None = None, seed: bool = True) -> FastAPI:
     @api.get('/api/tournaments/{tid}')
     def get_tournament(tid: int):
         with database(path) as db:
-            return svc.detail(db,tid)
+            data = svc.detail(db,tid)
+            # Add sport rules information 
+            if data.get('sport_config'):
+                data['sport_rules'] = sport_rules.get_sport_rules_summary(data['sport'])
+            return data
 
     @api.get('/api/public/{token}')
     def public_tournament(token: str):
@@ -152,6 +157,33 @@ def create_app(db_path: str | Path | None = None, seed: bool = True) -> FastAPI:
                              m['scheduled_at'] or '',safe(m['location'])])
         return Response('\ufeff'+out.getvalue(),media_type='text/csv',
                         headers={'Content-Disposition':f'attachment; filename="torneo-{tid}.csv"'})
+    
+    @api.get('/api/sports')
+    def list_sports():
+        """List all supported sports with their basic configuration"""
+        sports = sport_rules.get_supported_sports()
+        return {
+            'sports': [
+                {
+                    'name': name,
+                    'config': sport_rules.get_sport_rules_summary(name)
+                } 
+                for name in sports
+            ]
+        }
+
+    @api.get('/api/sports/{sport_name}')
+    def get_sport_info(sport_name: str):
+        """Get detailed information about a specific sport"""
+        config = sport_rules.get_sport_config_by_name(sport_name)
+        if not config:
+            raise HTTPException(404, 'Sport non trovato')
+        return {
+            'name': config.name,
+            'description': config.description,
+            'rules': config.rules,
+            'team_size_range': config.get_team_size_range()
+        }
 
     if seed and fresh:
         with database(path,True) as db:
