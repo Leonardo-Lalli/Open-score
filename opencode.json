@@ -1,0 +1,19 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "kaggle-qwen": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Qwen su Kaggle",
+      "options": {
+        "baseURL": "https://childrens-mae-joan-implies.trycloudflare.com/v1"
+      },
+      "models": {
+        "qwen3-coder-30b-fixed:latest": {
+          "name": "Qwen3 Coder 30B Fixed",
+          "modalities": { "input": ["text"], "output": ["text"] }
+        }
+      }
+    }
+  },
+  "model": "kaggle-qwen/qwen3-coder-30b-fixed:latest"
+}

@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <meta content="web_blank" name="shell-type"/>
+    <title>OpenScore - Crea un Torneo</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..20,100..1000;1,9..20,100..1000&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css"/>
+    <script defer src="/static/app.js"></script>
+</head>
+<body>
+    <a class="skip-link" href="#content">Vai al contenuto</a>
+    
+    <aside id="sidebar" class="sidebar">
+        <a class="brand" href="/" aria-label="Open Score, panoramica">
+            <img src="/static/mark.svg" alt="" width="38" height="38" />
+            <span>open<span class="brand-light">score</span><small>IL TUO CAMPO DI GIOCO</small></span>
+        </a>
+        <div class="workspace">
+            <span class="workspace-avatar">OS</span>
+            <div>Il nostro spazio<small>Progetto scolastico</small></div>
+            <span class="workspace-dot"></span>
+        </div>
+        <div class="nav-label">ORGANIZZA</div>
+        <nav aria-label="Navigazione principale">
+            <button id="home-nav" class="nav-item" data-action="dashboard">
+                <span data-icon="grid"></span>Panoramica
+            </button>
+            <button class="nav-item active" data-action="new">
+                <span data-icon="trophy"></span>Crea un torneo<span class="nav-plus">+</span>
+            </button>
+        </nav>
+        <div class="nav-label events-label">
+            I TUOI TORNEI <span id="event-count">0</span>
+        </div>
+        <div id="event-nav" class="event-nav">
+            <p class="sidebar-muted">Caricamento tornei…</p>
+        </div>
+        <div class="sidebar-bottom">
+            <div class="idea-card">
+                <span data-icon="spark"></span><strong>Si parte da un’idea.</strong>
+                <p>Costruiamo insieme un modo più semplice di vivere lo sport.</p>
+                <button data-action="project">
+                    Scopri il progetto <span aria-hidden="true">↗</span>
+                </button>
+            </div>
+            <div class="local-status"><i></i> Spazio locale <span>v0.2</span></div>
+        </div>
+    </aside>
+
+    <div class="app-shell">
+        <header class="topbar">
+            <div class="breadcrumb">
+                <button id="mobile-menu" class="icon-button" aria-label="Apri navigazione" aria-expanded="false">
+                    <span data-icon="menu"></span>
+                </button>
+                <span>Il nostro spazio</span>
+                <span class="crumb-slash">/</span>
+                <strong id="breadcrumb">Crea un torneo</strong>
+            </div>
+            <div class="top-actions">
+                <span class="demo-label"><i></i> DEMO SCOLASTICA</span>
+                <button class="button primary compact" data-action="new">
+                    <span data-icon="plus"></span>Nuovo torneo
+                </button>
+            </div>
+        </header>
+
+        <main id="content" tabindex="-1">
+            <!-- Branding Header -->
+            <div class="page-header">
+                <h1 class="page-title">Crea un nuovo torneo</h1>
+                <p class="page-description">Inizia a costruire il tuo campo di gioco con Open Score</p>
+            </div>
+
+            <!-- Wizard Step Navigation -->
+            <div class="wizard-steps">
+                <div class="step active" data-step="1">
+                    <span class="step-number">1</span>
+                    <span class="step-label">Generale</span>
+                </div>
+                <div class="step" data-step="2">
+                    <span class="step-number">2</span>
+                    <span class="step-label">Squadre</span>
+                </div>
+                <div class="step" data-step="3">
+                    <span class="step-number">3</span>
+                    <span class="step-label">Tabellone</span>
+                </div>
+                <div class="step" data-step="4">
+                    <span class="step-number">4</span>
+                    <span class="step-label">Conferma</span>
+                </div>
+            </div>
+
+            <!-- Main Form Content -->
+            <div class="wizard-content">
+                <!-- Step 1: Details & Configuration -->
+                <div class="wizard-step active" id="step-1">
+                    <div class="form-section">
+                        <h2 class="section-title">Informazioni Generali</h2>
+                        
+                        <!-- Tournament Name Input -->
+                        <div class="form-group">
+                            <label class="form-label" for="tournament-name">Nome ufficiale dell'evento</label>
+                            <div class="input-wrapper">
+                                <input class="form-input" id="tournament-name" type="text" value="Coppa d'Autunno 2025"/>
+                                <span class="input-icon">edit</span>
+                            </div>
+                        </div>
+
+                        <!-- Sport Discipline Selection -->
+                        <div class="form-group">
+                            <label class="form-label">Disciplina sportiva</label>
+                            <div class="sport-pills">
+                                <button class="sport-pill active" data-sport="calcio">Calcio a 5 / 7</button>
+                                <button class="sport-pill" data-sport="padel">Padel</button>
+                                <button class="sport-pill" data-sport="tennis">Tennis Singolare</button>
+                                <button class="sport-pill" data-sport="basket">Basket 3x3</button>
+                                <button class="sport-pill" data-sport="volley">Volley</button>
+                                <button class="sport-pill" data-sport="pallavolo">Pallavolo</button>
+                                <button class="sport-pill" data-sport="danza">Danza Sportiva</button>
+                                <button class="sport-pill" data-sport="biliardo">Biliardo</button>
+                                <button class="sport-pill" data-sport="altro">Altro...</button>
+                            </div>
+                        </div>
+
+                        <!-- Participants Count Selection -->
+                        <div class="form-group">
+                            <div class="form-row">
+                                <label class="form-label">Partecipanti previsti nel tabellone</label>
+                                <span class="badge" id="teams-selected-label">8 SQUADRE</span>
+                            </div>
+                            <div class="teams-grid">
+                                <button class="team-count-btn active" data-teams="4">4</button>
+                                <button class="team-count-btn" data-teams="8">8</button>
+                                <button class="team-count-btn" data-teams="16">16</button>
+                                <button class="team-count-btn" data-teams="32">32</button>
+                            </div>
+                        </div>
+
+                        <!-- Advanced Settings -->
+                        <div class="form-group">
+                            <h3 class="subsection-title">Configurazioni Avanzate</h3>
+                            
+                            <!-- Tie-break Settings -->
+                            <div class="form-row">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" class="checkbox-input" checked>
+                                    <span class="checkbox-text">Calci di rigore / Tie-break immediato</span>
+                                    <span class="badge-small">DEFAULT</span>
+                                </label>
+                            </div>
+                            
+                            <div class="form-row">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" class="checkbox-input">
+                                    <span class="checkbox-text">Tempi supplementari brevi (5 min)</span>
+                                    <span class="badge-small">OPZIONALE</span>
+                                </label>
+                            </div>
+                            
+                            <!-- BYE Toggle -->
+                            <div class="form-row">
+                                <div class="toggle-container">
+                                    <label class="toggle-label">
+                                        <span class="toggle-text">Gestione automatica Riposo BYE</span>
+                                        <span class="toggle-help">Se il numero di squadre è dispari, assegna il passaggio diretto alla prima testa di serie.</span>
+                                    </label>
+                                    <label class="switch">
+                                        <input type="checkbox" class="toggle-input" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Preview Section -->
+                    <div class="form-section preview-section">
+                        <h2 class="section-title">Anteprima Tabellone Generato</h2>
+                        <div class="preview-container">
+                            <!-- Mini simplified diagram -->
+                            <div class="preview-content">
+                                <!-- Semifinals Column Preview -->
+                                <div class="preview-column">
+                                    <span class="preview-label">SEMIFINALI</span>
+                                    <div class="preview-card">
+                                        <div class="preview-row">
+                                            <span class="preview-item"><span class="bullet"></span> 1° Classificata</span>
+                                            <span class="preview-score">-</span>
+                                        </div>
+                                        <div class="preview-row">
+                                            <span class="preview-item">BYE (Passaggio diretto)</span>
+                                            <span class="preview-score">-</span>
+                                        </div>
+                                    </div>
+                                    <div class="preview-card">
+                                        <div class="preview-row">
+                                            <span class="preview-item">Squadra C</span>
+                                            <span class="preview-score">-</span>
+                                        </div>
+                                        <div class="preview-row">
+                                            <span class="preview-item">Squadra D</span>
+                                            <span class="preview-score">-</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Connection Glyphs -->
+                                <div class="preview-connector">
+                                    <span class="connector-icon">trending_flat</span>
+                                </div>
+                                
+                                <!-- Finals Column Preview -->
+                                <div class="preview-column">
+                                    <span class="preview-label">GRAN FINALE</span>
+                                    <div class="preview-card final-card">
+                                        <div class="preview-row">
+                                            <span class="preview-item">Vincitrice Semi 1</span>
+                                            <span class="preview-score">-</span>
+                                        </div>
+                                        <div class="preview-row">
+                                            <span class="preview-item">Vincitrice Semi 2</span>
+                                            <span class="preview-score">-</span>
+                                        </div>
+                                        <div class="preview-footer">
+                                            <span class="preview-badge">COPPA PRIMO POSTO</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Disclaimer -->
+                    <div class="disclaimer">
+                        <span class="link-icon">link</span>
+                        <span>I vincitori avanzano automaticamente al confermare dei risultati. Le correzioni successive ad un passaggio turno richiedono una conferma del comitato organizzatore.</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Buttons -->
+            <div class="wizard-footer">
+                <div class="button-group">
+                    <button class="btn-secondary">Annulla</button>
+                    <button class="btn-secondary">Salva bozza</button>
+                    <button class="btn-primary" id="next-step-btn">Continua: Aggiungi Squadre</button>
+                </div>
+            </div>
+        </main>
+
+        <footer class="page-footer">
+            <span>Open Score <span class="muted">/ Nome provvisorio, idee aperte.</span></span>
+            <button data-action="project">Un progetto da costruire insieme <span aria-hidden="true">↗</span></button>
+        </footer>
+    </div>
+
+    <dialog id="modal" aria-labelledby="modal-title">
+        <div id="modal-content"></div>
+    </dialog>
+    <div id="toast" role="status" aria-live="polite"></div>
+    
+    <script>
+        // Sport Pills Selection Logic
+        const sportPills = document.querySelectorAll('.sport-pill');
+        sportPills.forEach(pill => {
+            pill.addEventListener('click', () => {
+                sportPills.forEach(p => {
+                    p.classList.remove('active');
+                });
+                pill.classList.add('active');
+            });
+        });
+        
+        // Team Count Selection Logic
+        const teamButtons = document.querySelectorAll('.team-count-btn');
+        const teamLabel = document.getElementById('teams-selected-label');
+        teamButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                teamButtons.forEach(b => {
+                    b.classList.remove('active');
+                });
+                btn.classList.add('active');
+                if (teamLabel) {
+                    teamLabel.textContent = `${btn.getAttribute('data-teams')} SQUADRE`;
+                }
+            });
+        });
+        
+        // Next Step Button
+        const nextStepBtn = document.getElementById('next-step-btn');
+        nextStepBtn.addEventListener('click', () => {
+            // Implement navigation to next step
+            alert('Navigazione al passo successivo');
+        });
+    </script>
+</body>
+</html>
