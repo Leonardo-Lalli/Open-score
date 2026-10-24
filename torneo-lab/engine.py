@@ -1,0 +1,102 @@
+"""Deterministic tournament algorithms, independent of HTTP and persistence."""
+
+from random import Random
+
+
+def validate_ids(team_ids: list[int]) -> None:
+    if not 2 <= len(team_ids) <= 32:
+        raise ValueError('Servono da 2 a 32 partecipanti')
+    if len(set(team_ids)) != len(team_ids):
+        raise ValueError('I partecipanti devono essere distinti')
+
+
+def round_robin(team_ids: list[int], legs: int = 1) -> list[tuple[int, int, int]]:
+    """Circle method; missing opponent is a rest, never a scored match."""
+    validate_ids(team_ids)
+    if legs not in (1, 2):
+        raise ValueError('Scegli sola andata o andata e ritorno')
+    rotation = list(team_ids)
+    if len(rotation) % 2:
+        rotation.append(None)
+    fixtures = []
+    n = len(rotation)
+    for turn in range(1, n):
+        for j in range(n // 2):
+            home, away = rotation[j], rotation[-1-j]
+            if home is not None and away is not None:
+                if (turn + j) % 2 == 0:
+                    home, away = away, home
+                fixtures.append((turn, home, away))
+        rotation = [rotation[0], rotation[-1], *rotation[1:-1]]
+    if legs == 2:
+        fixtures += [(r+n-1, b, a) for r, a, b in fixtures[:]]
+    return fixtures
+
+
+def knockout_plan(team_ids: list[int], seed: int | None = None) -> list[dict]:
+    """Full dependency tree. source_* refers to indexes in the returned plan."""
+    validate_ids(team_ids)
+    ids = list(team_ids)
+    if seed is not None:
+        Random(seed).shuffle(ids)
+    size = 1 << (len(ids)-1).bit_length()
+    order = [1, 2]
+    while len(order) < size:
+        total = len(order)*2 + 1
+        order = [slot for value in order for slot in (value, total-value)]
+    slots = [ids[s-1] if s <= len(ids) else None for s in order]
+    plan = []
+    previous = []
+    for position in range(size//2):
+        home, away = slots[2*position:2*position+2]
+        previous.append(len(plan))
+        plan.append(dict(round_no=1, position=position, home_team_id=home,
+                         away_team_id=away, source_home=None, source_away=None,
+                         is_bye=int(home is None or away is None)))
+    turn = 2
+    while len(previous) > 1:
+        current = []
+        for position in range(len(previous)//2):
+            current.append(len(plan))
+            plan.append(dict(round_no=turn, position=position, home_team_id=None,
+                             away_team_id=None, source_home=previous[2*position],
+                             source_away=previous[2*position+1], is_bye=0))
+        previous = current
+        turn += 1
+    return plan
+
+
+def knockout_first_round(team_ids: list[int]) -> list[tuple[int, int, int]]:
+    """Compatibility helper: playable first-round fixtures only."""
+    return [(1, m['home_team_id'], m['away_team_id']) for m in knockout_plan(team_ids)
+            if m['round_no'] == 1 and not m['is_bye']]
+
+
+def build_standings(teams: list[dict], matches: list[dict], win_points: int = 3,
+                    draw_points: int = 1, loss_points: int = 0) -> list[dict]:
+    table = {t['id']: dict(team_id=t['id'], name=t['name'], played=0, won=0,
+             drawn=0, lost=0, goals_for=0, goals_against=0, goal_difference=0, points=0)
+             for t in teams}
+    for m in matches:
+        ga, gb = m['home_score'], m['away_score']
+        if ga is None or gb is None or m.get('is_bye'):
+            continue
+        h, v = table[m['home_team_id']], table[m['away_team_id']]
+        for row, scored, conceded in ((h, ga, gb), (v, gb, ga)):
+            row['played'] += 1
+            row['goals_for'] += scored
+            row['goals_against'] += conceded
+        if ga == gb:
+            for row in (h, v):
+                row['drawn'] += 1
+                row['points'] += draw_points
+        else:
+            winner, loser = (h, v) if ga > gb else (v, h)
+            winner['won'] += 1
+            winner['points'] += win_points
+            loser['lost'] += 1
+            loser['points'] += loss_points
+    for row in table.values():
+        row['goal_difference'] = row['goals_for'] - row['goals_against']
+    return sorted(table.values(), key=lambda x: (-x['points'], -x['goal_difference'],
+                   -x['goals_for'], x['name'].casefold(), x['team_id']))

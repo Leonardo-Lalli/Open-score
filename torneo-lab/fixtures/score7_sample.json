@@ -1,0 +1,10 @@
+{
+  "stages": [{"id":53882484,"type":"KNOCKOUT_STAGE","format":"SINGLE_KNOCKOUT","ordinal":0,"attributes":{}}],
+  "participant": {
+    "participantId":23045803,"participantName":"Team #1","tournamentName":"Knockout Bracket of Football",
+    "matches":[{"matchId":117234055,"homeParticipant":{"id":23045803,"name":"Team #1","logo":null},
+      "awayParticipant":{"id":23045804,"name":"Team #2","logo":null},"timestamp":null,"location":null,
+      "homeScore":[],"awayScore":[],"outcome":null,"confirmationStatus":null,"mySubmission":null,
+      "opponentSubmission":null,"drawAllowed":null}]
+  }
+}
