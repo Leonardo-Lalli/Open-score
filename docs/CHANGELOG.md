@@ -2,10 +2,13 @@
 
 ## Non rilasciato — fondamenta e catalogo
 
-- Migrazioni applicate fino alla versione 3: `sport_id`, catalogo sport canonico e normalizzazione dei nomi legacy.
+- Migrazioni applicate fino alla versione 4: `sport_id`, catalogo sport canonico, `archived_at` e `updated_at`.
 - SQLite in WAL con `busy_timeout`; sport risolto lato server e coerente con il nome.
 - Catalogo sport unico letto da `sport_configs` tramite `/api/sports`; il wizard carica gli sport dal server.
 - Il dettaglio torneo espone `sport_config`; le pagine di design restano mockup statici e mostrano un avviso.
+- Modifica parziale del torneo con blocco dei campi strutturali dopo la generazione.
+- Archiviazione e ripristino al posto della cancellazione; i tornei archiviati sono di sola lettura.
+- UI per modifica, archiviazione, ripristino, risultati e orari; verificata con ricarica e riavvio del server.
 
 ## 0.2.0 — 24 ottobre 2026
 

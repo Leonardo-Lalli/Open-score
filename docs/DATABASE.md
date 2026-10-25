@@ -2,12 +2,12 @@
 
 Default: `torneo-lab/data/open_score.sqlite3`. Percorso configurabile con `TORNEO_DB_PATH`. Il file, i database di test e l'ambiente Python sono esclusi da Git. I quattro esempi vengono creati al primo avvio di un database nuovo. `POST /api/demo` aggiunge gli esempi mancanti senza azzerare i risultati esistenti.
 
-## Schema effettivo (versione 3)
+## Schema effettivo (versione 4)
 
 | Tabella | Chiave e relazioni | Dati e vincoli principali |
 | --- | --- | --- |
 | sport_configs | PK id; nome unico | Catalogo canonico degli sport: nome, descrizione, sistema di punteggio, regole JSON |
-| tournaments | PK id; FK sport_configs; public_token e demo_key unici | Formato enumerato, nome non vuoto, sport testuale (snapshot) e `sport_id` coerente, tipo team/individual, regole dei punti, numero gironi e qualificate, andata/ritorno, seed, tipo torneo e sistema di punteggio |
+| tournaments | PK id; FK sport_configs; public_token e demo_key unici | Formato enumerato, nome non vuoto, sport testuale (snapshot) e `sport_id` coerente, tipo team/individual, regole dei punti, numero gironi e qualificate, andata/ritorno, seed, tipo torneo, sistema di punteggio, `archived_at`, `updated_at` |
 | stages | PK id; FK torneo; UNIQUE(torneo,ordinal) | Una fase round_robin o knockout; source_id opzionale per provenienza |
 | groups | PK id; FK fase; UNIQUE(fase,nome) | Gironi della prima fase |
 | teams | PK id; FK torneo e girone opzionale; UNIQUE(torneo,nome) | Partecipanti; il tipo squadra/individuale è definito sul torneo; source_id opzionale |
@@ -39,11 +39,13 @@ Ogni scrittura usa `BEGIN IMMEDIATE`: controlli e aggiornamenti sono atomici e s
 
 Timestamp di creazione e programmazione in UTC; la UI mostra gli incontri in `Europe/Rome`. Il modulo di inserimento usa il fuso del dispositivo e invia un ISO 8601 con offset. Sovrapposizioni di campo/partecipanti conosciuti e dipendenze con orari già assegnati sono controllate. Nessuna garanzia di pianificazione globale per avversari ancora sconosciuti.
 
-Non è esposta la cancellazione dei tornei. Le squadre si possono rimuovere solo prima della generazione. Gli ID degli incontri non vengono riutilizzati dopo una rigenerazione, così una richiesta obsoleta non può colpire un incontro nuovo. Le FK impediscono la rimozione accidentale di nodi ancora referenziati. Le invalidazioni eliminano i knockout dall'ultimo turno al primo e salvano prima gli snapshot.
+Non è esposta la cancellazione dei tornei: si archiviano con `archived_at` e si ripristinano. Un torneo archiviato resta leggibile ma rifiuta ogni scrittura (409). Le squadre si possono rimuovere solo prima della generazione. Gli ID degli incontri non vengono riutilizzati dopo una rigenerazione, così una richiesta obsoleta non può colpire un incontro nuovo. Le FK impediscono la rimozione accidentale di nodi ancora referenziati. Le invalidazioni eliminano i knockout dall'ultimo turno al primo e salvano prima gli snapshot.
+
+`updated_at` viene aggiornato a ogni modifica del torneo. Formato, sport, regole, gironi e qualificazioni sono modificabili solo in bozza: dopo la generazione il server risponde 409. Nome e descrizione restano sempre modificabili.
 
 ## Migrazioni e backup
 
-`migrations/001_initial.sql`, `002_stable_match_ids.sql`, `003_sports_expansion.sql` e `PRAGMA user_version=3` definiscono la baseline corrente. Il runner in `db.py` applica le migrazioni mancanti in ordine e aggiorna la versione; un database più recente del programma viene rifiutato. Il database originale dello starter (`tornei.sqlite3`) non viene modificato. Non erano presenti dati applicativi da migrare nella cartella iniziale. Puntando a un database legacy senza versione l'app si ferma con un errore esplicito: non tenta conversioni distruttive. Un importatore legacy e le migrazioni incrementali di produzione restano nel piano di sviluppo.
+`migrations/001_initial.sql`, `002_stable_match_ids.sql`, `003_sports_expansion.sql`, `004_archive_and_updates.sql` e `PRAGMA user_version=4` definiscono la baseline corrente. Il runner in `db.py` applica le migrazioni mancanti in ordine e aggiorna la versione; un database più recente del programma viene rifiutato. Il database originale dello starter (`tornei.sqlite3`) non viene modificato. Non erano presenti dati applicativi da migrare nella cartella iniziale. Puntando a un database legacy senza versione l'app si ferma con un errore esplicito: non tenta conversioni distruttive. Un importatore legacy e le migrazioni incrementali di produzione restano nel piano di sviluppo.
 
 SQLite in modalità WAL è la scelta per la LAN scolastica: un solo processo `uvicorn` (un worker), scritture serializzate con `BEGIN IMMEDIATE` e letture concorrenti. PostgreSQL richiederà una migrazione dedicata, non il semplice cambio di percorso, e sarà valutato solo se serviranno più server o molte scritture simultanee.
 

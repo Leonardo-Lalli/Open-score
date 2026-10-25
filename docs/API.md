@@ -7,8 +7,11 @@ Server locale: `http://127.0.0.1:8000`. OpenAPI: `/openapi.json`; documentazione
 | GET | /api/health | Versione e modalità locale |
 | GET | /api/sports | Catalogo sport letto da `sport_configs` |
 | GET | /api/sports/{sport_name} | Regole e dimensioni di uno sport; 404 se assente |
-| GET, POST | /api/tournaments | Elenco con stato e contatori; creazione (201) |
+| GET, POST | /api/tournaments | Elenco con stato e contatori (`?archived=exclude\|include\|only`); creazione (201) |
 | GET | /api/tournaments/{id} | Torneo con `sport_config`, squadre, fasi, gironi, incontri, classifiche, campione e diario |
+| PATCH | /api/tournaments/{id} | Modifica nome/descrizione sempre; sport, formato e regole solo in bozza |
+| POST | /api/tournaments/{id}/archive | Archivia senza cancellare; nasconde dall'elenco predefinito |
+| POST | /api/tournaments/{id}/restore | Ripristina un torneo archiviato |
 | POST | /api/tournaments/{id}/teams | Aggiunge un partecipante prima della generazione (201) |
 | PATCH, DELETE | /api/tournaments/{id}/teams/{team_id} | Rinomina; rimuove dalla bozza (204) |
 | POST | /api/tournaments/{id}/generate | Genera una sola volta gironi o albero knockout |
@@ -46,6 +49,13 @@ Per cancellare un risultato, il corpo DELETE contiene `version` e facoltativamen
 
 Per la programmazione: `{"scheduled_at":"2026-11-03T10:00:00+01:00","location":"Campo A","duration":20,"version":1}`. `scheduled_at: null` rimuove l'orario. La risposta riletta contiene UTC.
 
+```json
+PATCH /api/tournaments/{id}
+{"name": "Coppa del professore", "description": "Fase scolastica"}
+```
+
+La modifica parziale accetta solo i campi inviati. Nome e descrizione sono sempre modificabili; `sport`, `format`, `participant_kind`, punti, `legs`, `group_count`, `qualifiers` e `random_seed` rispondono 409 dopo la generazione degli incontri. Un corpo vuoto, un campo sconosciuto o una coppia sport/`sport_id` incoerente restituiscono 422. `POST .../archive` imposta `archived_at` e rende il torneo di sola lettura; `POST .../restore` lo riattiva. Nessun endpoint cancella un torneo.
+
 ## Contratti e stati
 
 - Formati: `round_robin`, `knockout`, `groups`. Sport ammessi (catalogo `sport_configs`): Calcio, Calcio a 5, Basket, Pallamano, Badminton, Tennis, Pallavolo, con punteggio numerico generico. Il server risolve `sport_id` dal nome; una coppia incoerente restituisce 422. Nessuna pretesa di implementare i regolamenti federali completi.
@@ -53,5 +63,5 @@ Per la programmazione: `{"scheduled_at":"2026-11-03T10:00:00+01:00","location":"
 - Incontri: `waiting` → `ready` → `completed`; `bye` è un passaggio automatico senza punteggio. Le correzioni possono riportare incontri dipendenti a `waiting`/`ready`.
 - Tornei: `draft`, `active`, `completed`, derivati dai dati, non impostati manualmente dal browser.
 - Nomi ripuliti e limitati; campi extra rifiutati. Punteggi interi 0–999; booleani, decimali e stringhe numeriche non accettati.
-- 404 per risorse mancanti o incontro di un altro torneo; 409 per versioni obsolete, duplicati, sovrapposizioni e dipendenze da confermare; 422 per input/regole non validi; 403 per scritture da Origin diverso.
+- 404 per risorse mancanti o incontro di un altro torneo; 409 per versioni obsolete, duplicati, sovrapposizioni, tornei archiviati e dipendenze da confermare; 422 per input/regole non validi; 403 per scritture da Origin diverso.
 - Generazione ripetuta: 409 senza duplicati. Caricamento esempi ripetuto: stessi ID e risultati preservati. Le scritture su più tabelle sono atomiche. Paginazione, ruoli e API pubbliche stabili versionate restano da implementare.

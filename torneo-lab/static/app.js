@@ -154,7 +154,7 @@ function stat(title, value, foot, i) {
   return `<div class="stat"><div class="stat-top">${title}${icon(i)}</div><div class="stat-number">${value}</div><div class="stat-foot">${foot}</div></div>`;
 }
 async function refreshList() {
-  list = await api("/tournaments");
+  list = await api("/tournaments?archived=include");
   renderNav();
 }
 async function loadSports() {
@@ -162,9 +162,10 @@ async function loadSports() {
   sports = result.sports || [];
 }
 function renderNav() {
-  $("#event-count").textContent = list.length;
+  const visible = list.filter((t) => !t.archived_at);
+  $("#event-count").textContent = visible.length;
   $("#event-nav").innerHTML =
-    list
+    visible
       .map(
         (t) =>
           `<button data-open="${t.id}" class="${t.id === selectedId ? "active" : ""}"><span class="event-dot"></span>${h(t.name)}</button>`,
@@ -184,28 +185,32 @@ async function dashboard() {
   $("#mobile-menu").setAttribute("aria-expanded", "false");
 }
 function renderDashboard() {
-  const shown = list.filter(
-    (t) =>
-      (filter === "all" || t.status === filter) &&
-      t.name.toLocaleLowerCase("it").includes(search.toLocaleLowerCase("it")),
-  );
-  const totalTeams = list.reduce((a, t) => a + t.team_count, 0),
-    done = list.reduce((a, t) => a + t.progress.completed, 0);
+  const active = list.filter((t) => !t.archived_at);
+  const shown = list.filter((t) => {
+    if (!t.name.toLocaleLowerCase("it").includes(search.toLocaleLowerCase("it")))
+      return false;
+    if (filter === "archived") return !!t.archived_at;
+    if (filter === "all") return !t.archived_at;
+    return !t.archived_at && t.status === filter;
+  });
+  const totalTeams = active.reduce((a, t) => a + t.team_count, 0),
+    done = active.reduce((a, t) => a + t.progress.completed, 0);
   $("#content").innerHTML =
     `<div class="page-heading"><div><p class="eyebrow"><span class="line"></span> MENO ORGANIZZAZIONE, PIÙ GIOCO</p><h1>Ogni torneo comincia qui.</h1><p>Metti in campo le tue idee. Noi teniamo il punteggio.</p></div><span class="date-note">Uno spazio, tutte le tue sfide.</span></div>
  <section class="hero" aria-label="Inizia a organizzare"><div class="hero-copy"><p class="eyebrow">IL PROSSIMO FISCHIO D’INIZIO</p><h2>Lo sport unisce.<br><em>Organizzarlo è semplice.</em></h2><p>Dalle partite in palestra alla coppa d’istituto: squadre, incontri e risultati, tutti nello stesso posto.</p><div class="hero-buttons">${button("Crea il tuo torneo", "new", "primary", "plus")}${button("Esplora la demo", "explore", "ghost", "arrow")}</div></div><div class="hero-art" aria-hidden="true"><div class="court"><div class="court-circle"></div></div><div class="hero-score"><div class="score-kicker">IL TUO PROSSIMO TORNEO <span>● SI GIOCA</span></div><div class="score-line">${avatar("A", 2)}La tua squadra <b>—</b></div><div class="score-line">${avatar("B", 1)}Una nuova sfida <b>—</b></div></div><div class="hero-sticker">${icon("trophy")}</div></div></section>
- <div class="stat-grid">${stat("Tornei creati", list.length, "Tutte le tue competizioni", "trophy")}${stat("Partecipanti", totalTeams, "Pronti a scendere in campo", "users")}${stat("Tornei in corso", list.filter((t) => t.status === "active").length, "Il gioco continua", "ball")}${stat("Risultati registrati", done, "Ogni partita conta", "check")}</div>
- <section><div class="section-header"><div><h2>I tuoi tornei <span class="muted">${list.length.toString().padStart(2, "0")}</span></h2><p class="section-sub">Scegli una competizione e porta avanti il gioco.</p></div><div class="filters" aria-label="Filtra tornei">${[
+ <div class="stat-grid">${stat("Tornei creati", active.length, "Tutte le tue competizioni", "trophy")}${stat("Partecipanti", totalTeams, "Pronti a scendere in campo", "users")}${stat("Tornei in corso", active.filter((t) => t.status === "active").length, "Il gioco continua", "ball")}${stat("Risultati registrati", done, "Ogni partita conta", "check")}</div>
+ <section><div class="section-header"><div><h2>I tuoi tornei <span class="muted">${active.length.toString().padStart(2, "0")}</span></h2><p class="section-sub">Scegli una competizione e porta avanti il gioco.</p></div><div class="filters" aria-label="Filtra tornei">${[
    ["all", "Tutti"],
    ["active", "In corso"],
    ["completed", "Conclusi"],
+   ["archived", "Archiviati"],
  ]
    .map(
      ([v, l]) =>
        `<button class="filter ${filter === v ? "active" : ""}" data-filter="${v}" aria-pressed="${filter === v}">${l}</button>`,
    )
    .join("")}</div></div>
- <div class="tournament-grid">${shown.map(eventCard).join("") || `<div class="panel empty">${icon("trophy")}<h2>Il campo è libero.</h2><p>${list.length ? "Nessun torneo con questo filtro." : "Crea il primo torneo oppure carica gli esempi per iniziare."}</p>${button("Nuovo torneo", "new", "primary")}${button("Carica esempi", "seed", "ghost")}</div>`}</div></section>
+ <div class="tournament-grid">${shown.map(eventCard).join("") || `<div class="panel empty">${icon("trophy")}<h2>Il campo è libero.</h2><p>${filter === "archived" ? "Nessun torneo archiviato, per ora." : list.length ? "Nessun torneo con questo filtro." : "Crea il primo torneo oppure carica gli esempi per iniziare."}</p>${button("Nuovo torneo", "new", "primary")}${button("Carica esempi", "seed", "ghost")}</div>`}</div></section>
  <div class="note-banner">${icon("spark")}<div><strong>Un progetto aperto, anche alle tue idee.</strong><p>Questa è la nostra prima demo. Il prossimo passo lo scegliamo insieme.</p></div><button class="text-button" data-action="project">Il progetto ${icon("arrow")}</button></div>`;
   $("#content").setAttribute("aria-busy", "false");
 }
@@ -213,7 +218,7 @@ function eventCard(t, i) {
   const progress = t.progress.total
     ? Math.round((t.progress.completed / t.progress.total) * 100)
     : 0;
-  return `<article class="event-card"><div class="event-card-top"><div class="sport-symbol ${["", "gold", "blue", "rose"][i % 4]}">${icon(t.format === "knockout" ? "trophy" : t.format === "groups" ? "grid" : "ball")}</div><span class="tag ${t.status}"><i></i>${stateLabel(t.status)}</span></div><h3>${h(t.name)}</h3><p class="event-format">${h(t.sport)} <span aria-hidden="true">/</span> ${label(t.format)}</p><div class="event-meta"><span>${icon("users")}${t.team_count} ${t.participant_kind === "team" ? "squadre" : "giocatori"}</span><span>${icon("calendar")}${t.progress.total} incontri${t.format === "groups" ? " · gironi" : ""}</span></div><div class="progress-track" role="progressbar" aria-label="Incontri completati" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100"><span style="width:${progress}%"></span></div><div class="progress-copy"><span>${t.progress.completed} di ${t.progress.total} incontri completati</span><span>${progress}%</span></div><div class="event-card-footer"><div class="avatar-stack"><span>${h(t.sport.slice(0, 1))}</span><span>OS</span><small>${t.demo_key ? "Torneo dimostrativo" : "Il nostro torneo"}</small></div><button class="text-button" data-open="${t.id}">Apri torneo ${icon("arrow")}</button></div></article>`;
+  return `<article class="event-card ${t.archived_at ? "archived" : ""}"><div class="event-card-top"><div class="sport-symbol ${["", "gold", "blue", "rose"][i % 4]}">${icon(t.format === "knockout" ? "trophy" : t.format === "groups" ? "grid" : "ball")}</div>${t.archived_at ? '<span class="tag archived"><i></i>Archiviato</span>' : `<span class="tag ${t.status}"><i></i>${stateLabel(t.status)}</span>`}</div><h3>${h(t.name)}</h3><p class="event-format">${h(t.sport)} <span aria-hidden="true">/</span> ${label(t.format)}</p><div class="event-meta"><span>${icon("users")}${t.team_count} ${t.participant_kind === "team" ? "squadre" : "giocatori"}</span><span>${icon("calendar")}${t.progress.total} incontri${t.format === "groups" ? " · gironi" : ""}</span></div><div class="progress-track" role="progressbar" aria-label="Incontri completati" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100"><span style="width:${progress}%"></span></div><div class="progress-copy"><span>${t.progress.completed} di ${t.progress.total} incontri completati</span><span>${progress}%</span></div><div class="event-card-footer"><div class="avatar-stack"><span>${h(t.sport.slice(0, 1))}</span><span>OS</span><small>${t.demo_key ? "Torneo dimostrativo" : "Il nostro torneo"}</small></div><div class="card-actions"><button class="text-button" data-open="${t.id}">Apri ${icon("arrow")}</button>${t.archived_at ? `<button class="text-button" data-restore="${t.id}">Ripristina ${icon("refresh")}</button>` : ""}</div></div></article>`;
 }
 async function openTournament(id, keepTab = false) {
   const next = await api(
@@ -256,7 +261,7 @@ function renderTournament() {
             ? bracket()
             : overview();
   $("#content").innerHTML =
-    `${!publicToken ? `<button class="back-link" data-action="dashboard">${icon("back")} Tutti i tornei</button>` : '<p class="eyebrow">SEGUI IL TORNEO · SOLA LETTURA</p>'}<div class="tournament-heading"><div><p class="eyebrow">${h(t.sport)} <span>/</span> ${label(t.format)} <span class="tag ${data.status}">${stateLabel(data.status)}</span></p><h1>${h(t.name)}</h1><p>${h(t.description || "Ogni partita, un passo verso una nuova sfida.")}</p></div><div class="toolbar">${publicToken ? button("Aggiorna", "refresh", "", "check") : `${button("Condividi", "share", "", "share")}<a class="button" href="/api/tournaments/${t.id}/export.csv" download>${icon("download")}Esporta</a>`}</div></div><div class="tabs" role="tablist" aria-label="Sezioni torneo">${tabs.map(([v, l]) => `<button class="tab ${tab === v ? "active" : ""}" role="tab" id="tab-${v}" aria-controls="tournament-panel" tabindex="${tab === v ? 0 : -1}" aria-selected="${tab === v}" data-tab="${v}">${l}</button>`).join("")}</div><div id="tournament-panel" role="tabpanel" aria-labelledby="tab-${tab}">${champion()}${body}</div>`;
+    `${!publicToken ? `<button class="back-link" data-action="dashboard">${icon("back")} Tutti i tornei</button>` : '<p class="eyebrow">SEGUI IL TORNEO · SOLA LETTURA</p>'}<div class="tournament-heading"><div><p class="eyebrow">${h(t.sport)} <span>/</span> ${label(t.format)} ${t.archived_at ? '<span class="tag archived"><i></i>Archiviato</span>' : `<span class="tag ${data.status}">${stateLabel(data.status)}</span>`}</p><h1>${h(t.name)}</h1><p>${h(t.description || "Ogni partita, un passo verso una nuova sfida.")}</p></div><div class="toolbar">${publicToken ? button("Aggiorna", "refresh", "", "check") : t.archived_at ? `${button("Ripristina", "restore", "primary", "refresh")}<a class="button" href="/api/tournaments/${t.id}/export.csv" download>${icon("download")}Esporta</a>` : `${button("Modifica", "edit", "", "edit")}${button("Condividi", "share", "", "share")}<a class="button" href="/api/tournaments/${t.id}/export.csv" download>${icon("download")}Esporta</a>${button("Archivia", "archive", "danger")}`}</div></div><div class="tabs" role="tablist" aria-label="Sezioni torneo">${tabs.map(([v, l]) => `<button class="tab ${tab === v ? "active" : ""}" role="tab" id="tab-${v}" aria-controls="tournament-panel" tabindex="${tab === v ? 0 : -1}" aria-selected="${tab === v}" data-tab="${v}">${l}</button>`).join("")}</div><div id="tournament-panel" role="tabpanel" aria-labelledby="tab-${tab}">${champion()}${body}</div>`;
   $("#content").setAttribute("aria-busy", "false");
 }
 function overview() {
@@ -272,7 +277,7 @@ function overview() {
           .slice(0, 5)
           .map(
             (a) =>
-              `<div class="timeline-item"><i></i><div>${{ created: "Torneo creato", generated: "Incontri generati", result_saved: "Risultato registrato", result_cleared: "Risultato cancellato", qualified: "Qualificate alla fase finale", invalidated: "Incontri dipendenti annullati", scheduled: "Orario aggiornato", team_added: "Partecipante aggiunto", team_renamed: "Nome aggiornato" }[a.action] || "Torneo aggiornato"}<small>${dateText(a.created_at)}</small></div></div>`,
+              `<div class="timeline-item"><i></i><div>${{ created: "Torneo creato", updated: "Torneo modificato", archived: "Torneo archiviato", restored: "Torneo ripristinato", generated: "Incontri generati", result_saved: "Risultato registrato", result_cleared: "Risultato cancellato", qualified: "Qualificate alla fase finale", invalidated: "Incontri dipendenti annullati", scheduled: "Orario aggiornato", team_added: "Partecipante aggiunto", team_renamed: "Nome aggiornato" }[a.action] || "Torneo aggiornato"}<small>${dateText(a.created_at)}</small></div></div>`,
           )
           .join("")}</div>`
       : ""
@@ -436,6 +441,59 @@ function sportOptions() {
     )
     .join("");
 }
+function sportOptionsFor(current) {
+  return sports
+    .map((s) => s.name)
+    .concat(
+      sports.length
+        ? []
+        : [
+            "Calcio",
+            "Calcio a 5",
+            "Basket",
+            "Pallamano",
+            "Badminton",
+            "Tennis",
+            "Pallavolo",
+          ],
+    )
+    .map(
+      (s) =>
+        `<option value="${h(s)}" ${s === current ? "selected" : ""}>${h(s)}</option>`,
+    )
+    .join("");
+}
+function editTournament() {
+  const t = data.tournament;
+  const generated = data.matches.length > 0;
+  const structure = generated
+    ? '<p class="field-help">Sport, formato e regole sono bloccati perché gli incontri sono già stati generati. Nome e descrizione restano modificabili.</p>'
+    : `<fieldset class="format-fieldset" style="margin-top:18px"><legend>Formato e regole</legend><div class="form-grid"><label>Sport<select name="sport">${sportOptionsFor(t.sport)}</select></label><label>Formato<select name="format">${[
+        ["round_robin", "Girone unico"],
+        ["knockout", "Eliminazione"],
+        ["groups", "Gironi + finali"],
+      ]
+        .map(
+          ([v, l]) =>
+            `<option value="${v}" ${t.format === v ? "selected" : ""}>${l}</option>`,
+        )
+        .join("")}</select></label><label>Partecipanti<select name="participant_kind"><option value="team" ${t.participant_kind === "team" ? "selected" : ""}>Squadre</option><option value="individual" ${t.participant_kind === "individual" ? "selected" : ""}>Giocatori individuali</option></select></label><label>Gare del girone<select name="legs"><option value="1" ${t.legs === 1 ? "selected" : ""}>Sola andata</option><option value="2" ${t.legs === 2 ? "selected" : ""}>Andata e ritorno</option></select></label><label>Numero gironi<select name="group_count">${[2, 4, 8].map((n) => `<option value="${n}" ${t.group_count === n ? "selected" : ""}>${n} gironi</option>`).join("")}</select></label><label>Qualificate per girone<select name="qualifiers"><option value="1" ${t.qualifiers === 1 ? "selected" : ""}>La prima</option><option value="2" ${t.qualifiers === 2 ? "selected" : ""}>Le prime due</option></select></label></div><div class="form-grid">${[
+        ["win_points", "Punti vittoria", t.win_points],
+        ["draw_points", "Punti pareggio", t.draw_points],
+        ["loss_points", "Punti sconfitta", t.loss_points],
+      ]
+        .map(
+          ([n, l, v]) =>
+            `<label>${l}<input name="${n}" type="number" min="0" max="10" value="${v}" required></label>`,
+        )
+        .join("")}</div></fieldset>`;
+  modal(
+    "Ritocca il torneo.",
+    `<form id="tournament-form"><div class="form-grid"><label class="full">Nome del torneo<input name="name" value="${h(t.name)}" minlength="2" maxlength="120" required autofocus></label><label class="full">Descrizione<textarea name="description" maxlength="1000" rows="3">${h(t.description)}</textarea></label></div>${structure}</form>`,
+    `${button("Annulla", "close", "ghost")}<button class="button primary" form="tournament-form">${icon("check")}Salva modifiche</button>`,
+    "MODIFICA TORNEO",
+  );
+}
 function renderWizard() {
   let body = "";
   if (wizardStep === 0)
@@ -571,6 +629,19 @@ const actions = {
   project,
   close,
   share,
+  edit: editTournament,
+  archive: () =>
+    modal(
+      "Archiviare il torneo?",
+      `<p class="project-intro">“${h(data.tournament.name)}” uscirà dall’elenco principale. Potrai ripristinarlo dal filtro Archiviati: nessun dato viene cancellato.</p>`,
+      `${button("Annulla", "close", "ghost")}<button class="button danger" data-confirm-archive>Archivia</button>`,
+      "ARCHIVIO",
+    ),
+  restore: async () => {
+    await api(`/tournaments/${selectedId}/restore`, { method: "POST" });
+    await openTournament(selectedId, true);
+    notify("Torneo ripristinato.");
+  },
   matches: () => {
     tab = "matches";
     renderTournament();
@@ -589,7 +660,9 @@ const actions = {
   },
   explore: async () => {
     if (!list.length) await actions.seed();
-    const t = list.find((t) => t.demo_key === "school-cup") || list[0];
+    const t =
+      list.find((t) => !t.archived_at && t.demo_key === "school-cup") ||
+      list.find((t) => !t.archived_at);
     if (t) {
       await openTournament(t.id);
       tab = "bracket";
@@ -682,6 +755,25 @@ document.addEventListener("click", (e) => {
       await openTournament(selectedId, true);
       notify("Partecipante rimosso.");
     });
+  const restore = e.target.closest("[data-restore]");
+  if (restore)
+    safely(async () => {
+      await api(`/tournaments/${restore.dataset.restore}/restore`, {
+        method: "POST",
+      });
+      await dashboard();
+      notify("Torneo ripristinato.");
+    });
+  const confirmArchive = e.target.closest("[data-confirm-archive]");
+  if (confirmArchive)
+    safely(async () => {
+      await api(`/tournaments/${selectedId}/archive`, { method: "POST" });
+      close();
+      selectedId = null;
+      data = null;
+      await dashboard();
+      notify("Torneo archiviato. Lo trovi nel filtro Archiviati.");
+    });
   const clear = e.target.closest("[data-clear]");
   if (clear)
     safely(async () => {
@@ -724,6 +816,31 @@ document.addEventListener("submit", (e) => {
         close();
         await openTournament(selectedId, true);
         notify("Nome aggiornato.");
+      }
+      if (form.id === "tournament-form") {
+        const payload = {
+          name: fd.get("name"),
+          description: fd.get("description") || "",
+        };
+        if (fd.has("sport")) {
+          payload.sport = fd.get("sport");
+          payload.format = fd.get("format");
+          payload.participant_kind = fd.get("participant_kind");
+          payload.legs =
+            fd.get("format") === "knockout" ? 1 : Number(fd.get("legs"));
+          payload.group_count = Number(fd.get("group_count"));
+          payload.qualifiers = Number(fd.get("qualifiers"));
+          payload.win_points = Number(fd.get("win_points"));
+          payload.draw_points = Number(fd.get("draw_points"));
+          payload.loss_points = Number(fd.get("loss_points"));
+        }
+        await api(`/tournaments/${selectedId}`, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        });
+        close();
+        await openTournament(selectedId, true);
+        notify("Torneo aggiornato.");
       }
       if (form.id === "result-form" || form.id === "schedule-form") {
         const m = data.matches.find((m) => m.id === Number(form.dataset.id));

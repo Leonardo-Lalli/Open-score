@@ -3,6 +3,7 @@ import csv
 import io
 import os
 from pathlib import Path
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, Response
@@ -11,7 +12,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from db import BASE, database, initialize
 from demo import load_examples
-from schemas import ClearInput, ResultInput, ScheduleInput, TeamInput, TournamentInput
+from schemas import ClearInput, ResultInput, ScheduleInput, TeamInput, TournamentInput, TournamentUpdate
 import services as svc
 import sport_rules
 
@@ -49,17 +50,35 @@ def create_app(db_path: str | Path | None = None, seed: bool = True) -> FastAPI:
         return {'status':'ok','version':'0.2.0','mode':'local-demo'}
 
     @api.get('/api/tournaments')
-    def list_tournaments():
+    def list_tournaments(archived: Literal['exclude', 'include', 'only'] = 'exclude'):
+        where = {'exclude': 'WHERE archived_at IS NULL',
+                 'only': 'WHERE archived_at IS NOT NULL'}.get(archived, '')
         with database(path) as db:
             return [dict(t, **{k:v for k,v in svc.detail(db,t['id']).items()
                     if k in ('status','progress','champion_team_id')},
+                    archived=bool(t['archived_at']),
                     team_count=db.execute('SELECT count(*) FROM teams WHERE tournament_id=?',(t['id'],)).fetchone()[0])
-                    for t in svc.rows(db,'SELECT * FROM tournaments ORDER BY id DESC')]
+                    for t in svc.rows(db,f'SELECT * FROM tournaments {where} ORDER BY id DESC')]
 
     @api.post('/api/tournaments',status_code=201)
     def create_tournament(data: TournamentInput):
         with database(path,True) as db:
             return {'id':svc.create(db,data)}
+
+    @api.patch('/api/tournaments/{tid}')
+    def update_tournament(tid: int, data: TournamentUpdate):
+        with database(path,True) as db:
+            return svc.update_tournament(db,tid,data)
+
+    @api.post('/api/tournaments/{tid}/archive')
+    def archive_tournament(tid: int):
+        with database(path,True) as db:
+            return svc.set_archived(db,tid,True)
+
+    @api.post('/api/tournaments/{tid}/restore')
+    def restore_tournament(tid: int):
+        with database(path,True) as db:
+            return svc.set_archived(db,tid,False)
 
     @api.get('/api/tournaments/{tid}')
     def get_tournament(tid: int):
@@ -82,7 +101,7 @@ def create_app(db_path: str | Path | None = None, seed: bool = True) -> FastAPI:
     @api.post('/api/tournaments/{tid}/teams',status_code=201)
     def add_team(tid: int,data: TeamInput):
         with database(path,True) as db:
-            svc.required(db,tid)
+            svc.active(db,tid)
             if svc.games(db,tid):
                 raise HTTPException(409,'Partecipanti bloccati dopo la generazione degli incontri')
             if len(svc.teams(db,tid)) >= 32:
@@ -96,7 +115,7 @@ def create_app(db_path: str | Path | None = None, seed: bool = True) -> FastAPI:
     @api.patch('/api/tournaments/{tid}/teams/{team_id}')
     def rename_team(tid: int,team_id: int,data: TeamInput):
         with database(path,True) as db:
-            svc.required(db,tid)
+            svc.active(db,tid)
             if any(t['id']!=team_id and t['name'].casefold()==data.name.casefold() for t in svc.teams(db,tid)):
                 raise HTTPException(409,'Questo nome è già presente')
             cur = db.execute('UPDATE teams SET name=? WHERE id=? AND tournament_id=?',(data.name,team_id,tid))
@@ -108,7 +127,7 @@ def create_app(db_path: str | Path | None = None, seed: bool = True) -> FastAPI:
     @api.delete('/api/tournaments/{tid}/teams/{team_id}',status_code=204)
     def delete_team(tid: int,team_id: int):
         with database(path,True) as db:
-            svc.required(db,tid)
+            svc.active(db,tid)
             if svc.games(db,tid):
                 raise HTTPException(409,'Partecipanti bloccati dopo la generazione degli incontri')
             if not db.execute('DELETE FROM teams WHERE id=? AND tournament_id=?',(team_id,tid)).rowcount:

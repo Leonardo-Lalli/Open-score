@@ -6,8 +6,14 @@ from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException
 
 from engine import build_standings, knockout_plan, round_robin
-from schemas import TournamentInput
+from schemas import TournamentInput, TournamentUpdate
 import sport_rules
+
+STRUCTURAL_FIELDS = {
+    'sport', 'sport_id', 'format', 'participant_kind', 'win_points', 'draw_points',
+    'loss_points', 'legs', 'group_count', 'qualifiers', 'random_seed',
+    'tournament_type', 'scoring_system',
+}
 
 
 def rows(db, sql, params=()):
@@ -19,6 +25,14 @@ def required(db, tid):
     if result is None:
         raise HTTPException(404, 'Torneo non trovato')
     return dict(result)
+
+
+def active(db, tid):
+    """Reject writes on archived tournaments without hiding them from readers."""
+    tournament = required(db, tid)
+    if tournament['archived_at']:
+        raise HTTPException(409, 'Torneo archiviato: ripristinalo prima di modificarlo')
+    return tournament
 
 
 def audit(db, tid, action, payload):
@@ -52,6 +66,45 @@ def create(db, data: TournamentInput, demo_key=None):
                    [(tid, n) for n in data.team_names])
     audit(db, tid, 'created', {'name': data.name})
     return tid
+
+
+def update_tournament(db, tid, data: TournamentUpdate):
+    tournament = active(db, tid)
+    values = data.model_dump(exclude_unset=True)
+    if games(db, tid) and STRUCTURAL_FIELDS & values.keys():
+        raise HTTPException(409, 'Formato, sport e regole non sono modificabili dopo la generazione degli incontri')
+    if 'sport' in values or 'sport_id' in values:
+        sport = values.get('sport', tournament['sport'])
+        if values.get('sport_id') is not None:
+            row = db.execute('SELECT id,name FROM sport_configs WHERE id=?', (values['sport_id'],)).fetchone()
+            if row is None or row['name'].casefold() != sport.casefold():
+                raise HTTPException(422, 'Sport e sport_id non corrispondono')
+        else:
+            row = db.execute('SELECT id,name FROM sport_configs WHERE name=?', (sport,)).fetchone()
+            if row is None:
+                raise HTTPException(422, 'Sport non supportato')
+        values['sport'], values['sport_id'] = row['name'], row['id']
+    if values.get('format', tournament['format']) == 'knockout' and values.get('legs', tournament['legs']) != 1:
+        raise HTTPException(422, 'La demo knockout prevede una sola gara per incontro')
+    if not values:
+        return {'ok': True, 'changed': 0}
+    assignments = ','.join(f'{column}=?' for column in values)
+    db.execute(f"UPDATE tournaments SET {assignments},updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?",
+               [*values.values(), tid])
+    audit(db, tid, 'updated', {'fields': sorted(values)})
+    return {'ok': True, 'changed': len(values)}
+
+
+def set_archived(db, tid, archived: bool):
+    required(db, tid)
+    if archived:
+        db.execute("UPDATE tournaments SET archived_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),"
+                   "updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?", (tid,))
+    else:
+        db.execute("UPDATE tournaments SET archived_at=NULL,"
+                   "updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?", (tid,))
+    audit(db, tid, 'archived' if archived else 'restored', {})
+    return {'ok': True, 'archived': archived}
 
 
 def teams(db, tid):
@@ -141,7 +194,7 @@ def progress_bracket(db, tid):
 
 
 def generate(db, tid):
-    t = required(db, tid)
+    t = active(db, tid)
     if games(db, tid):
         raise HTTPException(409, 'Incontri già generati: il comando non crea duplicati')
     ids = [p['id'] for p in teams(db, tid)]
@@ -194,7 +247,7 @@ def qualify(db, tid):
 
 
 def required_match(db, tid, mid, version):
-    required(db, tid)
+    active(db, tid)
     m = next((m for m in games(db, tid) if m['id'] == mid), None)
     if m is None:
         raise HTTPException(404, 'Partita non trovata')
