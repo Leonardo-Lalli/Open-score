@@ -35,3 +35,14 @@ Alla creazione del torneo regole e regolamento vengono copiati in `rules_snapsho
 - `GET /api/variants/{slug}` — scorciatoia per slug univoco.
 
 La SPA carica il catalogo dal server all'avvio. Aggiungere una variante significa inserire una riga in `sport_variants`, senza duplicare schermate o JavaScript.
+
+## Verifica automatica
+
+`tests/test_sports.py` parametrizza tutte le sedici coppie sport/variante. Per ogni coppia verifica che:
+
+- il dettaglio esponga regole e regolamento;
+- la creazione del torneo usi la variante e il tipo partecipante corretti;
+- il regolamento sia congelato nello snapshot del torneo;
+- gli incontri generati ereditino `match_duration` dalla variante.
+
+Questi controlli, insieme ai test di integrità del catalogo, portano la suite a 179 test.

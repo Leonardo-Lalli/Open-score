@@ -10,6 +10,7 @@ Ambiente: Windows, Python 3.14.3; FastAPI 0.162.0, Pydantic 2.14.1, Uvicorn 0.54
 - Dopo la fase 5 (autenticazione, host LAN, backup, deploy): **118 passed**, 2.81 secondi.
 - Dopo la fase 6 (sport, varianti, rose e punteggi set per set): **142 passed, 1 warning**, 4.01 secondi nell'ultima esecuzione locale.
 - Dopo la correzione 0.4.1 del flusso di modifica, del formato in bozza, della lineup e dell'integrità del catalogo: **147 passed, 1 warning**, 5.62 secondi nell'ultima esecuzione locale.
+- Dopo la verifica esaustiva delle sedici coppie sport/variante: **179 passed, 1 warning**, 6.64 secondi nell'ultima esecuzione locale.
 - Il warning è la deprecazione Starlette relativa all'uso di httpx nel TestClient; non indica un fallimento dei test. L'ambiente di sviluppo contiene ancora httpx per compatibilità con il test client usato.
 - Il sandbox impediva le richieste del TestClient. I test sono stati eseguiti realmente con il terminale autorizzato; non si è sostituito il risultato con un output simulato.
 
@@ -23,7 +24,7 @@ Comando dalla cartella `torneo-lab`: `python -m pytest -q`, dopo `python -m pip 
 | Knockout | Struttura e BYE per ogni numerosità da 2 a 32; percorso API completo per 2,3,4,5,8,16,32; n−1 incontri realmente giocati |
 | Seeding | Sorteggio riproducibile, input non modificato |
 | Classifica | Risultati mancanti esclusi, 0–0 valido, punteggio configurato, correzione; set vinti/persi e bonus 2/1 al quinto set della Pallavolo 6v6 |
-| Sport e varianti | Catalogo di 6 sport e 16 varianti, variante predefinita, deep link, coppia sport/variante incoerente rifiutata, sport rimossi leggibili e non modificabili; integrità di slug, lineup, durata, punteggio, set e regolamento per ogni variante |
+| Sport e varianti | Catalogo di 6 sport e 16 varianti, variante predefinita, deep link, coppia sport/variante incoerente rifiutata, sport rimossi leggibili e non modificabili; integrità di slug, lineup, durata, punteggio, set e regolamento per ogni variante; 32 test parametrizzati su tutte le coppie sport/variante (regolamento, creazione, generazione e durata) |
 | Rose | Aggiunta e rimozione giocatori, numero di maglia, duplicati, limite massimo della variante, rifiuto per le varianti individuali, rose modificabili a torneo avviato |
 | Punteggio a set | Numero massimo di set, punti minimi, scarto di due, limite del set, vittoria con i set richiesti, rifiuto di risultati numerici sulle varianti a set |
 | Regolamento | Snapshot di regole e regolamento alla creazione, indipendenza dalle modifiche successive del catalogo, scheda Regolamento e stampa |

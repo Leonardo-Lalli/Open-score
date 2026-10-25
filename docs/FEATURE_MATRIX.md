@@ -9,7 +9,7 @@ Fonti: **U** = screenshot/JSON utente; **KB** = [indice ufficiale](https://kb.sc
 | Creazione con wizard e riepilogo; elenco persistente | Verificata end-to-end | U, KB | app.py, schemas.py, app.js; test_api; prova browser tre squadre | Modifica/eliminazione torneo, paginazione |
 | Configurazione iniziale sport/variante/regole | Verificata end-to-end | U, RR | schemas.py, services.py, sport_rules.py; test_sports, test_sets; browser | Modifica struttura bloccata dopo la generazione |
 | Partecipanti team/individual; nomi e rimozione in bozza | Testata | U, KB | app.py; test_participant_editing… | Iscrizioni autonome |
-| Catalogo sei sport e sedici varianti con schermate dedicate | Verificata end-to-end | Scelta originale | sport_rules.py, app.py, migrations/006, app.js; test_sports, test_migrations; browser | Regolamenti da confermare con il professore |
+| Catalogo sei sport e sedici varianti con schermate dedicate | Verificata end-to-end | Scelta originale | sport_rules.py, app.py, migrations/006, app.js; test_sports (32 test su tutte le coppie), test_migrations; browser | Regolamenti da confermare con il professore |
 | Giocatori appartenenti alle squadre e rose | Testata | KB | team_players, app.py, services.py, app.js; test_players; browser | Statistiche individuali |
 | Girone pari/dispari, andata/ritorno | Testata | RR | engine.py; test_round_robin_invariants | Andata/ritorno verificato nei test, non nel percorso browser |
 | Risultati numerici, set per set e classifica | Verificata end-to-end | RR | services.py, app.js; test_sets; browser Pallavolo | Rigori, penalità e statistiche individuali |
@@ -37,6 +37,6 @@ Fonti: **U** = screenshot/JSON utente; **KB** = [indice ufficiale](https://kb.sc
 | Ritiri e forfait | Documentata | KB | FUNCTIONAL_SPECS | Nessun esito a tavolino distinto da punteggio |
 | Database persistente e schema versionato | Testata | Starter, scelta originale | db.py, migrations; test_persistence_and_migration, test_migrations | Import legacy e produzione PostgreSQL |
 | Accessi collaborativi e account individuali | Parziale | KB, master prompt | auth.py, DEVELOPMENT_PLAN | Implementato un solo organizzatore con password; mancano utenti, ruoli per torneo e isolamento fra organizzatori |
-| Altre varianti/regolamenti specifici di tutti gli sport | Parziale | — | migrations/006_sport_variants.sql | Sedici varianti coperte; regolamenti da confermare e ampliare con il professore |
+| Varianti e regolamenti del catalogo standard | Implementata e verificata | — | migrations/006_sport_variants.sql; test_sports | Sedici varianti standard coperte e verificate una per una; eventuali nuovi formati vanno concordati con il professore |
 
 Le fonti e il grado di certezza sono dettagliati in [REFERENCE_ANALYSIS.md](REFERENCE_ANALYSIS.md). L'architettura futura non è dichiarata esistente.

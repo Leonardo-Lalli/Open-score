@@ -32,8 +32,21 @@ Obiettivo: chiudere i difetti emersi durante la verifica del percorso sport → 
 | Formato in bozza | Implementata e testata | La modale permette di scegliere eliminazione, girone unico o gironi + finali, con opzioni dei gironi dinamiche e controllo client sui gruppi |
 | Integrità del catalogo | Testata | Un test verifica tutte le sedici varianti: slug univoci, lineup coerente, durata, modalità di punteggio, parametri set e regolamento |
 | Regressioni | Testata | Cinque test nuovi o estesi; suite a **147 passed** |
+| Conformità sport/varianti | Verificata | 32 test parametrizzati coprono tutte le 16 coppie sport/variante: regole, regolamento, creazione, generazione e durata; suite a **179 passed** |
 
 Residuo noto: la lineup minima è mostrata ma non bloccante; la generazione resta possibile anche con rose incomplete, scelta utile per la demo scolastica. Il formato è modificabile solo finché il torneo è in bozza, coerentemente con il blocco dei campi strutturali dopo la generazione.
+
+## Verifica di conformità alla specifica
+
+| Requisito | Implementazione | Verifica |
+| --- | --- | --- |
+| Sei sport selezionabili | `sport_configs` + `sport_rules.list_sports` + select del wizard | `test_sports_endpoint_reads_the_database_catalog` |
+| Varianti standard per ogni sport | 16 righe in `sport_variants`, ognuna con slug, nome e regole | `test_every_sport_variant_pair_has_rules_and_regulation` |
+| Selezione gerarchica sport → variante | `wizard-sport` aggiorna `wizard-variant`; `edit-sport` aggiorna `edit-variant`; catalogo `#/sport` → `#/sport/{sport}` → `#/sport/{sport}/{variante}` | `test_sports`, test browser della fase 6, payload della modale |
+| Schermata dedicata per ogni combinazione | vista catalogo con regolamento, pillole delle regole, roster e CTA «Crea torneo» | deep link e `test_every_variant_drives_creation_generation_and_duration` |
+| Composizione e gestione squadre | `participant_kind`, `players_on_field`, `min_lineup`, `max_roster`; limite rose e avvisi «mancano N» | `test_players`, `test_team_view_exposes_lineup_rules_from_the_variant` |
+| Durata delle partite | `match_duration` usato in `generate` e come default in `schedule` | `test_schedule_uses_variant_duration`, test parametrizzato sulla durata |
+| Regolamento applicato al torneo | `rules_snapshot` e `regulation_snapshot` copiati alla creazione; tab Regolamento | `test_tournament_detail_embeds_its_sport_and_variant`, test parametrizzato |
 
 ## Sport e varianti della 0.4
 

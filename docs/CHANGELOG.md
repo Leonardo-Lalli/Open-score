@@ -8,6 +8,7 @@
 - La modale di modifica espone ora il formato (eliminazione, girone unico, gironi + finali), mostra o nasconde le opzioni dei gironi e blocca le gare di ritorno nell'eliminazione. Il salvataggio valida i gruppi prima della richiesta.
 - La scheda squadra espone `players_on_field`, `min_lineup` e il nome della variante; la pagina partecipanti riepiloga le rose pronte sul minimo e, per ogni squadra, i giocatori presenti e mancanti.
 - Test di regressione per payload della modale, `null` espliciti, cambio formato, limiti della lineup e integrità di tutte le sedici varianti (slug, durata, punteggio, rosa e regolamento). Versione applicativa 0.4.1, suite a **147 test**.
+- Verifica esaustiva delle sedici coppie sport/variante: 32 test parametrizzati su regole, regolamento, creazione, generazione e durata. Suite a **179 test**.
 
 ## 0.4.0 — 25 ottobre 2026
 

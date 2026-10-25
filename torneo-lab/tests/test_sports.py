@@ -24,6 +24,8 @@ VARIANTS = {
     'Biliardino': ['biliardino-singolare', 'biliardino-doppio'],
 }
 
+ALL_VARIANTS = [(sport, slug) for sport, slugs in VARIANTS.items() for slug in slugs]
+
 
 @pytest.fixture
 def client(tmp_path):
@@ -67,6 +69,44 @@ def test_catalog_variants_have_coherent_roster_duration_and_scoring(client):
                 assert variant['points_per_set'] >= 1
                 assert variant['tiebreak_points'] >= 1
     assert len(slugs) == 16
+
+
+@pytest.mark.parametrize('sport,variant', ALL_VARIANTS)
+def test_every_sport_variant_pair_has_rules_and_regulation(client, sport, variant):
+    response = client.get(f'/api/sports/{sport}/variants/{variant}')
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body['sport'] == sport
+    assert body['slug'] == variant
+    assert body['rules']
+    assert body['regulation']
+
+
+@pytest.mark.parametrize('sport,variant', ALL_VARIANTS)
+def test_every_variant_drives_creation_generation_and_duration(client, sport, variant):
+    """Each catalog pair must reach creation, match generation and its own rules."""
+    info = client.get(f'/api/sports/{sport}/variants/{variant}').json()
+    created = client.post('/api/tournaments', json={
+        'name': f'Verifica {variant}',
+        'sport': sport,
+        'variant': variant,
+        'format': 'knockout',
+        'team_names': ['Alfa', 'Beta'],
+    })
+    assert created.status_code == 201, created.text
+    tid = created.json()['id']
+    detail = client.get(f'/api/tournaments/{tid}').json()
+    assert detail['tournament']['variant'] == variant
+    assert detail['tournament']['participant_kind'] == info['participant_kind']
+    assert detail['variant_config']['slug'] == variant
+    assert detail['rules']['match_duration'] == info['match_duration']
+    assert detail['regulation'] == info['regulation']
+
+    generated = client.post(f'/api/tournaments/{tid}/generate')
+    assert generated.status_code == 200, generated.text
+    matches = client.get(f'/api/tournaments/{tid}').json()['matches']
+    assert len(matches) == 1
+    assert matches[0]['duration'] == info['match_duration']
 
 
 def test_single_sport_endpoint_lists_variants(client):
