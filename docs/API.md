@@ -8,18 +8,22 @@ Server di sviluppo: `http://127.0.0.1:8000`. Sulla LAN l'indirizzo è quello del
 | GET | /api/auth/session | Stato della sessione: `authenticated`, `auth_required`, `role` |
 | POST | /api/auth/login | Accesso con password; imposta il cookie di sessione |
 | POST | /api/auth/logout | Cancella il cookie di sessione |
-| GET | /api/sports | Catalogo sport letto da `sport_configs` |
-| GET | /api/sports/{sport_name} | Regole e dimensioni di uno sport; 404 se assente |
+| GET | /api/sports | Catalogo degli sport padre con le varianti annidate |
+| GET | /api/sports/{sport_name} | Sport, varianti e regole della variante predefinita; 404 se assente |
+| GET | /api/sports/{sport_name}/variants/{variant_slug} | Regole e regolamento di una variante; 404 se assente o di un altro sport |
+| GET | /api/variants/{variant_slug} | Scorciatoia per leggere una variante senza indicare lo sport |
 | GET, POST | /api/tournaments | Elenco con stato e contatori (`?archived=exclude\|include\|only`); creazione (201) |
-| GET | /api/tournaments/{id} | Torneo con `sport_config`, squadre, fasi, gironi, incontri, classifiche, campione e diario |
-| GET | /api/tournaments/{id}/teams/{team_id} | Scheda partecipante: girone, posizione, classifica e incontri |
-| PATCH | /api/tournaments/{id} | Modifica nome/descrizione sempre; sport, formato e regole solo in bozza |
+| GET | /api/tournaments/{id} | Torneo con sport/variante, regole e regolamento, squadre, fasi, gironi, incontri con set, classifiche, campione e diario |
+| GET | /api/tournaments/{id}/teams/{team_id} | Scheda partecipante: girone, posizione, classifica, incontri, rosa e massimo della variante |
+| PATCH | /api/tournaments/{id} | Modifica nome/descrizione sempre; sport, variante, formato e regole solo in bozza |
 | POST | /api/tournaments/{id}/archive | Archivia senza cancellare; nasconde dall'elenco predefinito |
 | POST | /api/tournaments/{id}/restore | Ripristina un torneo archiviato |
 | POST | /api/tournaments/{id}/teams | Aggiunge un partecipante prima della generazione (201) |
 | PATCH, DELETE | /api/tournaments/{id}/teams/{team_id} | Rinomina; rimuove dalla bozza (204) |
-| POST | /api/tournaments/{id}/generate | Genera una sola volta gironi o albero knockout |
-| PATCH | /api/tournaments/{id}/matches/{match_id} | Inserisce/corregge un risultato, propaga avanzamenti |
+| GET, POST | /api/tournaments/{id}/teams/{team_id}/players | Elenca la rosa; aggiunge un giocatore (201) |
+| DELETE | /api/tournaments/{id}/teams/{team_id}/players/{player_id} | Rimuove un giocatore dalla rosa (204) |
+| POST | /api/tournaments/{id}/generate | Genera una sola volta gironi o albero knockout, con la durata della variante |
+| PATCH | /api/tournaments/{id}/matches/{match_id} | Inserisce/corregge un risultato numerico o set per set, propaga avanzamenti |
 | DELETE | /api/tournaments/{id}/matches/{match_id}/result | Cancella un risultato e gestisce le dipendenze |
 | PATCH | /api/tournaments/{id}/matches/{match_id}/schedule | Data/ora con fuso, campo e durata |
 | GET | /api/tournaments/{id}/export.csv | Esportazione degli incontri con mitigazione formule nei testi |
@@ -45,7 +49,8 @@ Gli script possono evitare il login con `Authorization: Bearer <TORNEO_API_TOKEN
 POST /api/tournaments
 {
   "name": "Coppa del professore",
-  "sport": "Calcio a 5",
+  "sport": "Calcio",
+  "variant": "calcio-a-5",
   "format": "groups",
   "group_count": 2,
   "qualifiers": 2,
@@ -54,32 +59,59 @@ POST /api/tournaments
 }
 ```
 
-Dopo la risposta `{"id": ...}`, chiamare `/generate` e leggere il dettaglio. Ogni incontro contiene `version`, `status` e riferimenti ai suoi avversari/sorgenti. `sport_id` è facoltativo: se omesso il server lo ricava da `sport`; se inviato deve corrispondere al nome. `tie_breaker` accetta `goal_difference` (predefinito), `head_to_head`, `goals_for` o `wins`.
+Dopo la risposta `{"id": ...}`, chiamare `/generate` e leggere il dettaglio. Ogni incontro contiene `version`, `status` e riferimenti ai suoi avversari/sorgenti. `sport_id` e `variant` sono facoltativi: se omessi il server sceglie la variante predefinita compatibile con `participant_kind`; se inviati devono appartenere allo sport. La variante determina `participant_kind`, punti di classifica, durata degli incontri e regolamento; i valori espliciti di `win_points`, `draw_points`, `loss_points` e `tie_breaker` hanno precedenza. `tie_breaker` accetta `goal_difference` (predefinito), `head_to_head`, `goals_for` o `wins`.
 
-La scheda partecipante restituisce `team` (con `group_name`), `standing`, `position`, gli `matches` del solo partecipante con `opponent_name` e lo stato, più una copia ridotta del torneo. Un `team_id` di un altro torneo restituisce 404.
+La scheda partecipante restituisce `team` (con `group_name`), `standing`, `position`, gli `matches` del solo partecipante con `opponent_name` e lo stato, la `players` della rosa, `max_roster` e `participant_kind`, più una copia ridotta del torneo. Un `team_id` di un altro torneo restituisce 404.
+
+```json
+POST /api/tournaments/{id}/teams/{team_id}/players
+{"name": "Luca Bianchi", "shirt_number": 7}
+```
+
+La rosa è disponibile solo per le varianti a squadre. Omonimi, anche con maiuscole diverse, restituiscono 409; superare `max_roster` o usare una variante individuale restituisce 422.
 
 ```json
 PATCH /api/tournaments/{id}/matches/{match_id}
 {"home_score": 2, "away_score": 1, "version": 1, "invalidate": false}
 ```
 
+Per le varianti a set si invia il dettaglio, senza i punteggi finali:
+
+```json
+PATCH /api/tournaments/{id}/matches/{match_id}
+{
+  "sets": [
+    {"home": 25, "away": 20},
+    {"home": 20, "away": 25},
+    {"home": 25, "away": 20},
+    {"home": 20, "away": 25},
+    {"home": 15, "away": 10}
+  ],
+  "version": 1
+}
+```
+
+Il server valida numero massimo di set, punti minimi, scarto di due, limite del set e vittoria con il numero richiesto di set; poi calcola `home_score`/`away_score` come set vinti. In Pallavolo 6v6 una partita conclusa al quinto set assegna 2 punti alla vincente e 1 alla perdente; negli altri risultati valgono i punti della variante. Inviare `home_score` a una variante a set (o `sets` a una variante numerica) restituisce 422. Il dettaglio letto espone `sets` su ogni incontro.
+
 Per cancellare un risultato, il corpo DELETE contiene `version` e facoltativamente `invalidate`. Se una correzione altera qualificazioni già avvenute o risultati registrati nei turni successivi, il server risponde 409 finché non viene inviata la conferma `invalidate: true`. Lo snapshot precedente resta nell'audit. Cambiare il solo punteggio mantenendo il vincitore non annulla una finale indipendente dal valore numerico.
 
-Per la programmazione: `{"scheduled_at":"2026-11-03T10:00:00+01:00","location":"Campo A","duration":20,"version":1}`. `scheduled_at: null` rimuove l'orario. La risposta riletta contiene UTC.
+Per la programmazione: `{"scheduled_at":"2026-11-03T10:00:00+01:00","location":"Campo A","duration":20,"version":1}`. `duration` è facoltativo: se assente usa `rules_snapshot.match_duration`. `scheduled_at: null` rimuove l'orario. La risposta riletta contiene UTC.
 
 ```json
 PATCH /api/tournaments/{id}
 {"name": "Coppa del professore", "description": "Fase scolastica"}
 ```
 
-La modifica parziale accetta solo i campi inviati. Nome e descrizione sono sempre modificabili; `sport`, `format`, `participant_kind`, punti, `legs`, `group_count`, `qualifiers`, `random_seed`, `tournament_type`, `scoring_system` e `tie_breaker` rispondono 409 dopo la generazione degli incontri. Un corpo vuoto, un campo sconosciuto o una coppia sport/`sport_id` incoerente restituiscono 422. `POST .../archive` imposta `archived_at` e rende il torneo di sola lettura; `POST .../restore` lo riattiva. Nessun endpoint cancella un torneo.
+La modifica parziale accetta solo i campi inviati. Nome e descrizione sono sempre modificabili; `sport`, `variant`, `format`, `participant_kind`, punti, `legs`, `group_count`, `qualifiers`, `random_seed`, `tournament_type`, `scoring_system` e `tie_breaker` rispondono 409 dopo la generazione degli incontri. Un corpo vuoto, un campo sconosciuto, una coppia sport/`sport_id` incoerente o una variante di un altro sport restituiscono 422. `POST .../archive` imposta `archived_at` e rende il torneo di sola lettura; `POST .../restore` lo riattiva. Nessun endpoint cancella un torneo: un torneo con sport storico rimosso resta leggibile ma rifiuta ogni scrittura con 409.
 
 ## Contratti e stati
 
-- Formati: `round_robin`, `knockout`, `groups`. Sport ammessi (catalogo `sport_configs`): Calcio, Calcio a 5, Basket, Pallamano, Badminton, Tennis, Pallavolo, con punteggio numerico generico. Il server risolve `sport_id` dal nome; una coppia incoerente restituisce 422. Nessuna pretesa di implementare i regolamenti federali completi.
+- Formati: `round_robin`, `knockout`, `groups`. Sport ammessi (`sport_configs`): Calcio, Basket, Pallavolo, Badminton, Ping pong, Biliardino. Varianti ammesse: `calcio-a-11`, `calcio-a-7`, `calcio-a-5`, `basket-5v5`, `basket-3x3`, `pallavolo-6v6`, `pallavolo-4v4`, `beach-volley-2v2`, `badminton-singolare`, `badminton-doppio`, `badminton-doppio-misto`, `ping-pong-singolare`, `ping-pong-doppio`, `ping-pong-doppio-misto`, `biliardino-singolare`, `biliardino-doppio`. Le varianti individuali richiedono `participant_kind: "individual"`. Nessuna pretesa di implementare i regolamenti federali completi.
+- Punteggi: varianti `goals`/`points` usano `home_score` e `away_score`; varianti `sets` usano l'array `sets`. Il pareggio è rifiutato dove `draw_allowed` è falso e nei knockout. Un risultato numerico su una variante a set, o viceversa, restituisce 422.
+- Rose: solo per varianti a squadre; nome 1–60 caratteri, numero di maglia 0–99 opzionale, massimo da `max_roster`, duplicati 409. Le rose restano modificabili dopo la generazione.
 - Da 2 a 32 partecipanti per generazione. Gironi multifase di uguale dimensione, almeno 2 partecipanti ciascuno; 1 o 2 promossi per girone. Le qualificazioni attendono tutti i gironi.
 - Incontri: `waiting` → `ready` → `completed`; `bye` è un passaggio automatico senza punteggio. Le correzioni possono riportare incontri dipendenti a `waiting`/`ready`.
-- Classifiche: ricalcolate dai risultati validi. A parità di punti il criterio è `tie_breaker` (`goal_difference`, `head_to_head`, `goals_for`, `wins`), poi nome e ID. Con `head_to_head` si confrontano solo gli incontri tra le squadre appaiate.
+- Classifiche: ricalcolate dai risultati validi. A parità di punti il criterio è `tie_breaker` (`goal_difference`, `head_to_head`, `goals_for`, `wins`), poi nome e ID. Con `head_to_head` si confrontano solo gli incontri tra le squadre appaiate. Nei tornei a set `goals_for`/`goals_against` rappresentano i set vinti e persi; in Pallavolo 6v6 una vittoria al quinto set vale 2/1 invece di 3/0.
 - Tornei: `draft`, `active`, `completed`, derivati dai dati, non impostati manualmente dal browser.
 - Nomi ripuliti e limitati; campi extra rifiutati. Punteggi interi 0–999; booleani, decimali e stringhe numeriche non accettati.
 - 404 per risorse mancanti o incontro di un altro torneo; 409 per versioni obsolete, duplicati, sovrapposizioni, tornei archiviati e dipendenze da confermare; 422 per input/regole non validi; 401 per scritture senza sessione quando l'autenticazione è attiva; 429 per troppi tentativi di accesso; 403 per scritture da Origin diverso; 400 per Host non consentito.

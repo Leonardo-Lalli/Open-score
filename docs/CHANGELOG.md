@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.4.0 — 25 ottobre 2026
+
+- Migrazione 006: catalogo di sei sport padre e sedici varianti in `sport_variants`, snapshot `rules_snapshot`/`regulation_snapshot`, rose `team_players`, dettaglio set `match_sets`.
+- Catalogo definitivo: Calcio (a 11, a 7, a 5), Basket (5v5, 3x3), Pallavolo (6v6, 4v4, beach 2v2), Badminton (singolare, doppio, misto), Ping pong (singolare, doppio, misto), Biliardino (singolare, doppio).
+- Calcio a 5 non è più uno sport separato; Pallamano e Tennis sono rimossi e i relativi tornei restano leggibili in sola lettura con risposte 409 alle scritture.
+- La variante determina tipo partecipante, durata degli incontri, punti di classifica, criterio predefinito, rosa e regolamento; i valori sono congelati alla creazione del torneo.
+- Nuove API per varianti (`/api/sports/{sport}/variants/{slug}`, `/api/variants/{slug}`) e per le rose (`/teams/{id}/players`), con massimo da variante e duplicati bloccati.
+- Punteggio set per set per Pallavolo, Badminton e Ping pong: validazione di set, punti minimi, scarto, limite e vittoria; classifica con set vinti/persi e bonus 2/1 al quinto set della Pallavolo 6v6.
+- Validazioni specifiche: nessun pareggio in Basket e knockout, risultati numerici rifiutati sulle varianti a set e viceversa, durata di gara predefinita dalla variante.
+- SPA: voce **Sport e regole**, catalogo con deep link `#/sport/...`, wizard gerarchico sport → variante con anteprima regole, tab **Regolamento**, inserimento risultati set per set e gestione rose nella scheda squadra.
+- CSS dedicato a catalogo, regolamento, pillole delle regole, set e rose; stampa del regolamento.
+- Export CSV arricchito con il dettaglio dei set.
+- Versione applicativa 0.4.0, schema 6 e 142 test automatici; flusso SPA verificato con browser headless.
+- Restano da implementare account individuali, ruoli per torneo, statistiche individuali, import CSV e scheduler automatico.
+
 ## 0.3.0 — 25 ottobre 2026
 
 - Migrazioni applicate fino alla versione 5: `sport_id`, catalogo sport canonico, `archived_at`, `updated_at` e `tie_breaker`.

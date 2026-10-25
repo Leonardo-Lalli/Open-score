@@ -1,66 +1,37 @@
-# Supporto per Sport Multipli
+# Supporto per sport multipli
 
-Open Score ora supporta una vasta gamma di sport con configurazioni personalizzate per ogni tipo.
+Open Score organizza sei sport, ognuno con varianti selezionabili. Le regole vivono nel database: la UI non contiene elenchi duplicati.
 
-## Sport Supportati
+## Sport e varianti
 
-### Sport di Squadra
+| Sport | Varianti | Partecipanti | Punteggio | Durata | Rosa max |
+| --- | --- | --- | --- | --- | --- |
+| Calcio | a 11, a 7, a 5 | squadre | reti, pareggio ammesso | 90 / 50 / 40 min | 22 / 14 / 12 |
+| Basket | 5 contro 5, 3x3 | squadre | punti, nessun pareggio | 40 / 10 min | 12 / 4 |
+| Pallavolo | 6v6, 4v4, beach 2v2 | squadre | set; 6v6 al meglio dei 5 | 105 / 50 / 50 min | 14 / 8 / 2 |
+| Badminton | singolare, doppio, doppio misto | individuale / squadre | set a 21, limite 30 | 45 min | 1 / 2 / 2 |
+| Ping pong | singolare, doppio, doppio misto | individuale / squadre | game a 11, al meglio dei 5 | 30 min | 1 / 2 / 2 |
+| Biliardino | singolare, doppio | individuale / squadre | gol a tempo o primo a 5 | 15 min | 1 / 2 |
 
-| Sport | Dimensione Squadra | Campo | Palla | Note |
-|-------|-------------------|-------|-------|------|
-| Calcio | 7-11 giocatori | Erba | Standard | Sport principale |
-| Calcio a 5 | 5 giocatori | Erba | Piccola | Campo ridotto |
-| Basket | 5 giocatori | Interno | Basket | |
-| Pallamano | 7 giocatori | Interno | Pallamano | |
-| Pallavolo | 6 giocatori | Interno | Pallavolo | Ex `Volley`, nome normalizzato |
+Pallamano e Tennis non fanno più parte del catalogo. I tornei storici che li citano restano leggibili, ma `sport_id`/`variant_id` sono NULL e ogni scrittura riceve 409.
 
-I nomi `Volley` e `Pallacanestro` non sono più accettati: la migrazione `003` li converte in `Pallavolo` e `Basket`.
+## Cosa determina una variante
 
-### Sport Individuali o a Coppia
+- `participant_kind`: squadre o persone individuali.
+- `players_on_field`, `min_lineup`, `max_roster`: composizione e limite della rosa.
+- `match_duration`: durata predefinita degli incontri generati e della programmazione.
+- `scoring_mode`: `goals`, `points` o `sets`.
+- Parametri dei set: `sets_to_win`, `max_sets`, `points_per_set`, `tiebreak_points`, `win_by_two`, `max_points`.
+- Profilo di classifica: punti vittoria/pareggio/sconfitta e bonus `win_tiebreak`/`loss_tiebreak`.
+- `regulation`: testo mostrato nella scheda regolamento.
 
-| Sport | Dimensione Squadra | Campo | Palla | Note |
-|-------|-------------------|-------|-------|------|
-| Badminton | 1-2 giocatori | Interno | Volano | |
-| Tennis | 1-2 giocatori | Esterno | Palla | |
+Alla creazione del torneo regole e regolamento vengono copiati in `rules_snapshot` e `regulation_snapshot`. Le modifiche future al catalogo non riscrivono i tornei già creati.
 
-## Configurazioni Sportive
+## API di accesso
 
-Ogni sport può avere configurazioni specifiche che influenzano:
-- Dimensioni delle squadre
-- Tipo di campo o campo da gioco
-- Tipo di palla o oggetto di gioco
-- Sistema di punteggio (punti, set, tempo)
+- `GET /api/sports` — sport padre con varianti annidate.
+- `GET /api/sports/{sport_name}` — sport, varianti e regole della variante predefinita; 404 se assente.
+- `GET /api/sports/{sport_name}/variants/{slug}` — dettaglio di una variante.
+- `GET /api/variants/{slug}` — scorciatoia per slug univoco.
 
-## Esempi di Utilizzo
-
-### Creazione di un Torneo di Basket
-
-Quando si crea un torneo di basket:
-- Il sistema verificherà che le squadre abbiano tra 5 e 5 giocatori
-- Le partite avverranno su un campo da basket
-- Il sistema utilizzerà il punteggio standard
-
-### Creazione di un Torneo di Badminton
-
-Quando si crea un torneo di badminton:
-- Il sistema verificherà che le squadre abbiano tra 1 e 2 giocatori
-- La partite saranno giocate su un campo da badminton
-- Potrebbero essere supportati i punti a set
-
-## Estendibilità
-
-La struttura è progettata per essere estesa facilmente. Per aggiungere un nuovo sport:
-
-1. Aggiungere le configurazioni nello schema `sport_configs` del database
-2. Definire le regole specifiche per l' sport
-3. Implementare le validazioni appropriate
-4. Aggiornare l'interfaccia utente
-
-## API di Accesso
-
-Il catalogo è nella tabella `sport_configs` (fonte unica) e viene usato sia per validare `sport`/`sport_id` sia per popolare la UI.
-
-- `GET /api/sports` — elenco degli sport con dimensioni squadra e tipo di campo
-- `GET /api/sports/{sport_name}` — dettagli e regole JSON di uno sport; 404 se assente
-
-La SPA carica l'elenco dal server all'avvio: aggiungere uno sport significa inserire una riga in `sport_configs`, senza modificare il JavaScript.
+La SPA carica il catalogo dal server all'avvio. Aggiungere una variante significa inserire una riga in `sport_variants`, senza duplicare schermate o JavaScript.

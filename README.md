@@ -37,26 +37,31 @@ Su macOS/Linux: `python3 -m venv .venv`, `source .venv/bin/activate`, poi gli st
 2. **Coppa della palestra:** otto squadre, quarti già iniziati, semifinali e finale collegate. I vincitori avanzano automaticamente.
 3. **Campionato d'istituto:** sei squadre, calendario e classifica. Inserisci un risultato e osserva punti e partite giocate.
 4. **Giornata dello sport:** sedici squadre in quattro gironi. Completati tutti i gironi, le prime due di ciascuno passano ai quarti.
-5. **Nuovo torneo:** crea un knockout a tre partecipanti per mostrare il passaggio automatico per BYE. Il wizard raccoglie nomi e regole e mostra un riepilogo prima della creazione.
+5. **Sport e regole:** apri il catalogo, scegli Pallavolo 6v6 e mostra come la variante imposta durata, set e classifica; poi crea un torneo a 2 squadre e inserisci un risultato set per set.
+6. **Nuovo torneo:** crea un knockout a tre partecipanti per mostrare il passaggio automatico per BYE. Il wizard raccoglie sport, variante, nomi e regole e mostra un riepilogo prima della creazione.
 
 I quattro esempi vengono salvati al primo avvio. I nomi, gli incontri e i risultati si possono cambiare; i dati persistono dopo il riavvio. Non c'è una scadenza di 24 ore. Gli esempi aggiuntivi sono sintetici; il campione JSON fornito è conservato come fixture con i relativi ID di provenienza.
 
-## Funzioni della versione 0.3
+## Funzioni della versione 0.4
 
 - Dashboard e interfaccia italiana responsive, procedura guidata, partecipanti rinominabili.
+- Sei sport con sedici varianti: Calcio, Basket, Pallavolo, Badminton, Ping pong e Biliardino. Catalogo navigabile con schermate dedicate e link diretti alle regole.
+- La variante determina composizione della squadra, durata, punteggio, classifica e regolamento; il torneo conserva uno snapshot delle regole scelte.
+- Rose dei giocatori con nome, numero di maglia e limite massimo della variante.
 - Girone di sola andata o andata/ritorno, anche con numero dispari di partecipanti.
 - Knockout da 2 a 32 partecipanti, seeding, BYE, tabellone effettivo e campione.
 - Gironi uguali → qualificazione automatica delle prime 1/2 → eliminazione diretta.
+- Risultati numerici o set per set: Pallavolo, Badminton e Ping pong validano set, punti, scarto e vittoria; la Pallavolo 6v6 assegna il bonus 2/1 al quinto set.
 - Risultati e correzioni con controllo della versione, conferma per invalidare gli incontri dipendenti e storico delle modifiche.
-- Data, ora, campo e durata inseriti manualmente; controlli sui conflitti conosciuti.
-- Esportazione CSV e link alla vista spettatore di sola lettura, aggiornata ogni 30 secondi.
-- Modifica del torneo, archiviazione e ripristino senza cancellare i dati.
+- Data, ora, campo e durata inseriti manualmente, con durata predefinita dalla variante e controlli sui conflitti conosciuti.
+- Esportazione CSV con dettaglio dei set e link alla vista spettatore di sola lettura, aggiornata ogni 30 secondi.
+- Modifica del torneo, archiviazione e ripristino senza cancellare i dati; i tornei di sport rimossi restano consultabili in sola lettura.
 - Criterio a parità di punti configurabile: differenza reti, scontri diretti, reti fatte o vittorie.
-- Scheda partecipante con girone, posizione, classifica e incontri.
+- Scheda partecipante con girone, posizione, classifica, rosa e incontri.
 - Accesso dell'organizzatore con password singola o token, scritture protette, host della LAN ammessi e limite ai tentativi di accesso.
 - Database SQLite persistente, backup consistenti, avvio automatico e API documentate.
 
-**È un'applicazione per la LAN scolastica, non l'intera piattaforma del master prompt.** Non ci sono account individuali, ruoli per torneo, rose, punteggi a set, rigori, doppia eliminazione, Swiss, consolazione o scheduler automatico. Gli sport disponibili usano un punteggio numerico generico. La classifica usa punti e il criterio scelto, poi nome e ID: regole da concordare con il professore.
+**È un'applicazione per la LAN scolastica, non l'intera piattaforma del master prompt.** Non ci sono account individuali, ruoli per torneo, statistiche individuali, rigori, doppia eliminazione, Swiss, consolazione o scheduler automatico. Pallamano e Tennis sono fuori dal catalogo: eventuali tornei storici restano leggibili ma non modificabili. I regolamenti delle varianti sono scelte della demo e vanno confermati con il professore.
 
 Con `TORNEO_ADMIN_PASSWORD` impostata, chiunque può leggere i tornei ma solo l'organizzatore può modificarli; senza password l'app resta in modalità demo locale e accetta scritture. Il link spettatore è di sola lettura in entrambi i casi. Il server può essere raggiunto dalla LAN, ma non è destinato a Internet: installazione, firewall, backup e limiti sono in [DEPLOY.md](docs/DEPLOY.md) e [SECURITY.md](docs/SECURITY.md).
 
