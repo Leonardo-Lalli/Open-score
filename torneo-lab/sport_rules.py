@@ -32,10 +32,6 @@ class VariantConfig:
     rules: dict[str, Any] = field(default_factory=dict)
     regulation: str = ''
 
-    def get_team_size_range(self) -> tuple[int, int]:
-        return (int(self.rules.get('min_lineup', 1)),
-                int(self.rules.get('max_roster', 1)))
-
     @property
     def players_on_field(self) -> int:
         return int(self.rules.get('players_on_field', 1))
@@ -276,16 +272,3 @@ def summary(sport: SportConfig) -> dict:
         'default_variant': default.slug if default else None,
         'variants': [variant_summary(v) for v in sport.variants],
     }
-
-
-# Backwards-compatible helpers for callers that only know a sport name.
-def list_configs(db) -> list[SportConfig]:
-    return list_sports(db)
-
-
-def get_config(db, sport_name: str) -> SportConfig | None:
-    return get_sport(db, sport_name)
-
-
-def get_config_by_id(db, sport_id: int) -> SportConfig | None:
-    return get_sport_by_id(db, sport_id)

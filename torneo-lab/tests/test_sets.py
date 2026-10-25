@@ -2,7 +2,7 @@ import sqlite3
 
 import pytest
 
-from conftest import make, state
+from conftest import state
 
 
 def create(client, sport, variant, names=('Alfa', 'Beta'), **extra):

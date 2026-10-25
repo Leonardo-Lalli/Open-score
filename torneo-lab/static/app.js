@@ -80,14 +80,8 @@ const variantFor = (slug) => {
       if (variant.slug === slug) return variant;
   return null;
 };
-const currentSport = () =>
-  data
-    ? sports.find((s) => s.id === data.tournament.sport_id) ||
-      sportFor(data.tournament.sport)
-    : null;
 const currentVariant = () =>
   data?.variant_config || variantFor(data?.tournament?.variant);
-const currentRules = () => data?.rules || {};
 const isSetBased = () => !!currentVariant()?.supports_sets;
 const scoreLabel = () => currentVariant()?.score_label || "punti";
 const scoringText = (v) =>

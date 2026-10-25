@@ -432,6 +432,7 @@ FodyWeavers.xsd
 __pycache__/
 .pytest_cache/
 *.py[cod]
+*.backup
 *.sqlite3
 *.sqlite3-*
 .work/

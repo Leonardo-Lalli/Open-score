@@ -3,7 +3,7 @@ import json
 
 from db import BASE
 from schemas import TournamentInput
-from services import create, games, generate, required, save_result
+from services import create, games, generate, save_result
 
 
 def load_examples(db):

@@ -66,12 +66,6 @@ def knockout_plan(team_ids: list[int], seed: int | None = None) -> list[dict]:
     return plan
 
 
-def knockout_first_round(team_ids: list[int]) -> list[tuple[int, int, int]]:
-    """Compatibility helper: playable first-round fixtures only."""
-    return [(1, m['home_team_id'], m['away_team_id']) for m in knockout_plan(team_ids)
-            if m['round_no'] == 1 and not m['is_bye']]
-
-
 def _empty_row(team: dict) -> dict:
     return dict(team_id=team['id'], name=team['name'], played=0, won=0, drawn=0,
                 lost=0, goals_for=0, goals_against=0, goal_difference=0, points=0)
