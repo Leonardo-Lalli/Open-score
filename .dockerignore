@@ -9,4 +9,5 @@
 *.sqlite3-*
 torneo-lab/data
 torneo-lab/backup
+torneo-lab/tests
 deploy/*.env
