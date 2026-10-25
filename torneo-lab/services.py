@@ -7,6 +7,7 @@ from fastapi import HTTPException
 
 from engine import build_standings, knockout_plan, round_robin
 from schemas import TournamentInput
+import sport_rules
 
 
 def rows(db, sql, params=()):
@@ -88,11 +89,15 @@ def detail(db, tid, public=False):
     completed = sum(m['home_score'] is not None for m in playable)
     status = 'draft' if not fixtures else ('completed' if (champion or
              (t['format'] == 'round_robin' and completed == len(playable))) else 'active')
+    config = sport_rules.get_config_by_id(db, t['sport_id']) if t['sport_id'] else None
+    if config is None and t['sport']:
+        config = sport_rules.get_config(db, t['sport'])
     result = dict(tournament=t, teams=roster, matches=fixtures, groups=groups,
                   stages=rows(db, 'SELECT * FROM stages WHERE tournament_id=? ORDER BY ordinal', (tid,)),
                   standings=table(db, t) if t['format'] == 'round_robin' else [],
                   champion_team_id=champion, status=status,
                   progress=dict(completed=completed, total=len(playable)),
+                  sport_config=sport_rules.summary(config) if config else None,
                   public=public)
     if public:
         result['tournament'] = {k:v for k,v in t.items() if k not in ('public_token','demo_key')}

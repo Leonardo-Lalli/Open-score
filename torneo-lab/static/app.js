@@ -51,6 +51,7 @@ const publicToken = location.pathname.startsWith("/public/")
   ? location.pathname.split("/")[2]
   : null;
 let list = [],
+  sports = [],
   selectedId = null,
   data = null,
   tab = "overview",
@@ -155,6 +156,10 @@ function stat(title, value, foot, i) {
 async function refreshList() {
   list = await api("/tournaments");
   renderNav();
+}
+async function loadSports() {
+  const result = await api("/sports");
+  sports = result.sports || [];
 }
 function renderNav() {
   $("#event-count").textContent = list.length;
@@ -411,10 +416,30 @@ function readWizard() {
       ? Number(v)
       : v;
 }
+function sportOptions() {
+  const names = sports.length
+    ? sports.map((s) => s.name)
+    : [
+        "Calcio",
+        "Calcio a 5",
+        "Basket",
+        "Pallamano",
+        "Badminton",
+        "Tennis",
+        "Pallavolo",
+      ];
+  if (!names.includes(wizard.sport)) wizard.sport = names[0];
+  return names
+    .map(
+      (s) =>
+        `<option value="${h(s)}" ${s === wizard.sport ? "selected" : ""}>${h(s)}</option>`,
+    )
+    .join("");
+}
 function renderWizard() {
   let body = "";
   if (wizardStep === 0)
-    body = `<div class="form-grid"><label class="full">Nome del torneo<input name="name" value="${h(wizard.name)}" placeholder="Es. Coppa d’istituto" minlength="2" maxlength="120" required autofocus></label><label>Sport<select name="sport">${["Calcio", "Calcio a 5", "Basket", "Pallamano"].map((s) => `<option ${s === wizard.sport ? "selected" : ""}>${s}</option>`).join("")}</select></label><label>Partecipanti<select name="participant_kind"><option value="team" ${wizard.participant_kind === "team" ? "selected" : ""}>Squadre</option><option value="individual" ${wizard.participant_kind === "individual" ? "selected" : ""}>Giocatori individuali</option></select></label></div><fieldset class="format-fieldset"><legend>Scegli il percorso</legend><div class="format-options">${[
+    body = `<div class="form-grid"><label class="full">Nome del torneo<input name="name" value="${h(wizard.name)}" placeholder="Es. Coppa d’istituto" minlength="2" maxlength="120" required autofocus></label><label>Sport<select name="sport">${sportOptions()}</select></label><label>Partecipanti<select name="participant_kind"><option value="team" ${wizard.participant_kind === "team" ? "selected" : ""}>Squadre</option><option value="individual" ${wizard.participant_kind === "individual" ? "selected" : ""}>Giocatori individuali</option></select></label></div><fieldset class="format-fieldset"><legend>Scegli il percorso</legend><div class="format-options">${[
       ["knockout", "Eliminazione", "Una sconfitta, sei fuori"],
       ["round_robin", "Girone unico", "Tutti contro tutti"],
       ["groups", "Gironi + finali", "Prima il gruppo, poi la coppa"],
@@ -762,7 +787,10 @@ async function init() {
         '<span class="demo-label">VISTA SPETTATORE · SOLA LETTURA</span>';
       $("#mobile-menu").classList.add("hidden");
       await openTournament(null);
-    } else await dashboard();
+    } else {
+      await loadSports();
+      await dashboard();
+    }
   } catch (e) {
     $("#content").innerHTML =
       `<div class="error-page"><h1>Il campo non è raggiungibile.</h1><p>${h(e.message)}</p><button class="button primary" data-action="refresh">Riprova</button></div>`;

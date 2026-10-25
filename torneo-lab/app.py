@@ -64,11 +64,7 @@ def create_app(db_path: str | Path | None = None, seed: bool = True) -> FastAPI:
     @api.get('/api/tournaments/{tid}')
     def get_tournament(tid: int):
         with database(path) as db:
-            data = svc.detail(db,tid)
-            # Add sport rules information 
-            if data.get('sport_config'):
-                data['sport_rules'] = sport_rules.get_sport_rules_summary(data['sport'])
-            return data
+            return svc.detail(db,tid)
 
     @api.get('/api/public/{token}')
     def public_tournament(token: str):
@@ -160,30 +156,18 @@ def create_app(db_path: str | Path | None = None, seed: bool = True) -> FastAPI:
     
     @api.get('/api/sports')
     def list_sports():
-        """List all supported sports with their basic configuration"""
-        sports = sport_rules.get_supported_sports()
-        return {
-            'sports': [
-                {
-                    'name': name,
-                    'config': sport_rules.get_sport_rules_summary(name)
-                } 
-                for name in sports
-            ]
-        }
+        """Canonical catalog read from the database, so UI and validation agree."""
+        with database(path) as db:
+            return {'sports': [sport_rules.summary(config)
+                               for config in sport_rules.list_configs(db)]}
 
     @api.get('/api/sports/{sport_name}')
     def get_sport_info(sport_name: str):
-        """Get detailed information about a specific sport"""
-        config = sport_rules.get_sport_config_by_name(sport_name)
+        with database(path) as db:
+            config = sport_rules.get_config(db, sport_name)
         if not config:
             raise HTTPException(404, 'Sport non trovato')
-        return {
-            'name': config.name,
-            'description': config.description,
-            'rules': config.rules,
-            'team_size_range': config.get_team_size_range()
-        }
+        return {**sport_rules.summary(config), 'rules': config.rules}
 
     if seed and fresh:
         with database(path,True) as db:

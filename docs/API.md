@@ -5,8 +5,10 @@ Server locale: `http://127.0.0.1:8000`. OpenAPI: `/openapi.json`; documentazione
 | Metodo | Percorso | Operazione |
 | --- | --- | --- |
 | GET | /api/health | Versione e modalità locale |
+| GET | /api/sports | Catalogo sport letto da `sport_configs` |
+| GET | /api/sports/{sport_name} | Regole e dimensioni di uno sport; 404 se assente |
 | GET, POST | /api/tournaments | Elenco con stato e contatori; creazione (201) |
-| GET | /api/tournaments/{id} | Torneo, squadre, fasi, gironi, incontri, classifiche, campione e diario |
+| GET | /api/tournaments/{id} | Torneo con `sport_config`, squadre, fasi, gironi, incontri, classifiche, campione e diario |
 | POST | /api/tournaments/{id}/teams | Aggiunge un partecipante prima della generazione (201) |
 | PATCH, DELETE | /api/tournaments/{id}/teams/{team_id} | Rinomina; rimuove dalla bozza (204) |
 | POST | /api/tournaments/{id}/generate | Genera una sola volta gironi o albero knockout |

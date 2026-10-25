@@ -58,9 +58,9 @@ La struttura è progettata per essere estesa facilmente. Per aggiungere un nuovo
 
 ## API di Accesso
 
-Stato attuale: il catalogo è nella tabella `sport_configs` (fonte unica) e viene usato per validare `sport` e risolvere `sport_id`. **Non esistono ancora endpoint dedicati**; sono previsti nella Fase 2:
+Il catalogo è nella tabella `sport_configs` (fonte unica) e viene usato sia per validare `sport`/`sport_id` sia per popolare la UI.
 
-- `GET /api/sports` — elenco di tutti gli sport (previsto)
-- `GET /api/sports/{sport_name}` — dettagli di uno sport (previsto)
+- `GET /api/sports` — elenco degli sport con dimensioni squadra e tipo di campo
+- `GET /api/sports/{sport_name}` — dettagli e regole JSON di uno sport; 404 se assente
 
-Fino ad allora la UI usa l'elenco canonico cablato in `static/app.js`.
+La SPA carica l'elenco dal server all'avvio: aggiungere uno sport significa inserire una riga in `sport_configs`, senza modificare il JavaScript.

@@ -1,5 +1,12 @@
 # Changelog
 
+## Non rilasciato — fondamenta e catalogo
+
+- Migrazioni applicate fino alla versione 3: `sport_id`, catalogo sport canonico e normalizzazione dei nomi legacy.
+- SQLite in WAL con `busy_timeout`; sport risolto lato server e coerente con il nome.
+- Catalogo sport unico letto da `sport_configs` tramite `/api/sports`; il wizard carica gli sport dal server.
+- Il dettaglio torneo espone `sport_config`; le pagine di design restano mockup statici e mostrano un avviso.
+
 ## 0.2.0 — 24 ottobre 2026
 
 - Audit dello starter ZIP e baseline dei sei test originali.
