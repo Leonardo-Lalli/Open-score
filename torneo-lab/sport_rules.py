@@ -127,8 +127,8 @@ class SportConfig:
                              if v.participant_kind == participant_kind)
             if matching:
                 candidates = matching
-        return sorted(candidates, key=lambda v: (v.sort_order, v.id))[0] \
-            if candidates else None
+        return (min(candidates, key=lambda v: (v.sort_order, v.id))
+                if candidates else None)
 
 
 def _variant_from_row(row) -> VariantConfig:

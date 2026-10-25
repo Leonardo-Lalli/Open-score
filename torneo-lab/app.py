@@ -10,13 +10,22 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from auth import COOKIE_NAME, authenticate, build as build_auth, ensure_teacher
-from db import BASE, database, initialize
-from demo import load_examples
-from schemas import (ClearInput, LoginInput, PlayerInput, ResultInput, ScheduleInput,
-                     TeamInput, TournamentInput, TournamentUpdate)
 import services as svc
 import sport_rules
+from auth import COOKIE_NAME, authenticate, ensure_teacher
+from auth import build as build_auth
+from db import BASE, database, initialize
+from demo import load_examples
+from schemas import (
+    ClearInput,
+    LoginInput,
+    PlayerInput,
+    ResultInput,
+    ScheduleInput,
+    TeamInput,
+    TournamentInput,
+    TournamentUpdate,
+)
 
 
 def create_app(db_path: str | Path | None = None, seed: bool = True, *,

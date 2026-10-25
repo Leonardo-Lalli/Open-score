@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated, ClassVar, Literal, Optional
+from typing import Annotated, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
@@ -22,8 +22,8 @@ class Input(BaseModel):
 class TournamentInput(Input):
     name: Title
     sport: Sport = 'Calcio'
-    sport_id: Optional[int] = None
-    variant: Optional[str] = Field(default=None, max_length=80)
+    sport_id: int | None = None
+    variant: str | None = Field(default=None, max_length=80)
     format: Format = 'round_robin'
     description: str = Field(default='', max_length=1000)
     participant_kind: ParticipantKind = 'team'
@@ -33,7 +33,7 @@ class TournamentInput(Input):
     legs: int = Field(default=1, strict=True, ge=1, le=2)
     group_count: int = Field(default=2, strict=True, ge=2, le=8)
     qualifiers: int = Field(default=2, strict=True, ge=1, le=2)
-    random_seed: Optional[Seed] = None
+    random_seed: Seed | None = None
     team_names: list[Name] = Field(default_factory=list, max_length=32)
     tournament_type: TournamentType = 'general'
     scoring_system: ScoringSystem = 'points'
@@ -56,23 +56,23 @@ class TournamentUpdate(Input):
     NULLABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
         {'sport_id', 'variant', 'random_seed'})
 
-    name: Optional[Title] = None
-    sport: Optional[Sport] = None
-    sport_id: Optional[int] = None
-    variant: Optional[str] = Field(default=None, max_length=80)
-    format: Optional[Format] = None
-    description: Optional[str] = Field(default=None, max_length=1000)
-    participant_kind: Optional[ParticipantKind] = None
-    win_points: Optional[int] = Field(default=None, strict=True, ge=0, le=10)
-    draw_points: Optional[int] = Field(default=None, strict=True, ge=0, le=10)
-    loss_points: Optional[int] = Field(default=None, strict=True, ge=0, le=10)
-    legs: Optional[int] = Field(default=None, strict=True, ge=1, le=2)
-    group_count: Optional[int] = Field(default=None, strict=True, ge=2, le=8)
-    qualifiers: Optional[int] = Field(default=None, strict=True, ge=1, le=2)
-    random_seed: Optional[Seed] = None
-    tournament_type: Optional[TournamentType] = None
-    scoring_system: Optional[ScoringSystem] = None
-    tie_breaker: Optional[TieBreaker] = None
+    name: Title | None = None
+    sport: Sport | None = None
+    sport_id: int | None = None
+    variant: str | None = Field(default=None, max_length=80)
+    format: Format | None = None
+    description: str | None = Field(default=None, max_length=1000)
+    participant_kind: ParticipantKind | None = None
+    win_points: int | None = Field(default=None, strict=True, ge=0, le=10)
+    draw_points: int | None = Field(default=None, strict=True, ge=0, le=10)
+    loss_points: int | None = Field(default=None, strict=True, ge=0, le=10)
+    legs: int | None = Field(default=None, strict=True, ge=1, le=2)
+    group_count: int | None = Field(default=None, strict=True, ge=2, le=8)
+    qualifiers: int | None = Field(default=None, strict=True, ge=1, le=2)
+    random_seed: Seed | None = None
+    tournament_type: TournamentType | None = None
+    scoring_system: ScoringSystem | None = None
+    tie_breaker: TieBreaker | None = None
 
     @model_validator(mode='after')
     def updatable(self):
@@ -94,7 +94,7 @@ class TeamInput(Input):
 
 class PlayerInput(Input):
     name: Name
-    shirt_number: Optional[int] = Field(default=None, strict=True, ge=0, le=99)
+    shirt_number: int | None = Field(default=None, strict=True, ge=0, le=99)
 
 
 Email = Annotated[str, StringConstraints(
@@ -113,9 +113,9 @@ class SetPoints(Input):
 
 
 class ResultInput(Input):
-    home_score: Optional[Score] = None
-    away_score: Optional[Score] = None
-    sets: Optional[list[SetPoints]] = Field(default=None, max_length=7)
+    home_score: Score | None = None
+    away_score: Score | None = None
+    sets: list[SetPoints] | None = Field(default=None, max_length=7)
     version: int = Field(strict=True, ge=1)
     invalidate: bool = False
 
@@ -140,7 +140,7 @@ class ClearInput(Input):
 class ScheduleInput(Input):
     scheduled_at: datetime | None = None
     location: str = Field(default='', max_length=80)
-    duration: Optional[int] = Field(default=None, strict=True, ge=1, le=240)
+    duration: int | None = Field(default=None, strict=True, ge=1, le=240)
     version: int = Field(strict=True, ge=1)
 
     @model_validator(mode='after')

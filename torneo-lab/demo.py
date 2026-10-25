@@ -2,7 +2,7 @@
 import json
 
 from db import BASE
-from schemas import TournamentInput
+from schemas import Format, TournamentInput
 from services import create, games, generate, save_result
 
 
@@ -11,7 +11,7 @@ def load_examples(db, teacher_id=None):
     if teacher_id is not None:
         db.execute('UPDATE tournaments SET teacher_id=? '
                    'WHERE demo_key IS NOT NULL AND teacher_id IS NULL', (teacher_id,))
-    specs = [
+    specs: list[tuple[str, str, Format, list[str], str]] = [
         ('reference', 'Knockout Bracket of Football', 'knockout', ['Team #1','Team #2'],
          'Il caso di partenza: due squadre, una finale. Dati del campione JSON fornito da Leonardo.'),
         ('school-cup', 'Coppa della palestra', 'knockout',

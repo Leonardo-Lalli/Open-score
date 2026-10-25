@@ -5,8 +5,9 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 from fastapi.testclient import TestClient
+
 from app import create_app
-from conftest import make,score,state
+from conftest import make, score, state
 
 
 def test_round_robin_flow(client):
@@ -169,11 +170,13 @@ def test_public_read_only_and_no_private_fields(client):
 
 def test_persistence_and_migration(tmp_path):
     path=tmp_path/'persist.sqlite3'
-    credentials=dict(admin_email='prof@test.local',admin_password='password-lunga')
-    with TestClient(create_app(path,False,**credentials)) as c:
+    admin_email, admin_password = 'prof@test.local', 'password-lunga'
+    with TestClient(create_app(path, False, admin_email=admin_email,
+                               admin_password=admin_password)) as c:
         c.post('/api/auth/login',json={'email':'prof@test.local','password':'password-lunga'})
         tid=make(c);m=state(c,tid)['matches'][0];score(c,tid,m)
-    with TestClient(create_app(path,False,**credentials)) as c:
+    with TestClient(create_app(path, False, admin_email=admin_email,
+                               admin_password=admin_password)) as c:
         c.post('/api/auth/login',json={'email':'prof@test.local','password':'password-lunga'})
         assert state(c,tid)['progress']['completed']==1
     with sqlite3.connect(path) as db:

@@ -15,7 +15,7 @@ def round_robin(team_ids: list[int], legs: int = 1) -> list[tuple[int, int, int]
     validate_ids(team_ids)
     if legs not in (1, 2):
         raise ValueError('Scegli sola andata o andata e ritorno')
-    rotation = list(team_ids)
+    rotation: list[int | None] = list(team_ids)
     if len(rotation) % 2:
         rotation.append(None)
     fixtures = []
@@ -50,25 +50,25 @@ def knockout_plan(team_ids: list[int], seed: int | None = None) -> list[dict]:
     for position in range(size//2):
         home, away = slots[2*position:2*position+2]
         previous.append(len(plan))
-        plan.append(dict(round_no=1, position=position, home_team_id=home,
-                         away_team_id=away, source_home=None, source_away=None,
-                         is_bye=int(home is None or away is None)))
+        plan.append({'round_no': 1, 'position': position, 'home_team_id': home,
+                     'away_team_id': away, 'source_home': None, 'source_away': None,
+                     'is_bye': int(home is None or away is None)})
     turn = 2
     while len(previous) > 1:
         current = []
         for position in range(len(previous)//2):
             current.append(len(plan))
-            plan.append(dict(round_no=turn, position=position, home_team_id=None,
-                             away_team_id=None, source_home=previous[2*position],
-                             source_away=previous[2*position+1], is_bye=0))
+            plan.append({'round_no': turn, 'position': position, 'home_team_id': None,
+                         'away_team_id': None, 'source_home': previous[2*position],
+                         'source_away': previous[2*position+1], 'is_bye': 0})
         previous = current
         turn += 1
     return plan
 
 
 def _empty_row(team: dict) -> dict:
-    return dict(team_id=team['id'], name=team['name'], played=0, won=0, drawn=0,
-                lost=0, goals_for=0, goals_against=0, goal_difference=0, points=0)
+    return {'team_id': team['id'], 'name': team['name'], 'played': 0, 'won': 0, 'drawn': 0,
+            'lost': 0, 'goals_for': 0, 'goals_against': 0, 'goal_difference': 0, 'points': 0}
 
 
 def _apply_match(row_home: dict, row_away: dict, match: dict, win_points: int,

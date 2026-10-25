@@ -1,6 +1,6 @@
 from auth import create_teacher
-from db import database
 from conftest import TEACHER_EMAIL, TEACHER_PASSWORD
+from db import database
 
 OTHER_EMAIL = 'altro.prof@test.local'
 OTHER_PASSWORD = 'altra-password'

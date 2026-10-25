@@ -1,5 +1,6 @@
 import pytest
-from engine import round_robin, knockout_plan, build_standings
+
+from engine import build_standings, knockout_plan, round_robin
 
 
 @pytest.mark.parametrize('n',[2,3,4,5,8,16,32])
@@ -45,9 +46,9 @@ def test_invalid_participants(ids):
 
 
 def test_standings_ignore_unplayed_and_count_zero_draw():
-    teams=[dict(id=1,name='Alfa'),dict(id=2,name='Beta'),dict(id=3,name='Gamma')]
-    games=[dict(home_team_id=1,away_team_id=2,home_score=0,away_score=0),
-           dict(home_team_id=1,away_team_id=3,home_score=None,away_score=None)]
+    teams=[{'id': 1,'name': 'Alfa'},{'id': 2,'name': 'Beta'},{'id': 3,'name': 'Gamma'}]
+    games=[{'home_team_id': 1,'away_team_id': 2,'home_score': 0,'away_score': 0},
+           {'home_team_id': 1,'away_team_id': 3,'home_score': None,'away_score': None}]
     table=build_standings(teams,games)
     assert table[0]['points']==1 and table[0]['drawn']==1
     assert table[2]['played']==0
@@ -55,23 +56,23 @@ def test_standings_ignore_unplayed_and_count_zero_draw():
 
 
 def test_custom_points_and_correction():
-    teams=[dict(id=1,name='Alfa'),dict(id=2,name='Beta')]
-    games=[dict(home_team_id=1,away_team_id=2,home_score=3,away_score=1)]
+    teams=[{'id': 1,'name': 'Alfa'},{'id': 2,'name': 'Beta'}]
+    games=[{'home_team_id': 1,'away_team_id': 2,'home_score': 3,'away_score': 1}]
     assert build_standings(teams,games,2,1,0)[0]['points']==2
     games[0]['away_score']=4
     assert build_standings(teams,games)[0]['team_id']==2
 
 
 def test_head_to_head_ranks_tied_teams_by_mutual_matches():
-    teams = [dict(id=i, name=name) for i, name in
+    teams = [{'id': i, 'name': name} for i, name in
              enumerate(['Alfa', 'Beta', 'Gamma', 'Delta'], start=1)]
     games = [
-        dict(home_team_id=1, away_team_id=2, home_score=2, away_score=0),
-        dict(home_team_id=2, away_team_id=3, home_score=2, away_score=0),
-        dict(home_team_id=3, away_team_id=1, home_score=1, away_score=0),
-        dict(home_team_id=1, away_team_id=4, home_score=5, away_score=0),
-        dict(home_team_id=2, away_team_id=4, home_score=1, away_score=0),
-        dict(home_team_id=3, away_team_id=4, home_score=6, away_score=0),
+        {'home_team_id': 1, 'away_team_id': 2, 'home_score': 2, 'away_score': 0},
+        {'home_team_id': 2, 'away_team_id': 3, 'home_score': 2, 'away_score': 0},
+        {'home_team_id': 3, 'away_team_id': 1, 'home_score': 1, 'away_score': 0},
+        {'home_team_id': 1, 'away_team_id': 4, 'home_score': 5, 'away_score': 0},
+        {'home_team_id': 2, 'away_team_id': 4, 'home_score': 1, 'away_score': 0},
+        {'home_team_id': 3, 'away_team_id': 4, 'home_score': 6, 'away_score': 0},
     ]
 
     # Overall goal difference puts Gamma ahead of Beta even though Beta beat Gamma.

@@ -6,9 +6,9 @@ from typing import Any
 
 from fastapi import HTTPException
 
+import sport_rules
 from engine import build_standings, knockout_plan, round_robin
 from schemas import PlayerInput, TournamentInput, TournamentUpdate
-import sport_rules
 
 STRUCTURAL_FIELDS = {
     'sport', 'sport_id', 'variant', 'variant_id', 'format', 'participant_kind',

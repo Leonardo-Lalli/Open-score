@@ -74,6 +74,7 @@ Obiettivo: separare nettamente consultazione e gestione, con account docente ind
 | Lista e dettaglio | Implementata | `?mine=1` per i propri tornei; `can_manage` su lista, dettaglio e scheda squadra |
 | Bootstrap e gestione account | Implementata | `TORNEO_ADMIN_EMAIL`/`TORNEO_ADMIN_PASSWORD` e CLI `manage.py` |
 | Verifica | Testata | `test_auth`, `test_teacher_isolation`, `test_static_ui`; suite a **189 passed** |
+| Qualità statica | Implementata | `pyproject.toml` per ruff (target Python 3.10); 0 errori e 0 warning nel progetto |
 
 ## Verifica di conformità alla specifica
 

@@ -19,6 +19,16 @@ Ambiente: Windows, Python 3.14.3; FastAPI 0.162.0, Pydantic 2.14.1, Uvicorn 0.54
 
 Comando dalla cartella `torneo-lab`: `python -m pytest -q`, dopo `python -m pip install -r requirements-dev.txt`.
 
+## Analisi statica
+
+Dopo la consegna 0.7.0 il language server segnalava 9 errori e 42 warning. Sono stati risolti tutti:
+
+- errori: `demo.py` usava una stringa per il campo `format` (ora tipizzato con `Format`) e i test di persistenza passavano un dizionario non tipizzato a `create_app` (ora usano keyword esplicite);
+- warning: import riordinati, `Optional` sostituito con `X | None`, `dict()` letterali, `min()` al posto di `sorted()[0]`, import `Optional` inutilizzato rimosso;
+- `pyproject.toml` configura ruff con `target-version = "py310"` e `src = [".", "tests"]`: evita il falso positivo su `datetime.UTC` (non disponibile in Python 3.10) e riconosce `conftest` come modulo del progetto.
+
+Comando: `python -m ruff check --select I,C4,UP .` → **All checks passed**. Diagnostics del progetto: **0 errori, 0 warning**.
+
 ## Copertura rilevante
 
 | Area | Prove |
