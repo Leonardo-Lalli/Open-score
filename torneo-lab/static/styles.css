@@ -3641,3 +3641,158 @@ body.design-page .bracket-section .section-header {
     grid-template-columns: 1fr;
   }
 }
+
+/* Catalogo sport e varianti */
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+.catalog-card h3 {
+  font-size: 19px;
+}
+.catalog-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+}
+.catalog-chips span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 10px;
+  color: var(--muted);
+  background: #f9faf6;
+}
+.catalog-detail-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 18px;
+  margin-top: 18px;
+}
+.catalog-detail-grid .panel {
+  margin: 0;
+}
+.catalog-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+.rule-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 14px 0 4px;
+}
+.rule-pills span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  background: #f1f5e8;
+  color: var(--green);
+  padding: 5px 10px;
+  font-size: 10px;
+  font-weight: 600;
+}
+.rule-pills .icon {
+  width: 13px;
+  height: 13px;
+}
+.rules-preview {
+  margin: 16px 0 0;
+  background: #f7f9f0;
+}
+.regulation-copy p {
+  font-size: 12px;
+  line-height: 1.75;
+  color: #40544a;
+  margin: 0 0 12px;
+}
+.rule-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.8;
+  color: #40544a;
+}
+.rule-list li + li {
+  margin-top: 4px;
+}
+.roster-item .roster-info {
+  flex: 1;
+  text-align: left;
+}
+.icon-button[data-remove-player] {
+  margin-left: auto;
+}
+
+/* Punteggio set per set */
+.set-inputs {
+  display: grid;
+  gap: 8px;
+}
+.set-row {
+  display: grid;
+  grid-template-columns: 1fr 68px 16px 68px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 12px;
+}
+.set-row span {
+  font-size: 11px;
+  font-weight: 600;
+}
+.set-row small {
+  display: block;
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 9px;
+  margin-top: 2px;
+}
+.set-row b {
+  text-align: center;
+  color: var(--muted);
+}
+.set-row input {
+  margin: 0;
+  text-align: center;
+}
+
+@media (max-width: 1100px) {
+  .catalog-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 900px) {
+  .catalog-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 680px) {
+  .catalog-grid {
+    grid-template-columns: 1fr;
+  }
+  .set-row {
+    grid-template-columns: 1fr 58px 12px 58px;
+  }
+}
+@media print {
+  .sidebar,
+  .topbar,
+  .tabs,
+  .toolbar,
+  .back-link {
+    display: none !important;
+  }
+  .app-shell {
+    margin-left: 0 !important;
+  }
+  #content {
+    padding: 0 !important;
+  }
+}

@@ -68,7 +68,42 @@ let list = [],
   search = "",
   wizard = {},
   wizardStep = 0,
+  catalogMode = false,
+  catalogSport = null,
+  catalogVariant = null,
+  catalogDetail = null,
   toastTimer;
+const sportFor = (name) => sports.find((s) => s.name === name);
+const variantFor = (slug) => {
+  for (const sport of sports)
+    for (const variant of sport.variants || [])
+      if (variant.slug === slug) return variant;
+  return null;
+};
+const currentSport = () =>
+  data
+    ? sports.find((s) => s.id === data.tournament.sport_id) ||
+      sportFor(data.tournament.sport)
+    : null;
+const currentVariant = () =>
+  data?.variant_config || variantFor(data?.tournament?.variant);
+const currentRules = () => data?.rules || {};
+const isSetBased = () => !!currentVariant()?.supports_sets;
+const scoreLabel = () => currentVariant()?.score_label || "punti";
+const scoringText = (v) =>
+  v?.supports_sets
+    ? `${v.sets_to_win} set su ${v.max_sets} · ${v.points_per_set} punti`
+    : v?.scoring_mode === "goals"
+      ? `gol${v.draw_allowed === false ? " · nessun pareggio" : ""}`
+      : `punti${v?.draw_allowed === false ? " · nessun pareggio" : ""}`;
+const durationText = (minutes) => {
+  const value = Number(minutes);
+  if (value >= 60 && value % 60 === 0) return `${value / 60} h`;
+  return `${value} min`;
+};
+function variantOptionLabel(v) {
+  return `${v.name} · ${v.players_on_field} in campo · ${durationText(v.match_duration)}`;
+}
 const avatar = (name, id = 0) =>
   `<span class="avatar c${Math.abs(id) % 4}" aria-hidden="true">${h(
     (name || "?")
@@ -209,14 +244,17 @@ function renderNav() {
           `<button data-open="${t.id}" class="${t.id === selectedId ? "active" : ""}"><span class="event-dot"></span>${h(t.name)}</button>`,
       )
       .join("") || '<p class="sidebar-muted">Il primo torneo ti aspetta.</p>';
-  $("#home-nav").classList.toggle("active", !selectedId);
+  $("#home-nav").classList.toggle("active", !selectedId && !catalogMode);
+  $("#sports-nav")?.classList.toggle("active", catalogMode);
 }
 async function dashboard() {
   if (publicToken) return;
   selectedId = null;
   data = null;
+  catalogMode = false;
   tab = "overview";
   await refreshList();
+  if (location.hash) history.replaceState(null, "", location.pathname);
   $("#breadcrumb").textContent = "Panoramica";
   renderDashboard();
   $("#sidebar").classList.remove("open");
@@ -256,7 +294,86 @@ function eventCard(t, i) {
   const progress = t.progress.total
     ? Math.round((t.progress.completed / t.progress.total) * 100)
     : 0;
-  return `<article class="event-card ${t.archived_at ? "archived" : ""}"><div class="event-card-top"><div class="sport-symbol ${["", "gold", "blue", "rose"][i % 4]}">${icon(t.format === "knockout" ? "trophy" : t.format === "groups" ? "grid" : "ball")}</div>${t.archived_at ? '<span class="tag archived"><i></i>Archiviato</span>' : `<span class="tag ${t.status}"><i></i>${stateLabel(t.status)}</span>`}</div><h3>${h(t.name)}</h3><p class="event-format">${h(t.sport)} <span aria-hidden="true">/</span> ${label(t.format)}</p><div class="event-meta"><span>${icon("users")}${t.team_count} ${t.participant_kind === "team" ? "squadre" : "giocatori"}</span><span>${icon("calendar")}${t.progress.total} incontri${t.format === "groups" ? " · gironi" : ""}</span></div><div class="progress-track" role="progressbar" aria-label="Incontri completati" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100"><span style="width:${progress}%"></span></div><div class="progress-copy"><span>${t.progress.completed} di ${t.progress.total} incontri completati</span><span>${progress}%</span></div><div class="event-card-footer"><div class="avatar-stack"><span>${h(t.sport.slice(0, 1))}</span><span>OS</span><small>${t.demo_key ? "Torneo dimostrativo" : "Il nostro torneo"}</small></div><div class="card-actions"><button class="text-button" data-open="${t.id}">Apri ${icon("arrow")}</button>${t.archived_at && canEdit() ? `<button class="text-button" data-restore="${t.id}">Ripristina ${icon("refresh")}</button>` : ""}</div></div></article>`;
+  return `<article class="event-card ${t.archived_at ? "archived" : ""}"><div class="event-card-top"><div class="sport-symbol ${["", "gold", "blue", "rose"][i % 4]}">${icon(t.format === "knockout" ? "trophy" : t.format === "groups" ? "grid" : "ball")}</div>${t.archived_at ? '<span class="tag archived"><i></i>Archiviato</span>' : `<span class="tag ${t.status}"><i></i>${stateLabel(t.status)}</span>`}</div><h3>${h(t.name)}</h3><p class="event-format">${h(t.sport)}${t.variant ? ` · ${h(variantFor(t.variant)?.name || t.variant)}` : ""} <span aria-hidden="true">/</span> ${label(t.format)}</p><div class="event-meta"><span>${icon("users")}${t.team_count} ${t.participant_kind === "team" ? "squadre" : "giocatori"}</span><span>${icon("calendar")}${t.progress.total} incontri${t.format === "groups" ? " · gironi" : ""}</span></div><div class="progress-track" role="progressbar" aria-label="Incontri completati" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100"><span style="width:${progress}%"></span></div><div class="progress-copy"><span>${t.progress.completed} di ${t.progress.total} incontri completati</span><span>${progress}%</span></div><div class="event-card-footer"><div class="avatar-stack"><span>${h(t.sport.slice(0, 1))}</span><span>OS</span><small>${t.demo_key ? "Torneo dimostrativo" : "Il nostro torneo"}</small></div><div class="card-actions"><button class="text-button" data-open="${t.id}">Apri ${icon("arrow")}</button>${t.archived_at && canEdit() ? `<button class="text-button" data-restore="${t.id}">Ripristina ${icon("refresh")}</button>` : ""}</div></div></article>`;
+}
+function hashRoute() {
+  const parts = location.hash
+    .replace(/^#\/?/, "")
+    .split("/")
+    .map((part) => {
+      try {
+        return decodeURIComponent(part);
+      } catch {
+        return part;
+      }
+    });
+  return { kind: parts[0] || "", sport: parts[1] || null, variant: parts[2] || null };
+}
+async function openCatalog(sportName = null, variantSlug = null) {
+  if (publicToken) return;
+  catalogMode = true;
+  selectedId = null;
+  data = null;
+  catalogSport = sportName || null;
+  catalogVariant = sportName && variantSlug ? variantSlug : null;
+  catalogDetail = null;
+  if (catalogSport && catalogVariant) {
+    catalogDetail = await api(
+      `/sports/${encodeURIComponent(catalogSport)}/variants/${encodeURIComponent(catalogVariant)}`,
+    );
+    catalogVariant = catalogDetail.slug;
+  }
+  $("#breadcrumb").textContent = catalogSport
+    ? catalogVariant
+      ? `${catalogSport} / ${catalogDetail?.name || catalogVariant}`
+      : catalogSport
+    : "Sport e regole";
+  const hash = catalogSport
+    ? `#/sport/${encodeURIComponent(catalogSport)}${catalogVariant ? "/" + encodeURIComponent(catalogVariant) : ""}`
+    : "#/sport";
+  history.replaceState(null, "", location.pathname + hash);
+  renderCatalog();
+  $("#sidebar").classList.remove("open");
+  $("#mobile-menu").setAttribute("aria-expanded", "false");
+}
+function catalogSportCard(sport) {
+  const variants = sport.variants || [];
+  return `<article class="event-card catalog-card"><div class="event-card-top"><div class="sport-symbol">${icon("ball")}</div><span class="tag">${variants.length} varianti</span></div><h3>${h(sport.name)}</h3><p class="event-format">${h(sport.description)}</p><div class="catalog-chips">${variants.map((v) => `<span>${h(v.name)}</span>`).join("")}</div><div class="event-card-footer"><small>${variants.reduce((max, v) => Math.max(max, v.players_on_field), 0)} giocatori in campo al massimo</small><button class="text-button" data-catalog-sport="${h(sport.name)}">Scopri ${icon("arrow")}</button></div></article>`;
+}
+function catalogVariantCard(variant) {
+  return `<article class="event-card catalog-card"><div class="event-card-top"><div class="sport-symbol gold">${icon(variant.supports_sets ? "chart" : "ball")}</div><span class="tag">${h(variant.participant_kind === "team" ? "Squadre" : "Individuale")}</span></div><h3>${h(variant.name)}</h3><p class="event-format">${h(variant.description)}</p><div class="rule-pills"><span>${icon("users")}${variant.players_on_field} in campo</span><span>${icon("clock")}${durationText(variant.match_duration)}</span><span>${icon("spark")}${h(scoringText(variant))}</span></div><div class="event-card-footer"><small>Rosa fino a ${variant.max_roster}</small><button class="text-button" data-catalog-variant="${h(variant.slug)}" data-catalog-parent="${h(variant.sport)}">Apri regole ${icon("arrow")}</button></div></article>`;
+}
+function renderCatalog() {
+  let body = "";
+  if (!catalogSport) {
+    body = `<div class="page-heading"><div><p class="eyebrow"><span class="line"></span> SPORT E REGOLE</p><h1>Ogni sport, la sua variante.</h1><p>Sei sport, sedici modi di giocare. Scegli la variante e portala in campo: regole, rose e durata si adattano da sole.</p></div><span class="date-note">Regolamenti pronti da usare.</span></div><div class="catalog-grid">${sports.map(catalogSportCard).join("")}</div>`;
+  } else if (!catalogVariant) {
+    const sport = sportFor(catalogSport);
+    body = `<button class="back-link" data-action="catalog">${icon("back")} Tutti gli sport</button><div class="page-heading"><div><p class="eyebrow"><span class="line"></span> ${h(catalogSport)}</p><h1>${h(sport?.description || catalogSport)}</h1><p>Scegli la variante: la scheda mostra composizione, durata e regolamento prima di creare il torneo.</p></div></div><div class="catalog-grid">${(sport?.variants || []).map(catalogVariantCard).join("") || '<div class="panel empty">Nessuna variante configurata.</div>'}</div>`;
+  } else {
+    const v = catalogDetail;
+    const rows = [
+      ["Giocatori in campo", v.players_on_field],
+      ["Minimo in campo", v.min_lineup],
+      ["Rosa massima", v.max_roster],
+      ["Durata partita", durationText(v.match_duration)],
+      ["Punteggio", scoringText(v)],
+      ["Campo", v.surface],
+    ];
+    const rules = v.rules || {};
+    const extra = [
+      rules.periods ? `${rules.periods} periodi da ${rules.period_minutes} minuti` : "",
+      rules.sets_to_win ? `Vittoria con ${rules.sets_to_win} set su ${rules.max_sets}` : "",
+      rules.win_by_two ? "Ogni set richiede almeno 2 punti di scarto" : "",
+      rules.max_points ? `Limite del set a ${rules.max_points} punti` : "",
+      rules.target_goals ? `Vince chi arriva per primo a ${rules.target_goals} gol` : "",
+      rules.notes || "",
+    ].filter(Boolean);
+    body = `<button class="back-link" data-action="catalog" data-catalog-sport="${h(v.sport)}">${icon("back")} ${h(v.sport)}</button><div class="page-heading"><div><p class="eyebrow"><span class="line"></span> ${h(v.sport)} / ${h(v.name)}</p><h1>${h(v.name)}</h1><p>${h(v.description)}</p></div><div class="toolbar">${canEdit() ? `<button class="button primary" data-action="new-variant" data-sport="${h(v.sport)}" data-variant="${h(v.slug)}">${icon("plus")}Crea torneo</button>` : button("Accedi per organizzare", "login", "primary", "check")}</div></div><div class="stat-grid">${rows.map(([label, value]) => stat(label, value, "", "ball")).join("")}</div><div class="catalog-detail-grid"><section class="panel"><div class="section-header"><h2>Regolamento</h2><span class="panel-label">${h(v.participant_kind === "team" ? "A SQUADRE" : "INDIVIDUALE")}</span></div><div class="regulation-copy">${v.regulation.split(/\n\n+/).map((p) => `<p>${h(p)}</p>`).join("")}</div></section><section class="panel"><h2>In sintesi</h2><details class="result-schedule" open><summary>Dettagli di gioco</summary><ul class="rule-list">${extra.map((item) => `<li>${h(item)}</li>`).join("")}</ul></details><div class="catalog-cta">${canEdit() ? `<button class="button primary" data-action="new-variant" data-sport="${h(v.sport)}" data-variant="${h(v.slug)}">${icon("plus")}Crea torneo ${h(v.name)}</button>` : ""}<button class="button ghost" data-action="catalog">Torna al catalogo</button></div></section></div>`;
+  }
+  $("#content").innerHTML = body;
+  $("#content").setAttribute("aria-busy", "false");
+  renderNav();
 }
 async function openTournament(id, keepTab = false) {
   const next = await api(
@@ -266,6 +383,8 @@ async function openTournament(id, keepTab = false) {
   );
   selectedId = next.tournament.id;
   data = next;
+  catalogMode = false;
+  if (location.hash) history.replaceState(null, "", location.pathname);
   if (!keepTab) tab = "overview";
   if (!publicToken) await refreshList();
   $("#breadcrumb").textContent = publicToken
@@ -285,9 +404,11 @@ function renderTournament() {
     ["overview", "Panoramica"],
     ["participants", "Partecipanti"],
     ["matches", "Partite"],
+    ["regulation", "Regolamento"],
   ];
   if (t.format !== "knockout") tabs.push(["standings", "Classifiche"]);
   if (t.format !== "round_robin") tabs.push(["bracket", "Tabellone"]);
+  const variant = currentVariant();
   let body =
     tab === "participants"
       ? participants()
@@ -297,9 +418,12 @@ function renderTournament() {
           ? standingsView()
           : tab === "bracket"
             ? bracket()
-            : overview();
+            : tab === "regulation"
+              ? regulationView()
+              : overview();
+  const legacy = data.legacy_sport;
   $("#content").innerHTML =
-    `${!publicToken ? `<button class="back-link" data-action="dashboard">${icon("back")} Tutti i tornei</button>` : '<p class="eyebrow">SEGUI IL TORNEO · SOLA LETTURA</p>'}<div class="tournament-heading"><div><p class="eyebrow">${h(t.sport)} <span>/</span> ${label(t.format)} ${t.archived_at ? '<span class="tag archived"><i></i>Archiviato</span>' : `<span class="tag ${data.status}">${stateLabel(data.status)}</span>`}</p><h1>${h(t.name)}</h1><p>${h(t.description || "Ogni partita, un passo verso una nuova sfida.")}</p></div><div class="toolbar">${publicToken ? button("Aggiorna", "refresh", "", "check") : t.archived_at ? `${canEdit() ? button("Ripristina", "restore", "primary", "refresh") : button("Accedi", "login", "", "check")}<a class="button" href="/api/tournaments/${t.id}/export.csv" download>${icon("download")}Esporta</a>` : `${canEdit() ? button("Modifica", "edit", "", "edit") : button("Accedi", "login", "", "check")}${button("Condividi", "share", "", "share")}<a class="button" href="/api/tournaments/${t.id}/export.csv" download>${icon("download")}Esporta</a>${canEdit() ? button("Archivia", "archive", "danger") : ""}`}</div></div><div class="tabs" role="tablist" aria-label="Sezioni torneo">${tabs.map(([v, l]) => `<button class="tab ${tab === v ? "active" : ""}" role="tab" id="tab-${v}" aria-controls="tournament-panel" tabindex="${tab === v ? 0 : -1}" aria-selected="${tab === v}" data-tab="${v}">${l}</button>`).join("")}</div><div id="tournament-panel" role="tabpanel" aria-labelledby="tab-${tab}">${champion()}${body}</div>`;
+    `${!publicToken ? `<button class="back-link" data-action="dashboard">${icon("back")} Tutti i tornei</button>` : '<p class="eyebrow">SEGUI IL TORNEO · SOLA LETTURA</p>'}<div class="tournament-heading"><div><p class="eyebrow">${h(t.sport)} <span>/</span> ${h(variant?.name || "Sport storico")} <span>/</span> ${label(t.format)} ${t.archived_at ? '<span class="tag archived"><i></i>Archiviato</span>' : legacy ? '<span class="tag archived"><i></i>Solo lettura</span>' : `<span class="tag ${data.status}">${stateLabel(data.status)}</span>`}</p><h1>${h(t.name)}</h1><p>${h(t.description || "Ogni partita, un passo verso una nuova sfida.")}</p></div><div class="toolbar">${publicToken ? button("Aggiorna", "refresh", "", "check") : t.archived_at ? `${canEdit() ? button("Ripristina", "restore", "primary", "refresh") : button("Accedi", "login", "", "check")}<a class="button" href="/api/tournaments/${t.id}/export.csv" download>${icon("download")}Esporta</a>` : `${!legacy && canEdit() ? button("Modifica", "edit", "", "edit") : !legacy ? button("Accedi", "login", "", "check") : ""}${button("Condividi", "share", "", "share")}<a class="button" href="/api/tournaments/${t.id}/export.csv" download>${icon("download")}Esporta</a>${!legacy && canEdit() ? button("Archivia", "archive", "danger") : ""}`}</div></div><div class="tabs" role="tablist" aria-label="Sezioni torneo">${tabs.map(([v, l]) => `<button class="tab ${tab === v ? "active" : ""}" role="tab" id="tab-${v}" aria-controls="tournament-panel" tabindex="${tab === v ? 0 : -1}" aria-selected="${tab === v}" data-tab="${v}">${l}</button>`).join("")}</div><div id="tournament-panel" role="tabpanel" aria-labelledby="tab-${tab}">${champion()}${body}</div>`;
   $("#content").setAttribute("aria-busy", "false");
 }
 function overview() {
@@ -309,7 +433,7 @@ function overview() {
   const next = fixtures.filter((m) => m.status === "ready").slice(0, 3);
   const groupsComplete =
     t.format === "groups" && fixtures.some((m) => m.kind === "knockout");
-  return `<div class="stat-grid">${stat("Partecipanti", data.teams.length, t.participant_kind === "team" ? "Squadre iscritte" : "Giocatori iscritti", "users")}${stat("Incontri", p.total, "Esclusi i passaggi per BYE", "calendar")}${stat("Completati", p.completed, "Risultati confermati", "check")}${stat("Da giocare", p.total - p.completed, "Il campo vi aspetta", "ball")}</div><div class="overview-grid"><div><div class="panel"><div class="section-header"><h2>${data.status === "completed" ? "Torneo completato" : "Il prossimo passo"}</h2><span class="panel-label">SI SCENDE IN CAMPO</span></div><p class="muted" style="font-size:12px">${publicToken ? "Segui gli incontri e aggiorna la pagina per vedere gli ultimi risultati." : !fixtures.length ? "Aggiungi i partecipanti e genera gli incontri per dare inizio al torneo." : data.status === "completed" ? "Tutte le partite sono state giocate. Puoi rivedere il percorso e i risultati." : t.format === "groups" && !groupsComplete ? "Completa tutte le partite dei gironi: le qualificate passeranno automaticamente alla fase finale." : "Registra il risultato di un incontro: classifica e percorso si aggiornano subito."}</p><div class="steps"><div class="step ${data.teams.length >= 2 ? "done" : ""}">01<b>Partecipanti</b>Le squadre sono pronte</div><div class="step ${fixtures.length ? "done" : ""}">02<b>Si gioca</b>Incontri e risultati</div><div class="step ${data.status === "completed" ? "done" : ""}">03<b>La finale</b>${t.format === "round_robin" ? "Una classifica completa" : "Un campione da celebrare"}</div></div>${!fixtures.length && !publicToken && canEdit() ? `<div style="margin-top:25px">${button("Genera incontri", "generate", "primary", "spark")}</div>` : ""}</div><div class="panel"><div class="section-header"><h2>${next.length ? "Pronte da giocare" : "Le ultime partite"}</h2><button class="text-button" data-tab="matches">Vedi tutte ${icon("arrow")}</button></div>${(next.length ? next : fixtures.filter((m) => m.status === "completed").slice(-3)).map(matchRow).join("") || '<p class="muted" style="font-size:12px">Gli incontri compariranno qui dopo la generazione.</p>'}</div></div><div><div class="panel"><h2>Il torneo in breve</h2><dl class="details-list"><div><dt>Sport</dt><dd>${h(t.sport)}</dd></div><div><dt>Formato</dt><dd>${label(t.format)}</dd></div><div><dt>Partecipanti</dt><dd>${t.participant_kind === "team" ? "Squadre" : "Giocatori individuali"}</dd></div>${t.format === "groups" ? `<div><dt>Qualificazione</dt><dd>Prime ${t.qualifiers} di ${t.group_count} gironi</dd></div>` : ""}<div><dt>Andata / ritorno</dt><dd>${t.legs === 2 ? "Andata e ritorno" : "Sola andata"}</dd></div>${t.format !== "knockout" ? `<div><dt>Punti V / N / P</dt><dd>${t.win_points} / ${t.draw_points} / ${t.loss_points}</dd></div>` : ""}<div><dt>Orari</dt><dd>Europe/Rome</dd></div></dl></div>${
+  return `<div class="stat-grid">${stat("Partecipanti", data.teams.length, t.participant_kind === "team" ? "Squadre iscritte" : "Giocatori iscritti", "users")}${stat("Incontri", p.total, "Esclusi i passaggi per BYE", "calendar")}${stat("Completati", p.completed, "Risultati confermati", "check")}${stat("Da giocare", p.total - p.completed, "Il campo vi aspetta", "ball")}</div><div class="overview-grid"><div><div class="panel"><div class="section-header"><h2>${data.status === "completed" ? "Torneo completato" : "Il prossimo passo"}</h2><span class="panel-label">SI SCENDE IN CAMPO</span></div><p class="muted" style="font-size:12px">${publicToken ? "Segui gli incontri e aggiorna la pagina per vedere gli ultimi risultati." : !fixtures.length ? "Aggiungi i partecipanti e genera gli incontri per dare inizio al torneo." : data.status === "completed" ? "Tutte le partite sono state giocate. Puoi rivedere il percorso e i risultati." : t.format === "groups" && !groupsComplete ? "Completa tutte le partite dei gironi: le qualificate passeranno automaticamente alla fase finale." : "Registra il risultato di un incontro: classifica e percorso si aggiornano subito."}</p><div class="steps"><div class="step ${data.teams.length >= 2 ? "done" : ""}">01<b>Partecipanti</b>Le squadre sono pronte</div><div class="step ${fixtures.length ? "done" : ""}">02<b>Si gioca</b>Incontri e risultati</div><div class="step ${data.status === "completed" ? "done" : ""}">03<b>La finale</b>${t.format === "round_robin" ? "Una classifica completa" : "Un campione da celebrare"}</div></div>${!fixtures.length && !publicToken && canEdit() ? `<div style="margin-top:25px">${button("Genera incontri", "generate", "primary", "spark")}</div>` : ""}</div><div class="panel"><div class="section-header"><h2>${next.length ? "Pronte da giocare" : "Le ultime partite"}</h2><button class="text-button" data-tab="matches">Vedi tutte ${icon("arrow")}</button></div>${(next.length ? next : fixtures.filter((m) => m.status === "completed").slice(-3)).map(matchRow).join("") || '<p class="muted" style="font-size:12px">Gli incontri compariranno qui dopo la generazione.</p>'}</div></div><div><div class="panel"><h2>Il torneo in breve</h2><dl class="details-list"><div><dt>Sport</dt><dd>${h(t.sport)}</dd></div>${currentVariant() ? `<div><dt>Variante</dt><dd>${h(currentVariant().name)}</dd></div>` : ""}<div><dt>Formato</dt><dd>${label(t.format)}</dd></div><div><dt>Partecipanti</dt><dd>${t.participant_kind === "team" ? "Squadre" : "Giocatori individuali"}</dd></div>${t.format === "groups" ? `<div><dt>Qualificazione</dt><dd>Prime ${t.qualifiers} di ${t.group_count} gironi</dd></div>` : ""}<div><dt>Andata / ritorno</dt><dd>${t.legs === 2 ? "Andata e ritorno" : "Sola andata"}</dd></div>${t.format !== "knockout" ? `<div><dt>Punti V / N / P</dt><dd>${t.win_points} / ${t.draw_points} / ${t.loss_points}</dd></div>` : ""}<div><dt>Orari</dt><dd>Europe/Rome</dd></div></dl></div>${
     !publicToken
       ? `<div class="panel"><h2>Diario del torneo</h2>${(data.audit || [])
           .slice(0, 5)
@@ -324,7 +448,8 @@ function overview() {
 function matchRow(m) {
   const ready = m.status === "ready" || m.status === "completed";
   const group = data.groups.find((g) => g.id === m.group_id);
-  return `<div class="match-row"><div class="match-round">${group ? h(group.name) + "<br>" : ""}${h(roundName(m))}</div><div class="match-players"><div class="match-player">${avatar(teamName(m.home_team_id), m.home_team_id)}<span>${h(m.home_team_id ? teamName(m.home_team_id) : m.is_bye ? "Riposo" : "Da definire")}</span></div><span class="score">${m.home_score ?? "–"} : ${m.away_score ?? "–"}</span><div class="match-player"><span>${h(m.away_team_id ? teamName(m.away_team_id) : m.is_bye ? "Riposo" : "Da definire")}</span>${avatar(teamName(m.away_team_id), m.away_team_id)}</div></div><div class="match-actions">${!publicToken && ready ? `<button class="button ${m.status === "ready" ? "primary" : ""}" data-result="${m.id}">${m.status === "ready" ? "Risultato" : "Modifica"}</button>` : `<span class="tag">${m.is_bye ? "BYE" : m.status === "waiting" ? "In attesa" : m.status === "completed" ? "Giocata" : "Da giocare"}</span>`}</div></div>${m.scheduled_at || m.location ? `<p class="match-note">${icon("clock")}${m.scheduled_at ? h(dateText(m.scheduled_at)) : "Orario da definire"}${m.location ? " · " + h(m.location) : ""}</p>` : ""}`;
+  const setDetail = (m.sets || []).map((s) => `${s.home}-${s.away}`).join(" · ");
+  return `<div class="match-row"><div class="match-round">${group ? h(group.name) + "<br>" : ""}${h(roundName(m))}</div><div class="match-players"><div class="match-player">${avatar(teamName(m.home_team_id), m.home_team_id)}<span>${h(m.home_team_id ? teamName(m.home_team_id) : m.is_bye ? "Riposo" : "Da definire")}</span></div><span class="score">${m.home_score ?? "–"} : ${m.away_score ?? "–"}</span><div class="match-player"><span>${h(m.away_team_id ? teamName(m.away_team_id) : m.is_bye ? "Riposo" : "Da definire")}</span>${avatar(teamName(m.away_team_id), m.away_team_id)}</div></div><div class="match-actions">${!publicToken && ready ? `<button class="button ${m.status === "ready" ? "primary" : ""}" data-result="${m.id}">${m.status === "ready" ? "Risultato" : "Modifica"}</button>` : `<span class="tag">${m.is_bye ? "BYE" : m.status === "waiting" ? "In attesa" : m.status === "completed" ? "Giocata" : "Da giocare"}</span>`}</div></div>${setDetail ? `<p class="match-note">${icon("chart")}Set: ${h(setDetail)}</p>` : ""}${m.scheduled_at || m.location ? `<p class="match-note">${icon("clock")}${m.scheduled_at ? h(dateText(m.scheduled_at)) : "Orario da definire"}${m.location ? " · " + h(m.location) : ""}</p>` : ""}`;
 }
 function matchesView() {
   let fixtures = data.matches
@@ -365,7 +490,34 @@ function standingsTable(rows, qualifiers = 0) {
 }
 function standingsView() {
   const t = data.tournament;
-  return `<div class="section-header"><div><h2>La classifica si scrive in campo.</h2><p class="section-sub">Si aggiorna a ogni risultato confermato.</p></div></div>${data.groups.length ? `<div class="groups-grid">${data.groups.map((g) => `<section class="panel"><div class="group-heading"><h2>${h(g.name)}</h2><span>Passano le prime ${t.qualifiers}</span></div>${standingsTable(g.standings, t.qualifiers)}<p class="table-note"><span class="legend-dot"></span>Posizioni di qualificazione · definitive a gironi completati</p></section>`).join("")}</div>` : `<div class="panel">${standingsTable(data.standings)}</div>`}<p class="table-note">G: giocate · V/N/P: vittorie, pareggi, sconfitte · F/S: punti fatti e subiti · DR: differenza · PT: punti in classifica.<br>A parità di punti: ${tieLabel(t.tie_breaker)}; poi nome e ID. Punteggio: ${t.win_points}/${t.draw_points}/${t.loss_points}. I criteri sono quelli di questa demo.</p>`;
+  return `<div class="section-header"><div><h2>La classifica si scrive in campo.</h2><p class="section-sub">Si aggiorna a ogni risultato confermato.</p></div></div>${data.groups.length ? `<div class="groups-grid">${data.groups.map((g) => `<section class="panel"><div class="group-heading"><h2>${h(g.name)}</h2><span>Passano le prime ${t.qualifiers}</span></div>${standingsTable(g.standings, t.qualifiers)}<p class="table-note"><span class="legend-dot"></span>Posizioni di qualificazione · definitive a gironi completati</p></section>`).join("")}</div>` : `<div class="panel">${standingsTable(data.standings)}</div>`}<p class="table-note">G: giocate · V/N/P: vittorie, pareggi, sconfitte · F/S: ${isSetBased() ? "set fatti e subiti" : "punti fatti e subiti"} · DR: differenza · PT: punti in classifica.<br>A parità di punti: ${tieLabel(t.tie_breaker)}; poi nome e ID. Punteggio: ${t.win_points}/${t.draw_points}/${t.loss_points}. ${isSetBased() ? "Nei tornei a set la classifica usa i set vinti e, dove previsto, il bonus per la partita al set decisivo." : "I criteri sono quelli della variante scelta."}</p>`;
+}
+function regulationView() {
+  const t = data.tournament;
+  const v = currentVariant();
+  if (!v) {
+    return `<div class="panel empty">${icon("ball")}<h2>Sport storico.</h2><p>${h(t.sport)} non fa più parte del catalogo. Il torneo resta consultabile in sola lettura.</p></div>`;
+  }
+  const rules = data.rules || {};
+  const summary = [
+    ["Giocatori in campo", v.players_on_field],
+    ["Minimo in campo", v.min_lineup],
+    ["Rosa massima", v.max_roster],
+    ["Durata partita", durationText(v.match_duration)],
+    ["Punteggio", scoringText(v)],
+    ["Criterio classifica", tieLabel(t.tie_breaker)],
+  ];
+  const details = [
+    rules.periods ? `${rules.periods} periodi da ${rules.period_minutes} minuti` : "",
+    rules.sets_to_win
+      ? `Vittoria con ${rules.sets_to_win} set su ${rules.max_sets}; il set decisivo si gioca a ${rules.tiebreak_points} punti`
+      : "",
+    rules.win_by_two ? "Ogni set richiede almeno 2 punti di scarto" : "",
+    rules.max_points ? `Limite del set a ${rules.max_points} punti` : "",
+    rules.target_goals ? `Vince chi arriva per primo a ${rules.target_goals} gol` : "",
+    rules.substitutions || rules.notes || "",
+  ].filter(Boolean);
+  return `<div class="section-header"><div><h2>Le regole scendono in campo.</h2><p class="section-sub">${h(t.sport)} · ${h(v.name)}. Il regolamento è congelato alla creazione del torneo.</p></div><button class="button ghost" data-action="print">${icon("download")}Stampa</button></div><div class="stat-grid">${summary.map(([label, value]) => stat(label, value, "", "ball")).join("")}</div><div class="catalog-detail-grid"><section class="panel"><h2>Regolamento applicato</h2><div class="regulation-copy">${(data.regulation || "").split(/\n\n+/).map((p) => `<p>${h(p)}</p>`).join("")}</div></section><section class="panel"><h2>Dettagli</h2><ul class="rule-list">${details.map((d) => `<li>${h(d)}</li>`).join("")}</ul><p class="field-help">Punti in classifica: vittoria ${t.win_points}, pareggio ${t.draw_points}, sconfitta ${t.loss_points}. A parità: ${tieLabel(t.tie_breaker)}.</p></section></div>`;
 }
 function bracket() {
   const fixtures = data.matches.filter((m) => m.kind === "knockout");
@@ -411,6 +563,10 @@ async function teamModal(id) {
   const stats = standing
     ? `<div class="stat-grid">${stat("Posizione", info.position ?? "–", "Nel girone o in classifica", "chart")}${stat("Giocate", standing.played, "Incontri disputati", "calendar")}${stat("Punti", standing.points, `V ${standing.won} · N ${standing.drawn} · P ${standing.lost}`, "check")}${stat("Differenza", (standing.goal_difference > 0 ? "+" : "") + standing.goal_difference, `${standing.goals_for} fatti · ${standing.goals_against} subiti`, "ball")}</div>`
     : "";
+  const roster =
+    info.participant_kind === "team"
+      ? `<h3 class="subsection-title" style="margin-top:24px">Rosa <span class="muted">${info.players.length}/${info.max_roster}</span></h3><div class="panel" style="margin:0">${!publicToken && canEdit() ? `<form id="player-form" data-team="${info.team.id}" class="inline-form"><input name="name" required maxlength="60" aria-label="Nome del giocatore" placeholder="Nome del giocatore"><input name="shirt_number" type="number" min="0" max="99" aria-label="Numero di maglia" placeholder="N." style="max-width:80px"><button class="button primary">Aggiungi</button></form>` : ""}${info.players.map((p) => `<div class="roster-item"><div class="roster-info">${avatar(p.name, p.id)}<span><strong>${h(p.name)}</strong><small>${p.shirt_number !== null ? "Maglia " + p.shirt_number : "Giocatore"}</small></span></div>${!publicToken && canEdit() ? `<button class="icon-button" data-remove-player="${p.id}" data-player-team="${info.team.id}" aria-label="Rimuovi ${h(p.name)}">${icon("close")}</button>` : ""}</div>`).join("") || '<p class="muted" style="padding:16px">Nessun giocatore in rosa. Aggiungi i nomi per completare la squadra.</p>'}</div>`
+      : "";
   const rows = info.matches
     .map((m) => {
       const own = m.home_team_id === info.team.id;
@@ -434,7 +590,7 @@ async function teamModal(id) {
     .join("");
   modal(
     h(info.team.name),
-    `<div class="team-summary">${avatar(info.team.name, info.team.id)}<div><strong>${h(info.team.name)}</strong><small>${info.team.group_name ? h(info.team.group_name) : "Partecipante"}${standing ? " · " + info.position + "° posto" : ""}</small></div></div>${stats}<h3 class="subsection-title" style="margin-top:24px">Partite</h3><div class="panel" style="margin:0">${rows || '<div class="empty">Nessun incontro generato.</div>'}</div>`,
+    `<div class="team-summary">${avatar(info.team.name, info.team.id)}<div><strong>${h(info.team.name)}</strong><small>${info.team.group_name ? h(info.team.group_name) : "Partecipante"}${standing ? " · " + info.position + "° posto" : ""}</small></div></div>${stats}${roster}<h3 class="subsection-title" style="margin-top:24px">Partite</h3><div class="panel" style="margin:0">${rows || '<div class="empty">Nessun incontro generato.</div>'}</div>`,
     `${button("Chiudi", "close", "primary")}`,
     "SCHEDA SQUADRA",
   );
@@ -443,6 +599,10 @@ function resultModal(id) {
   const m = data.matches.find((x) => x.id === Number(id));
   if (!m || publicToken) return;
   if (!canEdit()) return loginModal();
+  const variant = currentVariant();
+  const setMode = !!variant?.supports_sets;
+  const maxSets = variant?.max_sets || 5;
+  const label = scoreLabel();
   let local = "";
   if (m.scheduled_at) {
     const d = new Date(m.scheduled_at);
@@ -450,19 +610,86 @@ function resultModal(id) {
       .toISOString()
       .slice(0, 16);
   }
+  const setInputs = setMode
+    ? `<div class="set-inputs">${Array.from({ length: maxSets }, (_, index) => {
+        const number = index + 1;
+        const existing = (m.sets || []).find((s) => s.set === number);
+        const target =
+          number === maxSets
+            ? variant.tiebreak_points
+            : variant.points_per_set;
+        return `<div class="set-row"><span>Set ${number}<small>a ${target}</small></span><input name="home_set_${number}" aria-label="Punti ${h(teamName(m.home_team_id))} set ${number}" type="number" min="0" max="999" step="1" value="${existing?.home ?? ""}" placeholder="–"><b>:</b><input name="away_set_${number}" aria-label="Punti ${h(teamName(m.away_team_id))} set ${number}" type="number" min="0" max="999" step="1" value="${existing?.away ?? ""}" placeholder="–"></div>`;
+      }).join("")}</div><p class="field-help">Inserisci solo i set giocati. La partita termina a ${variant.sets_to_win} set vinti; ogni set deve rispettare il punteggio della variante.</p>`
+    : `<div class="result-inputs"><label>${avatar(teamName(m.home_team_id), m.home_team_id)}<span>${h(teamName(m.home_team_id))}</span><input name="home_score" aria-label="${h(label)} ${h(teamName(m.home_team_id))}" type="number" min="0" max="999" step="1" value="${m.home_score ?? ""}" required></label><span>:</span><label>${avatar(teamName(m.away_team_id), m.away_team_id)}<span>${h(teamName(m.away_team_id))}</span><input name="away_score" aria-label="${h(label)} ${h(teamName(m.away_team_id))}" type="number" min="0" max="999" step="1" value="${m.away_score ?? ""}" required></label></div><p class="field-help">${variant?.draw_allowed === false ? "Questa variante non ammette pareggi. " : ""}${m.kind === "knockout" ? "Serve un punteggio decisivo. " : ""}La classifica verrà aggiornata dopo il salvataggio.</p>`;
   modal(
     m.status === "completed"
       ? "Ogni risultato conta."
       : "Com’è andata in campo?",
-    `<form id="result-form" data-id="${m.id}"><div class="result-inputs"><label>${avatar(teamName(m.home_team_id), m.home_team_id)}<span>${h(teamName(m.home_team_id))}</span><input name="home_score" aria-label="Punteggio ${h(teamName(m.home_team_id))}" type="number" min="0" max="999" step="1" value="${m.home_score ?? ""}" required></label><span>:</span><label>${avatar(teamName(m.away_team_id), m.away_team_id)}<span>${h(teamName(m.away_team_id))}</span><input name="away_score" aria-label="Punteggio ${h(teamName(m.away_team_id))}" type="number" min="0" max="999" step="1" value="${m.away_score ?? ""}" required></label></div>${m.home_score !== null ? '<label class="checkbox"><input type="checkbox" name="invalidate">Se questa correzione cambia qualificazioni o avversari, confermo l’annullamento dei risultati e degli orari dipendenti.</label>' : ""}<p class="field-help">${m.kind === "knockout" ? "Serve un punteggio decisivo. Questa demo non gestisce ancora set, rigori o supplementari." : "La classifica verrà aggiornata dopo il salvataggio."}</p></form><details class="result-schedule"><summary>Orario e campo</summary><form id="schedule-form" data-id="${m.id}"><div class="form-grid"><label>Data e ora locale<input name="scheduled_at" type="datetime-local" value="${local}"></label><label>Campo<input name="location" maxlength="80" placeholder="Es. Palestra · campo A" value="${h(m.location || "")}"></label><label>Durata in minuti<input name="duration" type="number" min="1" max="240" value="${m.duration}" required></label></div><p class="field-help">L’orario usa il fuso del dispositivo. Gli orari sono mostrati nel torneo in Europe/Rome.</p><button class="button" style="margin-top:13px">Salva orario e campo</button></form></details>`,
+    `<form id="result-form" data-id="${m.id}">${setInputs}${m.home_score !== null ? '<label class="checkbox"><input type="checkbox" name="invalidate">Se questa correzione cambia qualificazioni o avversari, confermo l’annullamento dei risultati e degli orari dipendenti.</label>' : ""}</form><details class="result-schedule"><summary>Orario e campo</summary><form id="schedule-form" data-id="${m.id}"><div class="form-grid"><label>Data e ora locale<input name="scheduled_at" type="datetime-local" value="${local}"></label><label>Campo<input name="location" maxlength="80" placeholder="Es. Palestra · campo A" value="${h(m.location || "")}"></label><label>Durata in minuti<input name="duration" type="number" min="1" max="240" value="${m.duration || variant?.match_duration || 20}" required></label></div><p class="field-help">L’orario usa il fuso del dispositivo. Gli orari sono mostrati nel torneo in Europe/Rome.</p><button class="button" style="margin-top:13px">Salva orario e campo</button></form></details>`,
     `${m.home_score !== null ? `<button class="button danger" data-clear="${m.id}">Cancella risultato</button>` : button("Annulla", "close", "ghost")}<button type="submit" form="result-form" class="button primary">${icon("check")}Salva risultato</button>`,
     h(roundName(m)),
   );
 }
-function startWizard() {
+function variantOptionsFor(sportName, current) {
+  const sport = sportFor(sportName);
+  const variants = sport?.variants || [];
+  return variants
+    .map(
+      (v) =>
+        `<option value="${h(v.slug)}" ${v.slug === current ? "selected" : ""}>${h(variantOptionLabel(v))}</option>`,
+    )
+    .join("");
+}
+function applyVariantToWizard(variant) {
+  if (!variant) return;
+  wizard.variant = variant.slug;
+  wizard.participant_kind = variant.participant_kind;
+  const hidden = $("#wizard-form [name=participant_kind]");
+  if (hidden) hidden.value = variant.participant_kind;
+  wizard.win_points = variant.standings?.win ?? 3;
+  wizard.draw_points = variant.standings?.draw ?? 0;
+  wizard.loss_points = variant.standings?.loss ?? 0;
+  wizard.tie_breaker = variant.default_tie_breaker || "goal_difference";
+}
+function variantRulesPanel(variant) {
+  if (!variant) return "";
+  return `<div class="panel rules-preview"><div class="section-header"><h2>${h(variant.name)}</h2><span class="panel-label">REGOLE DELLA VARIANTE</span></div><div class="rule-pills"><span>${icon("users")}${variant.players_on_field} in campo</span><span>${icon("users")}Rosa max ${variant.max_roster}</span><span>${icon("clock")}${durationText(variant.match_duration)}</span><span>${icon("spark")}${h(scoringText(variant))}</span></div><p class="field-help" style="margin-bottom:0">${h(variant.description)}</p></div>`;
+}
+function syncEditVariant(variant) {
+  if (!variant) return;
+  const sportSelect = $("#edit-sport");
+  if (sportSelect) sportSelect.value = variant.sport;
+  const kind = $("#tournament-form [name=participant_kind]");
+  if (kind) {
+    kind.value = variant.participant_kind;
+    const display = kind.previousElementSibling;
+    if (display)
+      display.value =
+        variant.participant_kind === "team"
+          ? "Squadre"
+          : "Giocatori individuali";
+  }
+  const points = variant.standings || {};
+  for (const key of ["win_points", "draw_points", "loss_points"]) {
+    const input = $(`#tournament-form [name=${key}]`);
+    if (input && points[key] !== undefined) input.value = points[key];
+  }
+  const tie = $("#tournament-form [name=tie_breaker]");
+  if (tie && variant.default_tie_breaker) tie.value = variant.default_tie_breaker;
+  const preview = $("#edit-variant-preview");
+  if (preview) preview.innerHTML = variantRulesPanel(variant);
+}
+function startWizard(sportName = null, variantSlug = null) {
+  const sport =
+    sportFor(sportName) || sports[0] || { name: "Calcio", variants: [] };
+  const selected =
+    (variantSlug && sport.variants?.find((v) => v.slug === variantSlug)) ||
+    sport.variants?.find((v) => v.slug === sport.default_variant) ||
+    sport.variants?.[0];
   wizard = {
     name: "",
-    sport: "Calcio a 5",
+    sport: sport.name,
+    variant: selected?.slug || "",
     format: "knockout",
     count: 8,
     group_count: 2,
@@ -470,11 +697,11 @@ function startWizard() {
     legs: 1,
     names: "",
     description: "",
-    participant_kind: "team",
-    win_points: 3,
-    draw_points: 1,
-    loss_points: 0,
-    tie_breaker: "goal_difference",
+    participant_kind: selected?.participant_kind || "team",
+    win_points: selected?.standings?.win ?? 3,
+    draw_points: selected?.standings?.draw ?? 1,
+    loss_points: selected?.standings?.loss ?? 0,
+    tie_breaker: selected?.default_tie_breaker || "goal_difference",
   };
   wizardStep = 0;
   renderWizard();
@@ -498,15 +725,7 @@ function readWizard() {
 function sportOptions() {
   const names = sports.length
     ? sports.map((s) => s.name)
-    : [
-        "Calcio",
-        "Calcio a 5",
-        "Basket",
-        "Pallamano",
-        "Badminton",
-        "Tennis",
-        "Pallavolo",
-      ];
+    : ["Calcio", "Basket", "Pallavolo", "Badminton", "Ping pong", "Biliardino"];
   if (!names.includes(wizard.sport)) wizard.sport = names[0];
   return names
     .map(
@@ -516,21 +735,7 @@ function sportOptions() {
     .join("");
 }
 function sportOptionsFor(current) {
-  return sports
-    .map((s) => s.name)
-    .concat(
-      sports.length
-        ? []
-        : [
-            "Calcio",
-            "Calcio a 5",
-            "Basket",
-            "Pallamano",
-            "Badminton",
-            "Tennis",
-            "Pallavolo",
-          ],
-    )
+  return (sports.length ? sports.map((s) => s.name) : [current])
     .map(
       (s) =>
         `<option value="${h(s)}" ${s === current ? "selected" : ""}>${h(s)}</option>`,
@@ -551,18 +756,11 @@ function editTournament() {
   if (!canEdit()) return loginModal();
   const t = data.tournament;
   const generated = data.matches.length > 0;
+  const variant = currentVariant();
+  const kind = variant?.participant_kind || t.participant_kind;
   const structure = generated
-    ? '<p class="field-help">Sport, formato e regole sono bloccati perché gli incontri sono già stati generati. Nome e descrizione restano modificabili.</p>'
-    : `<fieldset class="format-fieldset" style="margin-top:18px"><legend>Formato e regole</legend><div class="form-grid"><label>Sport<select name="sport">${sportOptionsFor(t.sport)}</select></label><label>Formato<select name="format">${[
-        ["round_robin", "Girone unico"],
-        ["knockout", "Eliminazione"],
-        ["groups", "Gironi + finali"],
-      ]
-        .map(
-          ([v, l]) =>
-            `<option value="${v}" ${t.format === v ? "selected" : ""}>${l}</option>`,
-        )
-        .join("")}</select></label><label>Partecipanti<select name="participant_kind"><option value="team" ${t.participant_kind === "team" ? "selected" : ""}>Squadre</option><option value="individual" ${t.participant_kind === "individual" ? "selected" : ""}>Giocatori individuali</option></select></label><label>Gare del girone<select name="legs"><option value="1" ${t.legs === 1 ? "selected" : ""}>Sola andata</option><option value="2" ${t.legs === 2 ? "selected" : ""}>Andata e ritorno</option></select></label><label>Numero gironi<select name="group_count">${[2, 4, 8].map((n) => `<option value="${n}" ${t.group_count === n ? "selected" : ""}>${n} gironi</option>`).join("")}</select></label><label>Qualificate per girone<select name="qualifiers"><option value="1" ${t.qualifiers === 1 ? "selected" : ""}>La prima</option><option value="2" ${t.qualifiers === 2 ? "selected" : ""}>Le prime due</option></select></label></div><div class="form-grid">${[
+    ? '<p class="field-help">Sport, variante, formato e regole sono bloccati perché gli incontri sono già stati generati. Nome e descrizione restano modificabili.</p>'
+    : `<fieldset class="format-fieldset" style="margin-top:18px"><legend>Formato e regole</legend><div class="form-grid"><label>Sport<select name="sport" id="edit-sport">${sportOptionsFor(t.sport)}</select></label><label>Variante<select name="variant" id="edit-variant">${variantOptionsFor(t.sport, t.variant)}</select></label><label>Partecipanti<input value="${kind === "team" ? "Squadre" : "Giocatori individuali"}" disabled><input type="hidden" name="participant_kind" value="${kind}"></label><label>Gare del girone<select name="legs"><option value="1" ${t.legs === 1 ? "selected" : ""}>Sola andata</option><option value="2" ${t.legs === 2 ? "selected" : ""}>Andata e ritorno</option></select></label><label>Numero gironi<select name="group_count">${[2, 4, 8].map((n) => `<option value="${n}" ${t.group_count === n ? "selected" : ""}>${n} gironi</option>`).join("")}</select></label><label>Qualificate per girone<select name="qualifiers"><option value="1" ${t.qualifiers === 1 ? "selected" : ""}>La prima</option><option value="2" ${t.qualifiers === 2 ? "selected" : ""}>Le prime due</option></select></label></div><div class="form-grid">${[
         ["win_points", "Punti vittoria", t.win_points],
         ["draw_points", "Punti pareggio", t.draw_points],
         ["loss_points", "Punti sconfitta", t.loss_points],
@@ -581,7 +779,7 @@ function editTournament() {
           ([v, l]) =>
             `<option value="${v}" ${t.tie_breaker === v ? "selected" : ""}>${l}</option>`,
         )
-        .join("")}</select></label></div></fieldset>`;
+        .join("")}</select></label></div><div id="edit-variant-preview">${variantRulesPanel(variant)}</div></fieldset>`;
   modal(
     "Ritocca il torneo.",
     `<form id="tournament-form"><div class="form-grid"><label class="full">Nome del torneo<input name="name" value="${h(t.name)}" minlength="2" maxlength="120" required autofocus></label><label class="full">Descrizione<textarea name="description" maxlength="1000" rows="3">${h(t.description)}</textarea></label></div>${structure}</form>`,
@@ -592,7 +790,7 @@ function editTournament() {
 function renderWizard() {
   let body = "";
   if (wizardStep === 0)
-    body = `<div class="form-grid"><label class="full">Nome del torneo<input name="name" value="${h(wizard.name)}" placeholder="Es. Coppa d’istituto" minlength="2" maxlength="120" required autofocus></label><label>Sport<select name="sport">${sportOptions()}</select></label><label>Partecipanti<select name="participant_kind"><option value="team" ${wizard.participant_kind === "team" ? "selected" : ""}>Squadre</option><option value="individual" ${wizard.participant_kind === "individual" ? "selected" : ""}>Giocatori individuali</option></select></label></div><fieldset class="format-fieldset"><legend>Scegli il percorso</legend><div class="format-options">${[
+    body = `<div class="form-grid"><label class="full">Nome del torneo<input name="name" value="${h(wizard.name)}" placeholder="Es. Coppa d’istituto" minlength="2" maxlength="120" required autofocus></label><label>Sport<select name="sport" id="wizard-sport">${sportOptions()}</select></label><label>Variante<select name="variant" id="wizard-variant">${variantOptionsFor(wizard.sport, wizard.variant)}</select></label><input type="hidden" name="participant_kind" value="${h(wizard.participant_kind)}"></div><div id="wizard-variant-preview">${variantRulesPanel(variantFor(wizard.variant))}</div><fieldset class="format-fieldset"><legend>Scegli il percorso</legend><div class="format-options">${[
       ["knockout", "Eliminazione", "Una sconfitta, sei fuori"],
       ["round_robin", "Girone unico", "Tutti contro tutti"],
       ["groups", "Gironi + finali", "Prima il gruppo, poi la coppa"],
@@ -629,8 +827,10 @@ function renderWizard() {
               .join("")}</select></label></div></details>`
         : ""
     }`;
-  if (wizardStep === 2)
-    body = `<div class="panel" style="margin:0;background:#f7f9f0"><p class="eyebrow">TUTTO PRONTO PER GIOCARE</p><h2>${h(wizard.name)}</h2><dl class="details-list"><div><dt>Sport</dt><dd>${h(wizard.sport)}</dd></div><div><dt>Formato</dt><dd>${label(wizard.format)}</dd></div><div><dt>Partecipanti</dt><dd>${wizard.count}</dd></div>${wizard.format === "groups" ? `<div><dt>Qualificazione</dt><dd>${wizard.group_count} gironi · prime ${wizard.qualifiers}</dd></div>` : ""}<div><dt>Gare</dt><dd>${wizard.legs === 2 ? "Andata e ritorno" : "Sola andata"}</dd></div></dl></div><p class="field-help">Creeremo il torneo e genereremo gli incontri. Da quel momento potrai modificare i nomi e inserire i risultati.</p>`;
+  if (wizardStep === 2) {
+    const v = variantFor(wizard.variant);
+    body = `<div class="panel" style="margin:0;background:#f7f9f0"><p class="eyebrow">TUTTO PRONTO PER GIOCARE</p><h2>${h(wizard.name)}</h2><dl class="details-list"><div><dt>Sport</dt><dd>${h(wizard.sport)}</dd></div><div><dt>Variante</dt><dd>${h(v?.name || wizard.variant || "Standard")}</dd></div><div><dt>Formato</dt><dd>${label(wizard.format)}</dd></div><div><dt>Partecipanti</dt><dd>${wizard.count}</dd></div>${wizard.format === "groups" ? `<div><dt>Qualificazione</dt><dd>${wizard.group_count} gironi · prime ${wizard.qualifiers}</dd></div>` : ""}<div><dt>Gare</dt><dd>${wizard.legs === 2 ? "Andata e ritorno" : "Sola andata"}</dd></div>${v ? `<div><dt>Durata partita</dt><dd>${durationText(v.match_duration)}</dd></div><div><dt>Punteggio</dt><dd>${h(scoringText(v))}</dd></div>` : ""}<div><dt>Classifica</dt><dd>${wizard.win_points}/${wizard.draw_points}/${wizard.loss_points}</dd></div></dl></div><p class="field-help">Creeremo il torneo e genereremo gli incontri. La variante porta con sé rose, durata e regolamento: da quel momento potrai modificare i nomi e inserire i risultati.</p>`;
+  }
   modal(
     "Il prossimo torneo è il tuo.",
     `<div class="wizard-steps">${["Il torneo", "I partecipanti", "Si comincia"].map((l, i) => `<span class="wizard-step ${i <= wizardStep ? "active" : ""}">0${i + 1} ${l}</span>`).join("")}</div><form id="wizard-form">${body}</form>`,
@@ -731,6 +931,13 @@ async function share() {
 const actions = {
   dashboard,
   new: () => (canEdit() ? startWizard() : loginModal()),
+  catalog: (el) =>
+    openCatalog(el?.dataset?.catalogSport || null, el?.dataset?.catalogVariant || null),
+  "new-variant": (el) =>
+    canEdit()
+      ? startWizard(el.dataset.sport, el.dataset.variant)
+      : loginModal(),
+  print: () => window.print(),
   login: loginModal,
   logout: async () => {
     await api("/auth/logout", { method: "POST" });
@@ -823,10 +1030,32 @@ document.addEventListener("click", (e) => {
   if (a) {
     e.preventDefault();
     const fn = actions[a.dataset.action];
-    if (fn) safely(fn);
+    if (fn) safely(() => fn(a));
   }
   const open = e.target.closest("[data-open]");
   if (open) safely(() => openTournament(Number(open.dataset.open)));
+  const catalogSport = e.target.closest("[data-catalog-sport]");
+  if (catalogSport)
+    safely(() => openCatalog(catalogSport.dataset.catalogSport));
+  const catalogVariant = e.target.closest("[data-catalog-variant]");
+  if (catalogVariant)
+    safely(() =>
+      openCatalog(
+        catalogVariant.dataset.catalogParent,
+        catalogVariant.dataset.catalogVariant,
+      ),
+    );
+  const removePlayer = e.target.closest("[data-remove-player]");
+  if (removePlayer)
+    safely(async () => {
+      await api(
+        `/tournaments/${selectedId}/teams/${removePlayer.dataset.playerTeam}/players/${removePlayer.dataset.removePlayer}`,
+        { method: "DELETE" },
+      );
+      await openTournament(selectedId, true);
+      if ($("#modal").open) await teamModal(removePlayer.dataset.playerTeam);
+      notify("Giocatore rimosso dalla rosa.");
+    });
   const t = e.target.closest("[data-tab]");
   if (t) {
     tab = t.dataset.tab;
@@ -910,6 +1139,37 @@ document.addEventListener("click", (e) => {
     });
 });
 document.addEventListener("change", (e) => {
+  if (e.target.id === "wizard-sport") {
+    readWizard();
+    const sport = sportFor(wizard.sport);
+    const variant =
+      sport?.variants?.find((v) => v.slug === sport.default_variant) ||
+      sport?.variants?.[0];
+    applyVariantToWizard(variant);
+    const select = $("#wizard-variant");
+    if (select) select.innerHTML = variantOptionsFor(wizard.sport, wizard.variant);
+    $("#wizard-variant-preview").innerHTML = variantRulesPanel(variant);
+  }
+  if (e.target.id === "wizard-variant") {
+    readWizard();
+    const variant = variantFor(wizard.variant);
+    applyVariantToWizard(variant);
+    $("#wizard-variant-preview").innerHTML = variantRulesPanel(variant);
+  }
+  if (e.target.id === "sport-edit") {
+    const sport = sportFor(e.target.value);
+    const variant =
+      sport?.variants?.find((v) => v.slug === sport.default_variant) ||
+      sport?.variants?.[0];
+    const select = $("#edit-variant");
+    if (select && variant) select.innerHTML = variantOptionsFor(sport.name, variant.slug);
+    applyVariantToWizard(variant);
+    syncEditVariant(variant);
+  }
+  if (e.target.id === "edit-variant") {
+    applyVariantToWizard(variantFor(e.target.value));
+    syncEditVariant(variantFor(e.target.value));
+  }
   if (e.target.name === "format" && $("#wizard-form")) updateWizardFormat();
 });
 document.addEventListener("submit", (e) => {
@@ -929,6 +1189,23 @@ document.addEventListener("submit", (e) => {
         await openTournament(selectedId, true);
         notify("Partecipante aggiunto.");
       }
+      if (form.id === "player-form") {
+        await api(
+          `/tournaments/${selectedId}/teams/${form.dataset.team}/players`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              name: fd.get("name"),
+              shirt_number: fd.get("shirt_number")
+                ? Number(fd.get("shirt_number"))
+                : null,
+            }),
+          },
+        );
+        await openTournament(selectedId, true);
+        await teamModal(form.dataset.team);
+        notify("Giocatore aggiunto alla rosa.");
+      }
       if (form.id === "rename-form") {
         await api(`/tournaments/${selectedId}/teams/${form.dataset.id}`, {
           method: "PATCH",
@@ -945,6 +1222,7 @@ document.addEventListener("submit", (e) => {
         };
         if (fd.has("sport")) {
           payload.sport = fd.get("sport");
+          payload.variant = fd.get("variant");
           payload.format = fd.get("format");
           payload.participant_kind = fd.get("participant_kind");
           payload.legs =
@@ -978,21 +1256,41 @@ document.addEventListener("submit", (e) => {
       if (form.id === "result-form" || form.id === "schedule-form") {
         const m = data.matches.find((m) => m.id === Number(form.dataset.id));
         const schedule = form.id === "schedule-form";
-        const payload = schedule
-          ? {
-              version: m.version,
-              scheduled_at: fd.get("scheduled_at")
-                ? new Date(fd.get("scheduled_at")).toISOString()
-                : null,
-              location: fd.get("location"),
-              duration: Number(fd.get("duration")),
-            }
-          : {
-              version: m.version,
-              home_score: Number(fd.get("home_score")),
-              away_score: Number(fd.get("away_score")),
-              invalidate: fd.has("invalidate"),
-            };
+        let payload;
+        if (schedule) {
+          payload = {
+            version: m.version,
+            scheduled_at: fd.get("scheduled_at")
+              ? new Date(fd.get("scheduled_at")).toISOString()
+              : null,
+            location: fd.get("location"),
+            duration: Number(fd.get("duration")),
+          };
+        } else if (isSetBased()) {
+          const sets = [];
+          for (let index = 1; index <= (currentVariant()?.max_sets || 7); index++) {
+            const home = fd.get(`home_set_${index}`);
+            const away = fd.get(`away_set_${index}`);
+            if (home === null && away === null) continue;
+            if (home === "" && away === "") continue;
+            if (home === "" || away === "")
+              throw new Error(`Completa il set ${index} con entrambi i punteggi.`);
+            sets.push({ home: Number(home), away: Number(away) });
+          }
+          if (!sets.length) throw new Error("Inserisci almeno un set.");
+          payload = {
+            version: m.version,
+            sets,
+            invalidate: fd.has("invalidate"),
+          };
+        } else {
+          payload = {
+            version: m.version,
+            home_score: Number(fd.get("home_score")),
+            away_score: Number(fd.get("away_score")),
+            invalidate: fd.has("invalidate"),
+          };
+        }
         await api(
           `/tournaments/${selectedId}/matches/${m.id}${schedule ? "/schedule" : ""}`,
           { method: "PATCH", body: JSON.stringify(payload) },
@@ -1044,7 +1342,9 @@ async function init() {
     } else {
       await loadSession();
       await loadSports();
-      await dashboard();
+      const route = hashRoute();
+      if (route.kind === "sport") await openCatalog(route.sport, route.variant);
+      else await dashboard();
     }
   } catch (e) {
     $("#content").innerHTML =
@@ -1053,6 +1353,15 @@ async function init() {
   }
 }
 if (spaEnabled) init();
+window.addEventListener("hashchange", () => {
+  if (!spaEnabled || publicToken) return;
+  const route = hashRoute();
+  safely(() =>
+    route.kind === "sport"
+      ? openCatalog(route.sport, route.variant)
+      : dashboard(),
+  );
+});
 
 document.addEventListener("keydown", (e) => {
   if (!spaEnabled) return;
