@@ -25,6 +25,9 @@ const paths = {
     "M8 11l8-5 M8 13l8 5 M5 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6 M19 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6 M19 16a3 3 0 1 0 0 6 3 3 0 0 0 0-6",
   download: "M12 3v12 M7 10l5 5 5-5 M4 16v5h16v-5",
   edit: "M15 4l5 5 M4 20l5-1L21 7l-5-5L4 14z",
+  search: "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14 M16 16l5 5",
+  refresh: "M20 11a8 8 0 1 0-2.3 5.7 M20 4v7h-7",
+  trash: "M4 7h16 M9 7V4h6v3 M6 7l1 13h10l1-13 M10 11v5 M14 11v5",
   menu: "M4 6h16 M4 12h16 M4 18h16",
   clock: "M12 8v5l3 2 M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20",
   chart: "M4 20V10h4v10 M10 20V4h4v16 M16 20v-8h4v8",
@@ -584,7 +587,21 @@ const actions = {
     renderWizard();
   },
 };
+const spaEnabled = document.body.dataset.app === "spa";
+if (!spaEnabled) {
+  // Pagine di design statiche: i pulsanti principali portano alle pagine reali.
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest("[data-action]");
+    if (!a) return;
+    if (a.dataset.action === "dashboard") location.href = "../";
+    if (a.dataset.action === "new") location.href = "create.html";
+  });
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("[data-open]")) location.href = "panoramica_torneo.html";
+  });
+}
 document.addEventListener("click", (e) => {
+  if (!spaEnabled) return;
   const a = e.target.closest("[data-action]");
   if (a) {
     e.preventDefault();
@@ -752,9 +769,10 @@ async function init() {
     $("#content").setAttribute("aria-busy", "false");
   }
 }
-init();
+if (spaEnabled) init();
 
 document.addEventListener("keydown", (e) => {
+  if (!spaEnabled) return;
   const current = e.target.closest("[role=tab]");
   if (!current || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key))
     return;

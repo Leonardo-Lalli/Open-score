@@ -3,19 +3,17 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>OpenScore - Panoramica Torneo</title>
-    <link href="https://fonts.googleapis.com" rel="preconnect"/>
-    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..20,100..1000;1,9..20,100..1000&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/styles.css"/>
-    <script defer src="/static/app.js"></script>
+    <title>Open Score - Panoramica Torneo</title>
+    <link rel="icon" type="image/svg+xml" href="mark.svg" />
+    <link rel="stylesheet" href="styles.css"/>
+    <script defer src="app.js"></script>
 </head>
-<body>
+<body class="design-page">
     <a class="skip-link" href="#content">Vai al contenuto</a>
     
     <aside id="sidebar" class="sidebar">
-        <a class="brand" href="/" aria-label="Open Score, panoramica">
-            <img src="/static/mark.svg" alt="" width="38" height="38" />
+        <a class="brand" href="../" aria-label="Open Score, panoramica">
+            <img src="mark.svg" alt="" width="38" height="38" />
             <span>open<span class="brand-light">score</span><small>IL TUO CAMPO DI GIOCO</small></span>
         </a>
         <div class="workspace">
@@ -33,10 +31,12 @@
             </button>
         </nav>
         <div class="nav-label events-label">
-            I TUOI TORNEI <span id="event-count">0</span>
+            I TUOI TORNEI <span id="event-count">3</span>
         </div>
         <div id="event-nav" class="event-nav">
-            <p class="sidebar-muted">Caricamento tornei…</p>
+            <button type="button" data-open="1"><span class="event-dot"></span>Coppa d'Autunno 2025</button>
+            <button type="button" data-open="2"><span class="event-dot"></span>Torneo di Primavera</button>
+            <button type="button" data-open="3"><span class="event-dot"></span>Giornata dello Sport</button>
         </div>
         <div class="sidebar-bottom">
             <div class="idea-card">
@@ -117,7 +117,7 @@
                     <h2 class="section-title">Programma delle partite</h2>
                     <a href="#" class="link-text">Vedi tutti</a>
                 </div>
-                
+
                 <div class="schedule-container">
                     <div class="match-card">
                         <div class="match-info">
@@ -133,7 +133,7 @@
                             <span class="score-text">0 - 2</span>
                         </div>
                     </div>
-                    
+
                     <div class="match-card upcoming">
                         <div class="match-info">
                             <span class="match-time">16:00</span>
@@ -148,7 +148,7 @@
                             <span class="score-text">-</span>
                         </div>
                     </div>
-                    
+
                     <div class="match-card upcoming">
                         <div class="match-info">
                             <span class="match-time">17:30</span>
@@ -172,20 +172,20 @@
                     <h2 class="section-title">Classifica</h2>
                     <a href="#" class="link-text">Vedi dettagli</a>
                 </div>
-                
+
                 <div class="standings-container">
                     <table class="standings-table">
                         <thead>
                             <tr>
                                 <th class="rank-col">#</th>
                                 <th>Squadra</th>
-                                <th>P</th>
+                                <th>G</th>
                                 <th>V</th>
                                 <th>N</th>
-                                <th>P</th>
+                                <th>PT</th>
                                 <th>GF</th>
                                 <th>GS</th>
-                                <th>GD</th>
+                                <th>DR</th>
                             </tr>
                         </thead>
                         <tbody>

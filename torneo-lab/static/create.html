@@ -4,19 +4,17 @@
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
     <meta content="web_blank" name="shell-type"/>
-    <title>OpenScore - Crea un Torneo</title>
-    <link href="https://fonts.googleapis.com" rel="preconnect"/>
-    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..20,100..1000;1,9..20,100..1000&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/styles.css"/>
-    <script defer src="/static/app.js"></script>
+    <title>Open Score - Crea un Torneo</title>
+    <link rel="icon" type="image/svg+xml" href="mark.svg" />
+    <link rel="stylesheet" href="styles.css"/>
+    <script defer src="app.js"></script>
 </head>
-<body>
+<body class="design-page">
     <a class="skip-link" href="#content">Vai al contenuto</a>
-    
+
     <aside id="sidebar" class="sidebar">
-        <a class="brand" href="/" aria-label="Open Score, panoramica">
-            <img src="/static/mark.svg" alt="" width="38" height="38" />
+        <a class="brand" href="../" aria-label="Open Score, panoramica">
+            <img src="mark.svg" alt="" width="38" height="38" />
             <span>open<span class="brand-light">score</span><small>IL TUO CAMPO DI GIOCO</small></span>
         </a>
         <div class="workspace">
@@ -34,10 +32,12 @@
             </button>
         </nav>
         <div class="nav-label events-label">
-            I TUOI TORNEI <span id="event-count">0</span>
+            I TUOI TORNEI <span id="event-count">3</span>
         </div>
         <div id="event-nav" class="event-nav">
-            <p class="sidebar-muted">Caricamento tornei…</p>
+            <button type="button" data-open="1"><span class="event-dot"></span>Coppa d'Autunno 2025</button>
+            <button type="button" data-open="2"><span class="event-dot"></span>Torneo di Primavera</button>
+            <button type="button" data-open="3"><span class="event-dot"></span>Giornata dello Sport</button>
         </div>
         <div class="sidebar-bottom">
             <div class="idea-card">
@@ -77,38 +77,38 @@
             </div>
 
             <!-- Wizard Step Navigation -->
-            <div class="wizard-steps">
-                <div class="step active" data-step="1">
-                    <span class="step-number">1</span>
-                    <span class="step-label">Generale</span>
+            <div class="create-steps">
+                <div class="create-step active" data-step="1">
+                    <span class="create-step-number">1</span>
+                    <span class="create-step-label">Generale</span>
                 </div>
-                <div class="step" data-step="2">
-                    <span class="step-number">2</span>
-                    <span class="step-label">Squadre</span>
+                <div class="create-step" data-step="2">
+                    <span class="create-step-number">2</span>
+                    <span class="create-step-label">Squadre</span>
                 </div>
-                <div class="step" data-step="3">
-                    <span class="step-number">3</span>
-                    <span class="step-label">Tabellone</span>
+                <div class="create-step" data-step="3">
+                    <span class="create-step-number">3</span>
+                    <span class="create-step-label">Tabellone</span>
                 </div>
-                <div class="step" data-step="4">
-                    <span class="step-number">4</span>
-                    <span class="step-label">Conferma</span>
+                <div class="create-step" data-step="4">
+                    <span class="create-step-number">4</span>
+                    <span class="create-step-label">Conferma</span>
                 </div>
             </div>
 
             <!-- Main Form Content -->
             <div class="wizard-content">
                 <!-- Step 1: Details & Configuration -->
-                <div class="wizard-step active" id="step-1">
+                <div class="create-panel active" id="step-1">
                     <div class="form-section">
                         <h2 class="section-title">Informazioni Generali</h2>
-                        
+
                         <!-- Tournament Name Input -->
                         <div class="form-group">
                             <label class="form-label" for="tournament-name">Nome ufficiale dell'evento</label>
                             <div class="input-wrapper">
                                 <input class="form-input" id="tournament-name" type="text" value="Coppa d'Autunno 2025"/>
-                                <span class="input-icon">edit</span>
+                                <svg class="input-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4l5 5 M4 20l5-1L21 7l-5-5L4 14z"/></svg>
                             </div>
                         </div>
 
@@ -120,7 +120,6 @@
                                 <button class="sport-pill" data-sport="padel">Padel</button>
                                 <button class="sport-pill" data-sport="tennis">Tennis Singolare</button>
                                 <button class="sport-pill" data-sport="basket">Basket 3x3</button>
-                                <button class="sport-pill" data-sport="volley">Volley</button>
                                 <button class="sport-pill" data-sport="pallavolo">Pallavolo</button>
                                 <button class="sport-pill" data-sport="danza">Danza Sportiva</button>
                                 <button class="sport-pill" data-sport="biliardo">Biliardo</button>
@@ -132,7 +131,7 @@
                         <div class="form-group">
                             <div class="form-row">
                                 <label class="form-label">Partecipanti previsti nel tabellone</label>
-                                <span class="badge" id="teams-selected-label">8 SQUADRE</span>
+                                <span class="badge" id="teams-selected-label">4 SQUADRE</span>
                             </div>
                             <div class="teams-grid">
                                 <button class="team-count-btn active" data-teams="4">4</button>
@@ -145,7 +144,7 @@
                         <!-- Advanced Settings -->
                         <div class="form-group">
                             <h3 class="subsection-title">Configurazioni Avanzate</h3>
-                            
+
                             <!-- Tie-break Settings -->
                             <div class="form-row">
                                 <label class="checkbox-label">
@@ -154,7 +153,7 @@
                                     <span class="badge-small">DEFAULT</span>
                                 </label>
                             </div>
-                            
+
                             <div class="form-row">
                                 <label class="checkbox-label">
                                     <input type="checkbox" class="checkbox-input">
@@ -162,7 +161,7 @@
                                     <span class="badge-small">OPZIONALE</span>
                                 </label>
                             </div>
-                            
+
                             <!-- BYE Toggle -->
                             <div class="form-row">
                                 <div class="toggle-container">
@@ -209,12 +208,12 @@
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <!-- Connection Glyphs -->
                                 <div class="preview-connector">
-                                    <span class="connector-icon">trending_flat</span>
+                                    <svg class="connector-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14 M13 6l6 6-6 6"/></svg>
                                 </div>
-                                
+
                                 <!-- Finals Column Preview -->
                                 <div class="preview-column">
                                     <span class="preview-label">GRAN FINALE</span>
@@ -238,7 +237,7 @@
 
                     <!-- Disclaimer -->
                     <div class="disclaimer">
-                        <span class="link-icon">link</span>
+                        <svg class="link-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2 M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2"/></svg>
                         <span>I vincitori avanzano automaticamente al confermare dei risultati. Le correzioni successive ad un passaggio turno richiedono una conferma del comitato organizzatore.</span>
                     </div>
                 </div>
@@ -264,7 +263,7 @@
         <div id="modal-content"></div>
     </dialog>
     <div id="toast" role="status" aria-live="polite"></div>
-    
+
     <script>
         // Sport Pills Selection Logic
         const sportPills = document.querySelectorAll('.sport-pill');
@@ -276,7 +275,7 @@
                 pill.classList.add('active');
             });
         });
-        
+
         // Team Count Selection Logic
         const teamButtons = document.querySelectorAll('.team-count-btn');
         const teamLabel = document.getElementById('teams-selected-label');
@@ -291,12 +290,11 @@
                 }
             });
         });
-        
+
         // Next Step Button
         const nextStepBtn = document.getElementById('next-step-btn');
         nextStepBtn.addEventListener('click', () => {
-            // Implement navigation to next step
-            alert('Navigazione al passo successivo');
+            window.location.href = 'gestione_partecipanti.html';
         });
     </script>
 </body>

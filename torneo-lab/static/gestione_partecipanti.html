@@ -3,19 +3,17 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>OpenScore - Gestione Partecipanti</title>
-    <link href="https://fonts.googleapis.com" rel="preconnect"/>
-    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..20,100..1000;1,9..20,100..1000&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/styles.css"/>
-    <script defer src="/static/app.js"></script>
+    <title>Open Score - Gestione Partecipanti</title>
+    <link rel="icon" type="image/svg+xml" href="mark.svg" />
+    <link rel="stylesheet" href="styles.css"/>
+    <script defer src="app.js"></script>
 </head>
-<body>
+<body class="design-page">
     <a class="skip-link" href="#content">Vai al contenuto</a>
     
     <aside id="sidebar" class="sidebar">
-        <a class="brand" href="/" aria-label="Open Score, panoramica">
-            <img src="/static/mark.svg" alt="" width="38" height="38" />
+        <a class="brand" href="../" aria-label="Open Score, panoramica">
+            <img src="mark.svg" alt="" width="38" height="38" />
             <span>open<span class="brand-light">score</span><small>IL TUO CAMPO DI GIOCO</small></span>
         </a>
         <div class="workspace">
@@ -33,10 +31,12 @@
             </button>
         </nav>
         <div class="nav-label events-label">
-            I TUOI TORNEI <span id="event-count">0</span>
+            I TUOI TORNEI <span id="event-count">3</span>
         </div>
         <div id="event-nav" class="event-nav">
-            <p class="sidebar-muted">Caricamento tornei…</p>
+            <button type="button" data-open="1"><span class="event-dot"></span>Coppa d'Autunno 2025</button>
+            <button type="button" data-open="2"><span class="event-dot"></span>Torneo di Primavera</button>
+            <button type="button" data-open="3"><span class="event-dot"></span>Giornata dello Sport</button>
         </div>
         <div class="sidebar-bottom">
             <div class="idea-card">
@@ -94,11 +94,11 @@
             <!-- Team Search and Add -->
             <div class="form-section">
                 <div class="form-row">
-                    <div class="input-wrapper" style="flex: 1;">
+                    <div class="input-wrapper">
                         <input class="form-input" id="team-search" type="text" placeholder="Cerca squadra..."/>
-                        <span class="input-icon">search</span>
+                        <svg class="input-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14 M16 16l5 5"/></svg>
                     </div>
-                    <button class="btn-primary" style="margin-left: var(--space-md);">
+                    <button class="btn-primary">
                         <span data-icon="plus"></span> Aggiungi squadra
                     </button>
                 </div>
@@ -118,11 +118,11 @@
                             <span class="team-details">5 giocatori</span>
                         </div>
                         <div class="team-actions">
-                            <button class="btn-secondary" style="margin-right: var(--space-xs);">
+                            <button class="btn-secondary">
                                 <span data-icon="edit"></span>
                             </button>
                             <button class="btn-secondary">
-                                <span data-icon="delete"></span>
+                                <span data-icon="trash"></span>
                             </button>
                         </div>
                     </div>
@@ -133,11 +133,11 @@
                             <span class="team-details">7 giocatori</span>
                         </div>
                         <div class="team-actions">
-                            <button class="btn-secondary" style="margin-right: var(--space-xs);">
+                            <button class="btn-secondary">
                                 <span data-icon="edit"></span>
                             </button>
                             <button class="btn-secondary">
-                                <span data-icon="delete"></span>
+                                <span data-icon="trash"></span>
                             </button>
                         </div>
                     </div>
@@ -148,11 +148,11 @@
                             <span class="team-details">5 giocatori</span>
                         </div>
                         <div class="team-actions">
-                            <button class="btn-secondary" style="margin-right: var(--space-xs);">
+                            <button class="btn-secondary">
                                 <span data-icon="edit"></span>
                             </button>
                             <button class="btn-secondary">
-                                <span data-icon="delete"></span>
+                                <span data-icon="trash"></span>
                             </button>
                         </div>
                     </div>
@@ -163,11 +163,11 @@
                             <span class="team-details">7 giocatori</span>
                         </div>
                         <div class="team-actions">
-                            <button class="btn-secondary" style="margin-right: var(--space-xs);">
+                            <button class="btn-secondary">
                                 <span data-icon="edit"></span>
                             </button>
                             <button class="btn-secondary">
-                                <span data-icon="delete"></span>
+                                <span data-icon="trash"></span>
                             </button>
                         </div>
                     </div>
@@ -178,11 +178,11 @@
                             <span class="team-details">5 giocatori</span>
                         </div>
                         <div class="team-actions">
-                            <button class="btn-secondary" style="margin-right: var(--space-xs);">
+                            <button class="btn-secondary">
                                 <span data-icon="edit"></span>
                             </button>
                             <button class="btn-secondary">
-                                <span data-icon="delete"></span>
+                                <span data-icon="trash"></span>
                             </button>
                         </div>
                     </div>
@@ -193,11 +193,11 @@
                             <span class="team-details">7 giocatori</span>
                         </div>
                         <div class="team-actions">
-                            <button class="btn-secondary" style="margin-right: var(--space-xs);">
+                            <button class="btn-secondary">
                                 <span data-icon="edit"></span>
                             </button>
                             <button class="btn-secondary">
-                                <span data-icon="delete"></span>
+                                <span data-icon="trash"></span>
                             </button>
                         </div>
                     </div>
@@ -208,11 +208,11 @@
                             <span class="team-details">5 giocatori</span>
                         </div>
                         <div class="team-actions">
-                            <button class="btn-secondary" style="margin-right: var(--space-xs);">
+                            <button class="btn-secondary">
                                 <span data-icon="edit"></span>
                             </button>
                             <button class="btn-secondary">
-                                <span data-icon="delete"></span>
+                                <span data-icon="trash"></span>
                             </button>
                         </div>
                     </div>
@@ -223,11 +223,11 @@
                             <span class="team-details">7 giocatori</span>
                         </div>
                         <div class="team-actions">
-                            <button class="btn-secondary" style="margin-right: var(--space-xs);">
+                            <button class="btn-secondary">
                                 <span data-icon="edit"></span>
                             </button>
                             <button class="btn-secondary">
-                                <span data-icon="delete"></span>
+                                <span data-icon="trash"></span>
                             </button>
                         </div>
                     </div>
@@ -238,24 +238,24 @@
             <div class="form-section">
                 <h2 class="section-title">Aggiungi una nuova squadra</h2>
                 <div class="form-row">
-                    <div class="input-wrapper" style="flex: 1;">
+                    <div class="input-wrapper">
                         <input class="form-input" id="new-team-name" type="text" placeholder="Nome squadra"/>
-                        <span class="input-icon">group</span>
+                        <svg class="input-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M16 4a4 4 0 0 1 0 8 M22 21v-2a4 4 0 0 0-3-3.87 M9 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8"/></svg>
                     </div>
-                    <button class="btn-primary" style="margin-left: var(--space-md);">
-                        <span data-icon="add"></span> Aggiungi
+                    <button class="btn-primary">
+                        <span data-icon="plus"></span> Aggiungi
                     </button>
                 </div>
             </div>
 
             <!-- Team Statistics -->
-            <div class="stats-section">
+            <div class="stats-section stats-two">
                 <div class="stat-card">
-                    <span class="stat-value">6</span>
+                    <span class="stat-value">4</span>
                     <span class="stat-label">Squadre con 7 giocatori</span>
                 </div>
                 <div class="stat-card">
-                    <span class="stat-value">2</span>
+                    <span class="stat-value">4</span>
                     <span class="stat-label">Squadre con 5 giocatori</span>
                 </div>
             </div>
