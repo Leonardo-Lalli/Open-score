@@ -8,6 +8,7 @@
 - Bootstrap del primo docente con `TORNEO_ADMIN_EMAIL`/`TORNEO_ADMIN_PASSWORD`; CLI `manage.py` per creare docenti, elencarli e reimpostare la password. Rimosso il Bearer token globale.
 - UI: gate iniziale con card verde per il prof e secondaria per lo studente, login dedicato, topbar con identità/ruolo, tag **Solo lettura** e azioni nascoste per studenti e tornei non propri.
 - Versione applicativa 0.7.0, asset a `v=0.7.0` e **189 test**.
+- Avvio con Docker tramite `Dockerfile` e `docker-compose.yml`; README root snellito, con dettagli, demo e hosting spostati in `torneo-lab/README.md`.
 
 ## 0.6.0 — 25 ottobre 2026
 

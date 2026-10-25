@@ -10,8 +10,8 @@ serializzate da `BEGIN IMMEDIATE` e più processi non porterebbero vantaggi.
 
 ## 1. Prerequisiti
 
-- Windows 10/11 o una distribuzione Linux con systemd.
-- Python 3.10 o successivo.
+- Windows 10/11, una distribuzione Linux con systemd oppure Docker con il plugin Compose.
+- Python 3.10 o successivo (non necessario se si usa Docker).
 - Un indirizzo IP fisso per il computer server (prenotazione DHCP nel router).
 - Accesso amministratore al computer, solo per aprire la porta e installare
   l'attività pianificata o il servizio.
@@ -99,6 +99,22 @@ cd /opt/open-score/torneo-lab
 set -a; . /etc/open-score/open-score.env; set +a
 .venv/bin/python -m uvicorn app:app --host 0.0.0.0 --port 8000 --workers 1
 ```
+
+### Docker (alternativa)
+
+Con Docker e il plugin Compose, dalla cartella principale della repository:
+
+```bash
+cp deploy/open-score.env.example deploy/open-score.env
+# Modificare almeno TORNEO_ADMIN_PASSWORD e TORNEO_ALLOWED_HOSTS.
+docker compose up -d --build
+```
+
+Il servizio pubblica la porta 8000 e conserva il database in
+`torneo-lab/data/`, sul disco del server. `docker compose down` ferma il
+container senza cancellare i dati; `docker compose up -d --build` ricostruisce
+l'immagine dopo un aggiornamento del codice. La configurazione passa sempre da
+`deploy/open-score.env`, come per l'avvio diretto.
 
 Dal computer server aprire `http://127.0.0.1:8000`, da un altro dispositivo
 della LAN `http://192.168.1.50:8000` (con l'IP reale). Verificare:

@@ -1,4 +1,4 @@
-> Documento iniziale conservato per il confronto con il professore. La demo successiva e le istruzioni attuali sono descritte nel [README principale](../README.md).
+> Documento iniziale conservato per il confronto con il professore. La demo successiva e le istruzioni attuali sono descritte nella [guida completa](../torneo-lab/README.md).
 
 # Open Score — proposta di progetto
 
