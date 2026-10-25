@@ -82,6 +82,10 @@ class TeamInput(Input):
     name: Name
 
 
+class LoginInput(Input):
+    password: Annotated[str, StringConstraints(min_length=1, max_length=200)]
+
+
 class ResultInput(Input):
     home_score: Score
     away_score: Score

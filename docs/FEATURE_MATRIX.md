@@ -27,12 +27,14 @@ Fonti: **U** = screenshot/JSON utente; **KB** = [indice ufficiale](https://kb.sc
 | Sedi/campi e arbitri come risorse | Documentata | KB, SC | FUNCTIONAL_SPECS | Campo è solo testo, niente inventario o arbitri |
 | Bracket con collegamenti e avversari futuri | Verificata end-to-end | U | app.js, styles.css; prova browser con BYE | Zoom/pan dedicati non presenti; scorrimento orizzontale |
 | Statistiche aggregate dei risultati | Testata | Scelta originale | services.detail, dashboard; test_api | Statistiche individuali non implementate |
-| Pagina spettatore locale | Verificata end-to-end | KB | GET public, app.js; test_public_read_only…; browser | Nessuna autorizzazione generale dell'app o hosting remoto |
+| Pagina spettatore locale | Verificata end-to-end | KB | GET public, app.js; test_public_read_only…; browser | Sola lettura; nessun hosting su Internet |
+| Accesso organizzatore e blocco delle scritture | Verificata end-to-end | Scelta originale | auth.py, app.py, app.js; test_auth, test_hosts; browser | Password unica condivisa, nessun account individuale o ruolo per torneo |
+| Deployment in LAN, backup e segreto di sessione | Testata | Scelta originale | deploy/, backup.py; test_backup, test_hosts | HTTPS richiede un reverse proxy esterno |
 | Personalizzazione nome/descrizione iniziale | Testata | U, KB | wizard, schemas.py | Loghi, temi e URL personalizzati non presenti |
 | CSV export incontri | Testata | KB | app.py; test_csv_zero_scores_and_formula_names | Import CSV e PDF non implementati |
 | Ritiri e forfait | Documentata | KB | FUNCTIONAL_SPECS | Nessun esito a tavolino distinto da punteggio |
 | Database persistente e schema versionato | Testata | Starter, scelta originale | db.py, migrations; test_persistence_and_migration | Import legacy e produzione PostgreSQL |
-| Accessi collaborativi e account | Progettata | KB, master prompt | DEVELOPMENT_PLAN | Non implementati; demo solo loopback |
+| Accessi collaborativi e account individuali | Parziale | KB, master prompt | auth.py, DEVELOPMENT_PLAN | Implementato un solo organizzatore con password; mancano utenti, ruoli per torneo e isolamento fra organizzatori |
 | Altre varianti/regolamenti specifici di tutti gli sport | Non analizzata | — | — | Da scegliere con il professore |
 
 Le fonti e il grado di certezza sono dettagliati in [REFERENCE_ANALYSIS.md](REFERENCE_ANALYSIS.md). L'architettura futura non è dichiarata esistente.

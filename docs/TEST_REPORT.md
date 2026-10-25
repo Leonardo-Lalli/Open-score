@@ -1,4 +1,4 @@
-# Report di verifica — 24 ottobre 2026
+# Report di verifica — 25 ottobre 2026
 
 ## Esecuzione automatica effettiva
 
@@ -6,6 +6,8 @@ Ambiente: Windows, Python 3.14.3; FastAPI 0.162.0, Pydantic 2.14.1, Uvicorn 0.54
 
 - Baseline ZIP, prima delle modifiche: **6 passed**.
 - Suite della demo dopo implementazione e migrazione: **85 passed, 1 warning**, 3.79 secondi nell'ultima esecuzione locale.
+- Dopo le fasi 3–4 (modifica, archivio, scheda squadra, criteri di spareggio): **106 passed**.
+- Dopo la fase 5 (autenticazione, host LAN, backup, deploy): **118 passed, 1 warning**, 2.81 secondi nell'ultima esecuzione locale.
 - Il warning è la deprecazione Starlette relativa all'uso di httpx nel TestClient; non indica un fallimento dei test. L'ambiente di sviluppo contiene ancora httpx per compatibilità con il test client usato.
 - Il sandbox impediva le richieste del TestClient. I test sono stati eseguiti realmente con il terminale autorizzato; non si è sostituito il risultato con un output simulato.
 
@@ -26,6 +28,11 @@ Comando dalla cartella `torneo-lab`: `python -m pytest -q`, dopo `python -m pip 
 | Calendario | Conversione UTC, fuso obbligatorio, sovrapposizione campo, appuntamenti adiacenti consentiti |
 | Dati | Riapertura database, migrazione schema 1→2 senza perdita di risultato, verifica FK, fixture utente e seed idempotente |
 | Confini locali | Incontro di altro torneo rifiutato, Origin esterno rifiutato, Host inatteso rifiutato, endpoint spettatore solo GET |
+| Modifica e archivio | Nome/descrizione sempre modificabili, campi strutturali bloccati dopo la generazione, archivio in sola lettura e ripristino, persistenza dopo riavvio |
+| Scheda squadra e spareggi | Girone, posizione, classifica e incontri del partecipante; 404 per squadra di altro torneo; mini-classifica `head_to_head`; default `goal_difference` conservato dalla migrazione 005 |
+| Autenticazione | Letture aperte, scritture 401 senza sessione, login/logout, cookie resistente al reload, Bearer token, token scaduto o manomesso rifiutato, 5 errori → 429, modalità demo senza password |
+| Host LAN | Host sconosciuto 400, IP e nome configurati ammessi, `TORNEO_ALLOWED_HOSTS` letto dall'ambiente |
+| Backup | `VACUUM INTO` leggibile con schema e dati completi, `integrity_check` e `foreign_key_check` puliti, conservazione dei più recenti |
 | CSV | Punteggio zero conservato, testo che inizia con formula neutralizzato |
 
 ## Verifica browser effettiva
@@ -43,12 +50,20 @@ Browser integrato, anteprima locale `127.0.0.1:8000`, viewport osservata circa 6
 
 La copertura end-to-end indicata nella matrice si riferisce a queste prove manuali assistite dal browser. Non esiste ancora una suite Playwright autonoma nel repository. Il percorso multifase completo è stato eseguito nei test API, non tramite 31 inserimenti nel browser.
 
+## Verifiche browser delle fasi 3–5
+
+Con server temporaneo e database separato, pilotando Chromium tramite Playwright:
+
+- **Modifica e archivio**: modifica del nome in bozza, blocco dei campi strutturali dopo la generazione, archivio con scomparsa dall'elenco, ripristino, salvataggio di risultato e orario, dati ancora presenti dopo ricarica e riavvio del server.
+- **Criteri e scheda squadra**: quattro criteri nel wizard, nota della classifica coerente («scontri diretti»), modale partecipante con girone, tre incontri e quattro riquadri statistici, vista pubblica di sola lettura con aggiornamento automatico dopo 30 secondi.
+- **Autenticazione**: scrittura anonima 401, letture e link pubblico aperti, password errata con messaggio, accesso con cookie persistente al reload, pulsanti di modifica nascosti da anonimo, click su un risultato che riapre l'accesso, logout che torna alla dashboard. Host `192.168.1.50` rifiutato con 400 quando non configurato e loopback ammesso. Nessun errore JavaScript osservato.
+
 ## Limiti di verifica
 
-Nessuna prova su hardware mobile reale o su tutti i browser. La UI ha regole responsive fino a schermi piccoli; l'anteprima osservata verifica una larghezza intermedia. Nessuna verifica di carico, account, autorizzazioni di produzione, scheduler globale, sport a set o formati avanzati: non sono implementati.
+Nessuna prova su hardware mobile reale o su tutti i browser. La UI ha regole responsive fino a schermi piccoli; l'anteprima osservata verifica una larghezza intermedia. Nessuna verifica di carico, account individuali, ruoli per torneo, scheduler globale, sport a set o formati avanzati: non sono implementati. L'autenticazione è verificata su un solo organizzatore condiviso; il limite ai tentativi è in memoria e non è stato provato con più IP simultanei.
 
 ## Verifica GitHub Actions
 
 Il workflow con matrice Python 3.11 e 3.14 su Linux ha completato con **successo** il controllo del commit applicativo `234273f`. Lo stato `completed / success` è stato letto dall'API pubblica GitHub dopo il push: [esecuzione 40115770441](https://github.com/Leonardo-Lalli/Open-score/actions/runs/40115770441).
 
-Questo esito è distinto dagli 85 test eseguiti localmente su Windows. L'aggiornamento successivo registra il risultato nella documentazione, senza modificare il codice verificato.
+Questo esito è distinto dagli 85 test della prima consegna eseguiti localmente su Windows (oggi 118). L'aggiornamento successivo registra il risultato nella documentazione, senza modificare il codice verificato.

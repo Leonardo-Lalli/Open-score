@@ -1,4 +1,4 @@
-"""Local teaching demo. Run on 127.0.0.1; no production accounts yet."""
+"""Open Score API: local demo by default, single-organiser auth for the LAN."""
 import csv
 import io
 import os
@@ -6,36 +6,62 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from auth import COOKIE_NAME, build as build_auth
 from db import BASE, database, initialize
 from demo import load_examples
-from schemas import ClearInput, ResultInput, ScheduleInput, TeamInput, TournamentInput, TournamentUpdate
+from schemas import (ClearInput, LoginInput, ResultInput, ScheduleInput, TeamInput,
+                     TournamentInput, TournamentUpdate)
 import services as svc
 import sport_rules
 
 
-def create_app(db_path: str | Path | None = None, seed: bool = True) -> FastAPI:
+def create_app(db_path: str | Path | None = None, seed: bool = True, *,
+               admin_password: str | None = None, api_token: str | None = None,
+               session_secret: str | bytes | None = None,
+               allowed_hosts: list[str] | None = None,
+               cookie_secure: bool | None = None) -> FastAPI:
     path = Path(db_path or os.environ.get('TORNEO_DB_PATH', str(BASE/'data/open_score.sqlite3')))
     fresh = initialize(path)
-    api = FastAPI(title='Open Score · demo API',version='0.2.0',
-                  description='Demo locale originale. Nessun collegamento alle API di Score7.')
+    auth = build_auth(BASE, password=admin_password, api_token=api_token,
+                      secret=session_secret, cookie_secure=cookie_secure)
+
+    default_hosts = ['127.0.0.1', 'localhost', 'testserver']
+    configured = allowed_hosts
+    if configured is None:
+        configured = [host.strip() for host in
+                      os.environ.get('TORNEO_ALLOWED_HOSTS', '').split(',') if host.strip()]
+    hosts = list(dict.fromkeys(default_hosts + list(configured)))
+
+    api = FastAPI(title='Open Score · API', version='0.3.0',
+                  description='Applicazione originale per i tornei scolastici. Nessun collegamento alle API di Score7.')
     api.state.db_path = path
-    api.add_middleware(TrustedHostMiddleware, allowed_hosts=['127.0.0.1','localhost','testserver'])
+    api.state.auth = auth
+    api.state.allowed_hosts = hosts
+    api.add_middleware(TrustedHostMiddleware, allowed_hosts=hosts)
     api.mount('/static',StaticFiles(directory=BASE/'static'),name='static')
 
     @api.middleware('http')
-    async def local_mutations(request: Request, call_next):
-        # Block cross-origin browser writes to the unauthed loopback demo.
+    async def local_security(request: Request, call_next):
+        # Block cross-origin browser writes, then require an admin session for
+        # every mutation when a password or API token is configured.
         origin = request.headers.get('origin')
         if request.method not in ('GET','HEAD','OPTIONS') and origin:
             if origin != str(request.base_url).rstrip('/'):
                 return Response('Origine non consentita',status_code=403)
+        if (auth.required and request.method not in ('GET','HEAD','OPTIONS')
+                and request.url.path.startswith('/api')
+                and request.url.path not in ('/api/auth/login','/api/auth/logout')
+                and not auth.is_authenticated(request)):
+            return JSONResponse({'detail':'Accesso richiesto'},status_code=401)
         response = await call_next(request)
         response.headers['X-Content-Type-Options']='nosniff'
         response.headers['Referrer-Policy']='same-origin'
+        if auth.cookie_secure:
+            response.headers['Strict-Transport-Security']='max-age=31536000; includeSubDomains'
         if request.url.path not in ('/docs','/redoc','/docs/oauth2-redirect'):
             response.headers['Content-Security-Policy']="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:; frame-ancestors 'none'"
         return response
@@ -47,7 +73,37 @@ def create_app(db_path: str | Path | None = None, seed: bool = True) -> FastAPI:
 
     @api.get('/api/health')
     def health():
-        return {'status':'ok','version':'0.2.0','mode':'local-demo'}
+        return {'status':'ok','version':'0.3.0',
+                'mode':'school-lan' if auth.required else 'local-demo',
+                'auth':'required' if auth.required else 'disabled'}
+
+    @api.get('/api/auth/session')
+    def session_info(request: Request):
+        authenticated = (not auth.required) or auth.is_authenticated(request)
+        return {'authenticated':authenticated,'auth_required':auth.required,
+                'role':'admin' if authenticated else 'viewer'}
+
+    @api.post('/api/auth/login')
+    def login(data: LoginInput, request: Request):
+        if not auth.required:
+            return {'authenticated':True,'auth_required':False,'role':'admin'}
+        key = request.client.host if request.client else 'unknown'
+        if not auth.login_allowed(key):
+            raise HTTPException(429,'Troppi tentativi. Riprova tra un minuto.')
+        if not auth.check_password(data.password):
+            auth.record_failure(key)
+            raise HTTPException(401,'Password non corretta')
+        auth.record_success(key)
+        response = JSONResponse({'authenticated':True,'auth_required':True,'role':'admin'})
+        response.set_cookie(COOKIE_NAME, auth.issue(), max_age=auth.ttl, httponly=True,
+                            samesite='lax', secure=auth.cookie_secure, path='/')
+        return response
+
+    @api.post('/api/auth/logout')
+    def logout():
+        response = JSONResponse({'ok':True})
+        response.delete_cookie(COOKIE_NAME, path='/')
+        return response
 
     @api.get('/api/tournaments')
     def list_tournaments(archived: Literal['exclude', 'include', 'only'] = 'exclude'):

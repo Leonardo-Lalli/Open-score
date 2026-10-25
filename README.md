@@ -1,6 +1,6 @@
 # Open Score
 
-**Il tuo campo di gioco.** Una demo originale per organizzare tornei sportivi a scuola: partecipanti, gironi, risultati e un percorso fino alla finale.
+**Il tuo campo di gioco.** Un'applicazione originale per organizzare tornei sportivi a scuola: partecipanti, gironi, risultati e un percorso fino alla finale.
 
 Progetto di **Leonardo Lalli e Maximiliam Cichello**, da discutere con il professore di scienze motorie. Nome e scelte di prodotto restano provvisori. La proposta iniziale è conservata in [docs/PROPOSTA_PROGETTO.md](docs/PROPOSTA_PROGETTO.md).
 
@@ -41,7 +41,7 @@ Su macOS/Linux: `python3 -m venv .venv`, `source .venv/bin/activate`, poi gli st
 
 I quattro esempi vengono salvati al primo avvio. I nomi, gli incontri e i risultati si possono cambiare; i dati persistono dopo il riavvio. Non c'è una scadenza di 24 ore. Gli esempi aggiuntivi sono sintetici; il campione JSON fornito è conservato come fixture con i relativi ID di provenienza.
 
-## Funzioni della versione 0.2
+## Funzioni della versione 0.3
 
 - Dashboard e interfaccia italiana responsive, procedura guidata, partecipanti rinominabili.
 - Girone di sola andata o andata/ritorno, anche con numero dispari di partecipanti.
@@ -49,12 +49,28 @@ I quattro esempi vengono salvati al primo avvio. I nomi, gli incontri e i risult
 - Gironi uguali → qualificazione automatica delle prime 1/2 → eliminazione diretta.
 - Risultati e correzioni con controllo della versione, conferma per invalidare gli incontri dipendenti e storico delle modifiche.
 - Data, ora, campo e durata inseriti manualmente; controlli sui conflitti conosciuti.
-- Esportazione CSV e link alla vista spettatore di sola lettura.
-- Database SQLite persistente, API documentate e test automatici.
+- Esportazione CSV e link alla vista spettatore di sola lettura, aggiornata ogni 30 secondi.
+- Modifica del torneo, archiviazione e ripristino senza cancellare i dati.
+- Criterio a parità di punti configurabile: differenza reti, scontri diretti, reti fatte o vittorie.
+- Scheda partecipante con girone, posizione, classifica e incontri.
+- Accesso dell'organizzatore con password singola o token, scritture protette, host della LAN ammessi e limite ai tentativi di accesso.
+- Database SQLite persistente, backup consistenti, avvio automatico e API documentate.
 
-**È una demo locale, non l'intera piattaforma del master prompt.** Non ci sono ancora account, ruoli, rose, punteggi a set, rigori, doppia eliminazione, Swiss, consolazione o scheduler automatico. Gli sport disponibili usano un punteggio numerico generico. La classifica usa punti → differenza → fatti → nome → ID: regole da concordare con il professore.
+**È un'applicazione per la LAN scolastica, non l'intera piattaforma del master prompt.** Non ci sono account individuali, ruoli per torneo, rose, punteggi a set, rigori, doppia eliminazione, Swiss, consolazione o scheduler automatico. Gli sport disponibili usano un punteggio numerico generico. La classifica usa punti e il criterio scelto, poi nome e ID: regole da concordare con il professore.
 
-Il server resta su **127.0.0.1**. La vista spettatore non sostituisce le autorizzazioni del futuro servizio online. Il tuo amico può scaricare e avviare il codice sul proprio computer; i vostri database locali non si sincronizzano. Pubblicare la repository su GitHub non pubblica automaticamente il backend su Internet.
+Con `TORNEO_ADMIN_PASSWORD` impostata, chiunque può leggere i tornei ma solo l'organizzatore può modificarli; senza password l'app resta in modalità demo locale e accetta scritture. Il link spettatore è di sola lettura in entrambi i casi. Il server può essere raggiunto dalla LAN, ma non è destinato a Internet: installazione, firewall, backup e limiti sono in [DEPLOY.md](docs/DEPLOY.md) e [SECURITY.md](docs/SECURITY.md).
+
+## Sulla LAN della scuola
+
+Impostare la password e gli indirizzi ammessi, poi avviare il server su `0.0.0.0`:
+
+```powershell
+$env:TORNEO_ADMIN_PASSWORD = 'una-password-lunga-e-condivisa'
+$env:TORNEO_ALLOWED_HOSTS = '192.168.1.50,open-score.local'
+.venv\Scripts\python.exe -m uvicorn app:app --host 0.0.0.0 --port 8000
+```
+
+Aprire `http://<IP-del-server>:8000` da un altro dispositivo della stessa rete e usare **Accedi**. Un solo worker `uvicorn`: SQLite serializza già le scritture. Per configurazione completa, avvio automatico, backup e ripristino seguire [DEPLOY.md](docs/DEPLOY.md).
 
 ## Verifica e documentazione
 
@@ -65,7 +81,7 @@ python -m pip install -r requirements-dev.txt
 python -m pytest -q
 ```
 
-Sono verificati algoritmi, avanzamenti, multifase, correzioni, concorrenza, persistenza, validazioni, CSV e API. Risultati ed esatta copertura nel [report dei test](docs/TEST_REPORT.md). Documentazione interattiva: [localhost:8000/docs](http://127.0.0.1:8000/docs).
+Sono verificati algoritmi, avanzamenti, multifase, correzioni, concorrenza, persistenza, validazioni, CSV, API, autenticazione, host della LAN e backup. Risultati ed esatta copertura nel [report dei test](docs/TEST_REPORT.md). Documentazione interattiva: [localhost:8000/docs](http://127.0.0.1:8000/docs).
 
 | Documento | Contenuto |
 | --- | --- |
@@ -74,9 +90,10 @@ Sono verificati algoritmi, avanzamenti, multifase, correzioni, concorrenza, pers
 | [Analisi dei riferimenti](docs/REFERENCE_ANALYSIS.md) | Screenshot, JSON, fonti e limiti delle inferenze |
 | [Matrice funzionale](docs/FEATURE_MATRIX.md) | Funzioni presenti, verificate e rimandate |
 | [Schede funzionali](docs/FUNCTIONAL_SPECS.md) | Input, regole, dati, stati e casi limite |
-| [Architettura](docs/ARCHITECTURE.md) · [Database](docs/DATABASE.md) · [API](docs/API.md) | Struttura effettiva della demo |
+| [Architettura](docs/ARCHITECTURE.md) · [Database](docs/DATABASE.md) · [API](docs/API.md) | Struttura effettiva dell'applicazione |
+| [Deploy in LAN](docs/DEPLOY.md) · [Sicurezza](docs/SECURITY.md) | Installazione, firewall, backup, ripristino, credenziali e limiti |
 | [Piano di sviluppo](docs/DEVELOPMENT_PLAN.md) · [Decisioni](docs/DECISIONS.md) | Passi successivi e ipotesi da discutere |
-| [Changelog](docs/CHANGELOG.md) | Incremento 0.2 |
+| [Changelog](docs/CHANGELOG.md) | Incremento 0.3 |
 
 Il codice è originale e non dipende dai server di Score7. La licenza per il rilascio open source stabile va concordata tra gli autori; non è ancora stata assegnata. Database, credenziali e ambienti locali non sono inclusi nella repository.
 

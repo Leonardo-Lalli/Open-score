@@ -33,6 +33,6 @@ Nei tornei multifase, tutte le partite dei gironi devono essere complete prima d
 
 ## Confine di questa consegna
 
-È un'applicazione locale con un solo spazio di lavoro. La pagina spettatore e il suo endpoint sono di sola lettura; non costituiscono un sistema di ruoli: gli endpoint organizzatore non hanno login. Il server si avvia su `127.0.0.1` e non è destinato a Internet. Database condiviso sullo stesso computer; il collaboratore scarica e avvia la propria copia da GitHub.
+È un'applicazione per un solo spazio di lavoro, ora utilizzabile sulla LAN scolastica. La pagina spettatore e il suo endpoint sono di sola lettura. Con `TORNEO_ADMIN_PASSWORD` (o `TORNEO_API_TOKEN`) tutte le scritture richiedono la sessione dell'organizzatore: esiste un solo ruolo amministrativo condiviso, non account individuali né permessi per torneo. Senza password l'app resta in modalità demo locale su `127.0.0.1`. Il server può ascoltare sulla LAN, ma non è destinato a Internet; installazione, host ammessi e backup sono descritti in [DEPLOY.md](DEPLOY.md) e [SECURITY.md](SECURITY.md).
 
-Frontend senza build e SQLite riducono i passaggi per presentarla a scuola. React/TypeScript, SQLAlchemy/Alembic, PostgreSQL e account sono opzioni per la piattaforma successiva, non dipendenze necessarie a questa demo.
+Frontend senza build e SQLite riducono i passaggi per presentarla a scuola. React/TypeScript, SQLAlchemy/Alembic e PostgreSQL restano opzioni per la piattaforma successiva; account individuali e ruoli per torneo richiederebbero un modello utenti che questa versione non ha.

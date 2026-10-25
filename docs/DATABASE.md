@@ -49,4 +49,14 @@ Non è esposta la cancellazione dei tornei: si archiviano con `archived_at` e si
 
 SQLite in modalità WAL è la scelta per la LAN scolastica: un solo processo `uvicorn` (un worker), scritture serializzate con `BEGIN IMMEDIATE` e letture concorrenti. PostgreSQL richiederà una migrazione dedicata, non il semplice cambio di percorso, e sarà valutato solo se serviranno più server o molte scritture simultanee.
 
-Per un backup consistente usare l'API SQLite (`VACUUM INTO` o `sqlite3.Connection.backup`) invece di copiare il file a caldo: con WAL il file principale da solo può essere incompleto. Esempio: arrestare il server e copiare `data/open_score.sqlite3` insieme agli eventuali `-wal` e `-shm`, oppure eseguire un backup online. Il backup non va pubblicato su GitHub.
+Per un backup consistente usare l'API SQLite (`VACUUM INTO` o `sqlite3.Connection.backup`) invece di copiare il file a caldo: con WAL il file principale da solo può essere incompleto. `backup.py` usa `VACUUM INTO` e produce `backup/open_score-AAAAMMGG-HHMMSS-microsecondi.sqlite3`, con conservazione configurabile:
+
+```powershell
+.venv\Scripts\python.exe backup.py --keep 14
+```
+
+Il backup è eseguibile mentre il server scrive, perché `VACUUM INTO` legge uno snapshot transazionale. Il file prodotto è un database SQLite completo e autonomo: non servono `-wal` o `-shm`. Su Windows lo script `deploy/backup-open-score.ps1` aggiunge data, esito e percorso a `backup/backup.log`. Per ripristinare: fermare il server, spostare `data/open_score.sqlite3` e i file `-wal`/`-shm`, copiare il backup come `data/open_score.sqlite3`, riavviare. I backup contengono tutti i dati e non vanno pubblicati su GitHub né lasciati senza protezione.
+
+## Segreto delle sessioni
+
+Quando l'autenticazione è attiva, i cookie sono firmati con HMAC-SHA256. Il segreto si legge da `TORNEO_SECRET`; se assente, `auth.py` crea `data/session.secret` con permessi ristretti e lo riusa ai successivi avvii. Cancellare o sostituire quel file invalida tutte le sessioni esistenti, senza toccare i tornei. Il segreto non è nel database: un backup del solo `.sqlite3` non contiene cookie validi, mentre serve il file del segreto per continuare le sessioni dopo un ripristino su un altro computer. Sia il database sia il segreto sono esclusi da Git.

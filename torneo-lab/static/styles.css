@@ -358,6 +358,18 @@ textarea:focus {
   letter-spacing: 1.4px;
   color: #778370;
 }
+.auth-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  font-weight: 600;
+  color: #5b7d32;
+}
+.auth-user .icon {
+  width: 13px;
+  height: 13px;
+}
 .button {
   display: inline-flex;
   align-items: center;

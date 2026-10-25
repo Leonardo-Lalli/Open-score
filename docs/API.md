@@ -1,10 +1,13 @@
-# API effettive della demo
+# API effettive
 
-Server locale: `http://127.0.0.1:8000`. OpenAPI: `/openapi.json`; documentazione interattiva: `/docs`. Gli endpoint sotto `/api` sono originali. Non riproducono né chiamano l'API di Score7.
+Server di sviluppo: `http://127.0.0.1:8000`. Sulla LAN l'indirizzo è quello del computer server (per esempio `http://192.168.1.50:8000`) e deve comparire in `TORNEO_ALLOWED_HOSTS`. OpenAPI: `/openapi.json`; documentazione interattiva: `/docs`. Gli endpoint sotto `/api` sono originali. Non riproducono né chiamano l'API di Score7.
 
 | Metodo | Percorso | Operazione |
 | --- | --- | --- |
-| GET | /api/health | Versione e modalità locale |
+| GET | /api/health | Versione, modalità (`local-demo` o `school-lan`) e stato dell'autenticazione |
+| GET | /api/auth/session | Stato della sessione: `authenticated`, `auth_required`, `role` |
+| POST | /api/auth/login | Accesso con password; imposta il cookie di sessione |
+| POST | /api/auth/logout | Cancella il cookie di sessione |
 | GET | /api/sports | Catalogo sport letto da `sport_configs` |
 | GET | /api/sports/{sport_name} | Regole e dimensioni di uno sport; 404 se assente |
 | GET, POST | /api/tournaments | Elenco con stato e contatori (`?archived=exclude\|include\|only`); creazione (201) |
@@ -23,7 +26,18 @@ Server locale: `http://127.0.0.1:8000`. OpenAPI: `/openapi.json`; documentazione
 | GET | /api/public/{token} | Dati spettatore, senza diario o metadati privati del torneo |
 | POST | /api/demo | Caricamento idempotente dei quattro esempi |
 
-`/public/{token}` serve l'interfaccia spettatore. Non esistono endpoint di scrittura sotto `/api/public`. Non esiste ancora autenticazione per le altre API: questa separazione è una vista locale, non una barriera di autorizzazione per un servizio online.
+`/public/{token}` serve l'interfaccia spettatore. Non esistono endpoint di scrittura sotto `/api/public`. Con `TORNEO_ADMIN_PASSWORD` o `TORNEO_API_TOKEN` impostati, ogni altro metodo diverso da `GET`/`HEAD`/`OPTIONS` sotto `/api` richiede una sessione o un token; senza configurazione l'app resta in modalità demo locale e le scritture sono aperte. Dettagli e limiti in [SECURITY.md](SECURITY.md).
+
+## Accesso e sessioni
+
+```json
+POST /api/auth/login
+{"password": "..."}
+```
+
+Risposta `200`: `{"authenticated": true, "auth_required": true, "role": "admin"}` e cookie `open_score_session` (`HttpOnly`, `SameSite=Lax`, durata 12 ore salvo `TORNEO_SESSION_HOURS`). Password errata: `401`; troppi tentativi dallo stesso IP: `429` dopo 5 errori in 5 minuti, con blocco di 60 secondi. `POST /api/auth/logout` risponde `{"ok": true}` e cancella il cookie.
+
+Gli script possono evitare il login con `Authorization: Bearer <TORNEO_API_TOKEN>`. Una scrittura senza credenziali valide riceve `401 {"detail": "Accesso richiesto"}`. Con autenticazione attiva la UI mostra **Accedi** e nasconde i comandi di modifica; un tentativo di scrittura da spettatore riapre la finestra di accesso. Senza password configurata `auth_required` è `false` e il ruolo locale è `admin`.
 
 ## Esempio riproducibile
 
@@ -68,5 +82,5 @@ La modifica parziale accetta solo i campi inviati. Nome e descrizione sono sempr
 - Classifiche: ricalcolate dai risultati validi. A parità di punti il criterio è `tie_breaker` (`goal_difference`, `head_to_head`, `goals_for`, `wins`), poi nome e ID. Con `head_to_head` si confrontano solo gli incontri tra le squadre appaiate.
 - Tornei: `draft`, `active`, `completed`, derivati dai dati, non impostati manualmente dal browser.
 - Nomi ripuliti e limitati; campi extra rifiutati. Punteggi interi 0–999; booleani, decimali e stringhe numeriche non accettati.
-- 404 per risorse mancanti o incontro di un altro torneo; 409 per versioni obsolete, duplicati, sovrapposizioni, tornei archiviati e dipendenze da confermare; 422 per input/regole non validi; 403 per scritture da Origin diverso.
-- Generazione ripetuta: 409 senza duplicati. Caricamento esempi ripetuto: stessi ID e risultati preservati. Le scritture su più tabelle sono atomiche. Paginazione, ruoli e API pubbliche stabili versionate restano da implementare.
+- 404 per risorse mancanti o incontro di un altro torneo; 409 per versioni obsolete, duplicati, sovrapposizioni, tornei archiviati e dipendenze da confermare; 422 per input/regole non validi; 401 per scritture senza sessione quando l'autenticazione è attiva; 429 per troppi tentativi di accesso; 403 per scritture da Origin diverso; 400 per Host non consentito.
+- Generazione ripetuta: 409 senza duplicati. Caricamento esempi ripetuto: stessi ID e risultati preservati. Le scritture su più tabelle sono atomiche. Paginazione e account individuali restano da implementare.

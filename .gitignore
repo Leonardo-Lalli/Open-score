@@ -436,3 +436,6 @@ __pycache__/
 *.sqlite3-*
 .work/
 torneo-lab-mvp.zip
+torneo-lab/data/
+torneo-lab/backup/
+deploy/open-score.env

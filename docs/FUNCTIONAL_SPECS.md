@@ -358,17 +358,17 @@ Perimetro: demo 0.2 e funzioni future chiaramente distinte. Le regole della demo
 
 | Campo | Specifica |
 | --- | --- |
-| Descrizione | Collaborare online con accessi diversi. |
-| Input | Futuri: account, appartenenza al torneo e ruolo. |
-| Regole di business | Proposta: verificare permessi su ogni operazione; nessun login fittizio nella demo. |
-| Output | Futuro spazio protetto e link spettatore. |
-| Entità database | Candidati: users, sessions, tournament_members. |
-| Stati | Da progettare. |
-| Errori e casi limite | Accessi ad altri tornei, sessioni scadute, CSRF. |
-| Dipendenze | Modello utenti e hosting. |
-| Priorità | P1 prima del pubblico |
-| Fonte | Master prompt; indice KB |
-| Grado di certezza | Non implementato; controlli Host/Origin locali non sono autenticazione. |
+| Descrizione | Proteggere le scritture sulla LAN e consentire la consultazione senza accesso. |
+| Input | Password unica dell'organizzatore (`TORNEO_ADMIN_PASSWORD`) oppure Bearer token (`TORNEO_API_TOKEN`). |
+| Regole di business | Con autenticazione attiva ogni scrittura `/api` richiede sessione o token; letture e vista pubblica restano aperte. Limite di 5 errori in 5 minuti per IP, blocco di 60 secondi. |
+| Output | Cookie firmato `open_score_session`, ruolo `admin`, `401` per scritture anonime, `429` per troppi tentativi. |
+| Entità database | Nessuna tabella utenti o sessioni: segreto HMAC su file o variabile d'ambiente. |
+| Stati | `local-demo` senza password; `school-lan` con autenticazione attiva; sessione valida o scaduta. |
+| Errori e casi limite | Password errata, sessione scaduta, host non ammesso (400), Origin diverso (403), logout che non revoca un cookie già copiato. |
+| Dipendenze | Configurazione del server e rete interna. |
+| Priorità | P1 |
+| Fonte | Master prompt; indice KB; scelta originale |
+| Grado di certezza | Implementato e testato; account individuali, ruoli per torneo e revoca centralizzata restano da progettare. |
 
 ## 24. Persistenza e migrazioni
 
@@ -376,7 +376,7 @@ Perimetro: demo 0.2 e funzioni future chiaramente distinte. Le regole della demo
 | --- | --- |
 | Descrizione | Ritrovare i dati dopo il riavvio. |
 | Input | SQLite locale o TORNEO_DB_PATH. |
-| Regole di business | Transazioni atomiche, FK attive, versioni schema 1→2; ID incontri mai riciclati; niente conversione legacy implicita. |
+| Regole di business | Transazioni atomiche, FK attive, versioni schema 1→5; ID incontri mai riciclati; niente conversione legacy implicita. |
 | Output | Dati e audit persistenti. |
 | Entità database | Tutte le tabelle; PRAGMA user_version. |
 | Stati | Schema aggiornato o errore esplicito. |
