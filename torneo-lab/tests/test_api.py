@@ -169,12 +169,15 @@ def test_public_read_only_and_no_private_fields(client):
 
 def test_persistence_and_migration(tmp_path):
     path=tmp_path/'persist.sqlite3'
-    with TestClient(create_app(path,False)) as c:
+    credentials=dict(admin_email='prof@test.local',admin_password='password-lunga')
+    with TestClient(create_app(path,False,**credentials)) as c:
+        c.post('/api/auth/login',json={'email':'prof@test.local','password':'password-lunga'})
         tid=make(c);m=state(c,tid)['matches'][0];score(c,tid,m)
-    with TestClient(create_app(path,False)) as c:
+    with TestClient(create_app(path,False,**credentials)) as c:
+        c.post('/api/auth/login',json={'email':'prof@test.local','password':'password-lunga'})
         assert state(c,tid)['progress']['completed']==1
     with sqlite3.connect(path) as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0]==6
+        assert db.execute('PRAGMA user_version').fetchone()[0]==7
         assert db.execute('PRAGMA foreign_key_check').fetchall()==[]
 
 
@@ -216,5 +219,5 @@ def test_version_one_database_migrates_without_data_loss(tmp_path):
         data=state(c,1)
         assert data['champion_team_id']==1 and data['matches'][0]['home_score']==3
     with sqlite3.connect(path) as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0]==6
+        assert db.execute('PRAGMA user_version').fetchone()[0]==7
         assert db.execute('PRAGMA foreign_key_check').fetchall()==[]

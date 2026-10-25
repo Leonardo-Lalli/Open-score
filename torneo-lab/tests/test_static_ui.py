@@ -33,8 +33,8 @@ def test_static_ui_has_no_out_of_catalog_sports(client):
 def test_index_references_versioned_assets_and_disables_cache(client):
     response = client.get('/')
     assert response.status_code == 200
-    assert 'app.js?v=0.6.0' in response.text
-    assert 'styles.css?v=0.6.0' in response.text
+    assert 'app.js?v=0.7.0' in response.text
+    assert 'styles.css?v=0.7.0' in response.text
     assert 'no-cache' in response.headers['cache-control']
 
 
@@ -61,6 +61,22 @@ def test_static_shell_assets_are_revalidated(client):
         response = client.get(path)
         assert response.status_code == 200
         assert 'no-cache' in response.headers['cache-control']
+
+
+def test_role_gate_offers_teacher_login_and_student_read_only(client):
+    html = client.get('/').text
+    assert 'id="role-gate"' in html
+    assert 'Sono un prof' in html
+    assert 'Sono uno studente' in html
+    assert 'id="role-login-form"' in html
+    assert 'name="email"' in html
+    assert 'name="password"' in html
+
+    script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
+    assert 'showRoleGate' in script
+    assert 'enterStudentMode' in script
+    assert 'loginTeacher' in script
+    assert 'canManage' in script
 
 
 def test_spa_no_longer_links_to_legacy_design_pages(client):

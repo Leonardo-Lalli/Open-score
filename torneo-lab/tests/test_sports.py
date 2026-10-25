@@ -1,9 +1,7 @@
 from typing import get_args
 
 import pytest
-from fastapi.testclient import TestClient
 
-from app import create_app
 from schemas import TournamentInput
 
 CANONICAL = [
@@ -25,12 +23,6 @@ VARIANTS = {
 }
 
 ALL_VARIANTS = [(sport, slug) for sport, slugs in VARIANTS.items() for slug in slugs]
-
-
-@pytest.fixture
-def client(tmp_path):
-    with TestClient(create_app(tmp_path / 'sports.sqlite3', seed=False)) as instance:
-        yield instance
 
 
 def test_sports_endpoint_reads_the_database_catalog(client):

@@ -2,13 +2,14 @@
 
 Default: `torneo-lab/data/open_score.sqlite3`. Percorso configurabile con `TORNEO_DB_PATH`. Il file, i database di test e l'ambiente Python sono esclusi da Git. I quattro esempi vengono creati al primo avvio di un database nuovo. `POST /api/demo` aggiunge gli esempi mancanti senza azzerare i risultati esistenti.
 
-## Schema effettivo (versione 6)
+## Schema effettivo (versione 7)
 
 | Tabella | Chiave e relazioni | Dati e vincoli principali |
 | --- | --- | --- |
+| teachers | PK id; email unica (case-insensitive) | Account docente: email, hash PBKDF2-SHA256 della password, nome visualizzato e data di creazione |
 | sport_configs | PK id; nome unico | Sport padre del catalogo: nome, descrizione, sistema di punteggio, regole JSON e `sort_order` |
 | sport_variants | PK id; FK sport_configs; slug unico; UNIQUE(sport, nome) | Varianti selezionabili: descrizione, tipo team/individual, ordine, regole JSON e regolamento testuale |
-| tournaments | PK id; FK sport_configs e sport_variants; public_token e demo_key unici | Formato enumerato, nome non vuoto, sport testuale e `sport_id`, variante e `variant_id`, snapshot di regole e regolamento, tipo team/individual, regole dei punti, gironi e qualificate, andata/ritorno, seed, tipo torneo, sistema di punteggio, `archived_at`, `updated_at`, `tie_breaker` |
+| tournaments | PK id; FK sport_configs, sport_variants e teachers; public_token e demo_key unici | Formato enumerato, nome non vuoto, sport testuale e `sport_id`, variante e `variant_id`, `teacher_id` proprietario (NULL per tornei storici/demo), snapshot di regole e regolamento, tipo team/individual, regole dei punti, gironi e qualificate, andata/ritorno, seed, tipo torneo, sistema di punteggio, `archived_at`, `updated_at`, `tie_breaker` |
 | stages | PK id; FK torneo; UNIQUE(torneo,ordinal) | Una fase round_robin o knockout; source_id opzionale per provenienza |
 | groups | PK id; FK fase; UNIQUE(fase,nome) | Gironi della prima fase |
 | teams | PK id; FK torneo e girone opzionale; UNIQUE(torneo,nome) | Partecipanti; il tipo squadra/individuale è definito dalla variante; source_id opzionale |
@@ -21,10 +22,11 @@ Catalogo canonico in `sport_configs`, in ordine di `sort_order`: **Calcio, Baske
 
 Il regolamento e le regole della variante vengono copiati in `tournaments.rules_snapshot` e `regulation_snapshot` alla creazione. Modificare il catalogo non riscrive quindi i tornei già creati. `variant_id` collega il torneo alla variante corrente; `variant` conserva lo slug come snapshot leggibile.
 
-Indici su incontri/torneo/fase/turno, partecipanti/torneo, `tournaments(sport_id)`, `sport_variants(sport_id, sort_order)`, `team_players(team_id)` e `match_sets(match_id)`. Su ogni connessione: `PRAGMA foreign_keys=ON`, `busy_timeout=10000`, `journal_mode=WAL`. I nomi duplicati vengono controllati anche con `casefold()` nel servizio. La classifica non è una tabella: viene ricalcolata dai risultati validi, evitando copie divergenti. Il criterio a parità di punti è memorizzato in `tournaments.tie_breaker` con un `CHECK` sui quattro valori ammessi; `head_to_head` costruisce una mini-classifica dei soli scontri diretti tra le squadre appaiate.
+Indici su incontri/torneo/fase/turno, partecipanti/torneo, `tournaments(sport_id)`, `tournaments(teacher_id, id)`, `sport_variants(sport_id, sort_order)`, `team_players(team_id)`, `match_sets(match_id)` e `teachers(email)`. Su ogni connessione: `PRAGMA foreign_keys=ON`, `busy_timeout=10000`, `journal_mode=WAL`. I nomi duplicati vengono controllati anche con `casefold()` nel servizio. La classifica non è una tabella: viene ricalcolata dai risultati validi, evitando copie divergenti. Il criterio a parità di punti è memorizzato in `tournaments.tie_breaker` con un `CHECK` sui quattro valori ammessi; `head_to_head` costruisce una mini-classifica dei soli scontri diretti tra le squadre appaiate.
 
 ```mermaid
 erDiagram
+  teachers ||--o{ tournaments : possiede
   sport_configs ||--o{ sport_variants : propone
   sport_configs ||--o{ tournaments : classifica
   sport_variants ||--o{ tournaments : regola

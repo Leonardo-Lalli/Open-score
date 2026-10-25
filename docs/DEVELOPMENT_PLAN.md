@@ -14,7 +14,7 @@ Obiettivo: portare la demo da un unico modello numerico a sei sport con varianti
 | 5 — Formati avanzati | Documentata, non implementata | Futuro: doppia eliminazione collegata, Swiss Classic e Pots distinti, Cup & Consolation; test propri prima della UI |
 | 6 — Calendario | Parziale | Durata predefinita dalla variante, assegnazione manuale UTC e controllo conflitti noti; scheduler globale non implementato |
 | 7 — Interfaccia demo | Implementata | SPA unica: dashboard, catalogo sport, wizard gerarchico sport → variante, riepilogo, partecipanti, rose, scheda squadra, incontri, classifica, bracket, regolamento, diario, CSV e vista spettatore; i vecchi URL di design reindirizzano alla SPA |
-| 8 — Sicurezza e multiutenza | Implementata per un solo organizzatore | Password o token, sessione firmata, blocco scritture, host ammessi, limite ai tentativi e test 401/429; mancano account individuali e ruoli per torneo |
+| 8 — Sicurezza e multiutenza | Implementata per i docenti | Account docente con email/password, sessione firmata, gate prof/studente, scritture protette e isolate per proprietario, host ammessi e limite ai tentativi; mancano ruoli amministrativi e disattivazione account dalla UI |
 | 9 — Produzione LAN | Implementata e documentata | Avvio come attività pianificata o servizio systemd, backup `VACUUM INTO` con conservazione, ripristino, HTTPS tramite proxy esterno e lista di controllo |
 | 10 — Sport, varianti e regole | Implementata e testata | Sei sport, sedici varianti, schermate dedicate con deep link, rose con minimo/massimo e lineup visibile, durata e classifica derivate dalle regole, set per set, snapshot del regolamento |
 
@@ -61,6 +61,20 @@ Obiettivo: rendere l’interfaccia utilizzabile senza attriti su iPhone e Androi
 | Tabelle e bracket | Implementata | Scroll orizzontale, overscroll contenuto e larghezza minima leggibile |
 | Verifica | Testata | `test_static_ui` aggiornato; suite a **185 passed** |
 
+## Incremento 0.7.0 — ruoli prof/studente e isolamento per docente
+
+Obiettivo: separare nettamente consultazione e gestione, con account docente individuali e tornei accessibili solo al proprietario.
+
+| Milestone | Stato in questa consegna | Criterio di completamento |
+| --- | --- | --- |
+| Gate iniziale | Implementata | Due scelte immediate: **Sono un prof** (verde) e **Sono uno studente** (colore secondario) |
+| Login docente | Implementata | Email e password, hash PBKDF2-SHA256, sessione firmata con `teacher_id` ed email |
+| Modalità studente | Implementata e testata | UI senza comandi di modifica; ogni scrittura `/api` risponde 401 |
+| Proprietà dei tornei | Implementata e testata | `tournaments.teacher_id`; un docente non può modificare tornei altrui (403) |
+| Lista e dettaglio | Implementata | `?mine=1` per i propri tornei; `can_manage` su lista, dettaglio e scheda squadra |
+| Bootstrap e gestione account | Implementata | `TORNEO_ADMIN_EMAIL`/`TORNEO_ADMIN_PASSWORD` e CLI `manage.py` |
+| Verifica | Testata | `test_auth`, `test_teacher_isolation`, `test_static_ui`; suite a **189 passed** |
+
 ## Verifica di conformità alla specifica
 
 | Requisito | Implementazione | Verifica |
@@ -88,7 +102,7 @@ Le varianti individuali iscrivono persone; quelle a squadre usano la rosa. Palla
 
 ## Prossimo incontro
 
-Provare in palestra una variante a set (Pallavolo 6v6 o Ping pong) e una a squadre con rosa (Calcio a 5), verificando durata, numero di giocatori e criteri di classifica con il professore. Poi decidere se ampliare il catalogo o introdurre account e ruoli.
+Provare in palestra una variante a set (Pallavolo 6v6 o Ping pong) e una a squadre con rosa (Calcio a 5), verificando durata, numero di giocatori e criteri di classifica con il professore. Con il professore verificare anche il flusso di accesso prof/studente e la creazione dei primi account docente.
 
 ## Collaborazione iniziale
 
@@ -96,4 +110,4 @@ Una persona può curare UI e prove con il professore, l'altra motore, API e dati
 
 ## Passo tecnico successivo consigliato
 
-Confermare con la scuola i regolamenti delle varianti e aggiungere test sui casi reali emersi dalla prova. Completare importazione CSV e gestione delle rose durante il torneo. La LAN scolastica è già coperta da password unica, backup e avvio automatico; evitare di esporre il server a Internet senza un modello di autorizzazione più fine.
+Confermare con la scuola i regolamenti delle varianti e aggiungere test sui casi reali emersi dalla prova. Completare importazione CSV e gestione delle rose durante il torneo. La LAN scolastica è già coperta da account docenti, backup e avvio automatico; prima del push finale su `main` vanno rimossi i dati mock e va verificata la disattivazione degli account che lasciano la scuola.

@@ -1,9 +1,9 @@
 # Sicurezza e limiti della LAN scolastica
 
 Open Score è pensato per un computer della scuola raggiungibile dalla rete
-interna. Non è un servizio multiutente e non è destinato a Internet. Questo
-documento descrive cosa protegge, cosa non protegge e come gestire le
-credenziali.
+interna. È un servizio multiutente per i docenti, con consultazione pubblica
+in sola lettura, e non è destinato a Internet. Questo documento descrive cosa
+protegge, cosa non protegge e come gestire le credenziali.
 
 ## Modello di minaccia
 
@@ -20,31 +20,31 @@ credenziali.
 
 - Esposizione diretta a Internet, NAT o tunnel pubblico.
 - Attacchi al sistema operativo, al filesystem o all'hardware del server.
-- Isolamento fra organizzatori diversi o fra più scuole.
+- Isolamento fra scuole diverse o fra installazioni separate.
 - Disponibilità garantita, bilanciamento di carico, protezione DDoS.
 
 ## Ruoli effettivi
 
 | Ruolo | Come si ottiene | Cosa può fare |
 | --- | --- | --- |
-| Organizzatore | Password in `TORNEO_ADMIN_PASSWORD` (cookie di sessione) oppure `TORNEO_API_TOKEN` (Bearer) | Leggere tutto e ogni scrittura `/api` |
-| Spettatore | Nessun accesso | Leggere dashboard, tornei, classifiche ed esportazioni CSV |
+| Docente | Email e password personale; cookie di sessione firmato | Leggere tutto e gestire solo i tornei della propria utenza |
+| Studente | Nessun accesso: scelta “Sono uno studente” | Leggere dashboard, tornei, classifiche ed esportazioni CSV; nessuna scrittura |
 | Link pubblico | Token del torneo in `/public/{token}` | Leggere quel torneo, senza diario né metadati privati |
 
-Non esistono account individuali, ruoli per torneo o permessi differenziati:
-tutti gli organizzatori condividono la stessa password. Se serve distinguere
-le persone, questa versione non basta.
-
-Con `TORNEO_ADMIN_PASSWORD` e `TORNEO_API_TOKEN` entrambi assenti l'app resta
-in **modalità demo locale**: le scritture sono aperte. In quella modalità il
-server va usato solo su `127.0.0.1`, come descritto nel README.
+Non esistono ruoli amministrativi oltre ai docenti e non c'è
+un'iscrizione autonoma: il primo account viene creato al primo avvio con
+`TORNEO_ADMIN_EMAIL` e `TORNEO_ADMIN_PASSWORD`, gli altri con
+`python manage.py create-teacher`. Senza sessione docente l'app è sempre in
+sola lettura: non esiste più una modalità locale con scritture aperte.
 
 ## Come funziona l'accesso
 
-- `POST /api/auth/login` confronta la password in tempo costante e imposta il
-  cookie `open_score_session`.
-- Il cookie è firmato con HMAC-SHA256, contiene scadenza e nonce, ed è
-  `HttpOnly` e `SameSite=Lax`. Con `TORNEO_COOKIE_SECURE=1` diventa anche
+- Le password sono salvate come hash PBKDF2-HMAC-SHA256 con sale casuale e
+  260.000 iterazioni; la password in chiaro non viene mai memorizzata.
+- `POST /api/auth/login` accetta email e password, confronta l'hash in tempo
+  costante e imposta il cookie `open_score_session`.
+- Il cookie è firmato con HMAC-SHA256, contiene `teacher_id`, email e scadenza,
+  ed è `HttpOnly` e `SameSite=Lax`. Con `TORNEO_COOKIE_SECURE=1` diventa anche
   `Secure`.
 - La durata predefinita è 12 ore (`TORNEO_SESSION_HOURS`).
 - Il segreto viene letto da `TORNEO_SECRET` oppure da
@@ -54,14 +54,15 @@ server va usato solo su `127.0.0.1`, come descritto nel README.
   server-side delle sessioni: un cookie copiato prima del logout resta valido
   fino alla scadenza. Per invalidare davvero tutti gli accessi, cambiare
   `TORNEO_SECRET` (o cancellare `data/session.secret`) e riavviare.
-- Il token API non scade. Va trattato come una password e ruotato cambiando
-  `TORNEO_API_TOKEN` e riavviando.
 
 ## Difese presenti
 
-- **Scritture protette**: con autenticazione attiva ogni metodo diverso da
-  `GET`/`HEAD`/`OPTIONS` sotto `/api` richiede sessione o token, tranne login e
-  logout. Le letture e `/public` restano aperte.
+- **Scritture protette**: ogni metodo diverso da `GET`/`HEAD`/`OPTIONS` sotto
+  `/api` richiede una sessione docente, tranne login e logout. Le letture e
+  `/public` restano aperte.
+- **Isolamento fra docenti**: ogni scrittura verifica che il torneo appartenga
+  al docente autenticato. Un torneo altrui o storico riceve 403; la UI nasconde
+  comunque i comandi non consentiti.
 - **Controllo dell'host**: solo gli host in `TORNEO_ALLOWED_HOSTS` più
   `127.0.0.1`, `localhost` e `testserver` sono accettati. Questo limita il DNS
   rebinding verso il server locale.
@@ -98,9 +99,8 @@ In questa configurazione il proxy termina TLS e inoltra a
 il proxy conservi l'intestazione `Host` corretta o aggiungere l'host del proxy a
 `TORNEO_ALLOWED_HOSTS`.
 
-Non esporre il server a Internet nemmeno con HTTPS: mancano account individuali,
-revoca centralizzata delle sessioni, protezione da abusi su larga scala e
-monitoraggio.
+Non esporre il server a Internet nemmeno con HTTPS: mancano revoca centralizzata
+delle sessioni, protezione da abusi su larga scala e monitoraggio.
 
 ## Link pubblico
 
@@ -111,20 +111,20 @@ aperti se il torneo contiene nomi che non devono uscire dalla scuola.
 
 ## Password e segreti
 
-- Usare una password lunga e diversa da quelle personali; condividerla solo con
-  gli organizzatori.
-- Non inserire la password in `opencode.json`, nel README o in un commit.
+- Usare una password lunga e diversa da quelle personali per ogni docente.
+- Non inserire password in `opencode.json`, nel README o in un commit.
 - Su Windows limitare i permessi di `deploy/open-score.env` al gruppo degli
   amministratori; su Linux `chmod 600` e proprietario `openscore`.
-- Dopo un cambio di password o token riavviare il server: le variabili sono
-  lette all'avvio.
+- Dopo un cambio della password bootstrap riavviare il server; per gli altri
+  docenti usare `python manage.py reset-password`.
 - Conservare una copia del segreto insieme ai backup solo se i backup sono
   protetti; senza segreto le sessioni semplicemente decadono, i dati restano.
 
 ## Cosa non è protetto
 
-- Nessun account per persona, nessuna traccia di chi ha inserito un risultato.
-- Nessun blocco di un organizzatore che lascia la scuola.
+- Gli audit registrano l'azione ma non ancora l'autore della modifica.
+- Manca una disattivazione account dalla UI: un docente che lascia la scuola va
+  gestito sul database o con un futuro comando dedicato.
 - Nessuna cifratura del database SQLite: chi legge il file legge i dati.
 - Nessuna protezione dalla modifica diretta del database sul server.
 - Nessun limite alle letture: un client può scaricare ripetutamente i dati.

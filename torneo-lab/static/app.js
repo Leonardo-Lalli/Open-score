@@ -59,7 +59,7 @@ const publicToken = location.pathname.startsWith("/public/")
   : null;
 let list = [],
   sports = [],
-  auth = { required: false, authenticated: true },
+  auth = { role: null, authenticated: false, teacher: null },
   selectedId = null,
   data = null,
   tab = "overview",
@@ -159,9 +159,9 @@ async function api(path, options = {}) {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     if (res.status === 401 && path !== "/auth/login") {
-      auth.authenticated = false;
+      auth = { role: null, authenticated: false, teacher: null };
       renderAuthControl();
-      loginModal();
+      showRoleGate("login");
     }
     throw new Error(
       typeof body.detail === "string"
@@ -202,37 +202,113 @@ function stat(title, value, foot, i) {
   return `<div class="stat"><div class="stat-top">${title}${icon(i)}</div><div class="stat-number">${value}</div><div class="stat-foot">${foot}</div></div>`;
 }
 async function refreshList() {
-  list = await api("/tournaments?archived=include");
+  const mine = canEdit() ? "&mine=1" : "";
+  list = await api("/tournaments?archived=include" + mine);
   renderNav();
 }
 async function loadSports() {
   const result = await api("/sports");
   sports = result.sports || [];
 }
-const canEdit = () => !auth.required || auth.authenticated;
+const ROLE_KEY = "openScoreRole";
+const storedRole = () => localStorage.getItem(ROLE_KEY);
+const setStoredRole = (value) => {
+  if (value) localStorage.setItem(ROLE_KEY, value);
+  else localStorage.removeItem(ROLE_KEY);
+};
+const canEdit = () => auth.role === "teacher" && auth.authenticated;
+const canManage = () => canEdit() && data?.can_manage === true;
+function requireManage() {
+  if (canManage()) return true;
+  if (!canEdit()) showRoleGate("login");
+  else notify("Non hai i permessi su questo torneo.", true);
+  return false;
+}
 async function loadSession() {
   try {
     const session = await api("/auth/session");
     auth = {
-      required: !!session.auth_required,
+      role: session.authenticated ? "teacher" : null,
       authenticated: !!session.authenticated,
+      teacher: session.teacher || null,
     };
   } catch {
-    auth = { required: false, authenticated: true };
+    auth = { role: null, authenticated: false, teacher: null };
   }
   renderAuthControl();
 }
 function renderAuthControl() {
   if (publicToken) return;
-  const access = auth.required
-    ? auth.authenticated
-      ? `<span class="auth-user">${icon("check")}Organizzatore</span><button class="button ghost compact" data-action="logout">Esci</button>`
-      : `<button class="button ghost compact" data-action="login">Accedi</button>`
-    : '<span class="demo-label"><i></i> MODALITÀ LOCALE</span>';
+  const access = canEdit()
+    ? `<span class="auth-user">${icon("check")}${h(auth.teacher?.display_name || auth.teacher?.email || "Prof")}</span><button class="button ghost compact" data-action="logout">Esci</button>`
+    : `<span class="auth-user">${icon("users")}Studente · sola lettura</span><button class="button ghost compact" data-action="login">Accedi come prof</button>`;
   $(".top-actions").innerHTML = `${access}<button class="button primary compact ${canEdit() ? "" : "hidden"}" data-action="new">${icon("plus")}Nuovo torneo</button>`;
   document
     .querySelectorAll(".sidebar [data-action='new']")
     .forEach((el) => el.classList.toggle("hidden", !canEdit()));
+}
+function showRoleGate(view = "choice") {
+  const gate = $("#role-gate");
+  if (!gate) return;
+  if ($("#modal").open) close();
+  gate.hidden = false;
+  document.body.classList.add("role-pending");
+  $("#role-options").classList.toggle("hidden", view !== "choice");
+  $("#role-login-form").classList.toggle("hidden", view !== "login");
+  $("#role-switch-student").classList.toggle("hidden", view !== "login");
+  $("#role-title").textContent =
+    view === "login" ? "Accedi come prof" : "Come vuoi entrare?";
+  $("#role-intro").textContent =
+    view === "login"
+      ? "Inserisci l'email e la password del tuo account docente."
+      : "Scegli il tuo ruolo. Potrai cambiarlo in seguito dalla barra in alto.";
+  const error = $("#role-login-error");
+  if (error) error.classList.add("hidden");
+  if (view === "login") {
+    const email = $('#role-login-form [name="email"]');
+    if (email) email.focus();
+  }
+}
+function hideRoleGate() {
+  const gate = $("#role-gate");
+  if (gate) gate.hidden = true;
+  document.body.classList.remove("role-pending");
+}
+async function enterStudentMode() {
+  try {
+    await api("/auth/logout", { method: "POST" });
+  } catch {
+    // A missing session is fine: student mode is the anonymous state.
+  }
+  setStoredRole("student");
+  auth = { role: "student", authenticated: false, teacher: null };
+  hideRoleGate();
+  renderAuthControl();
+  await startApp();
+}
+async function loginTeacher(formData) {
+  const error = $("#role-login-error");
+  if (error) error.classList.add("hidden");
+  try {
+    const result = await api("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        email: formData.get("email"),
+        password: formData.get("password"),
+      }),
+    });
+    setStoredRole("teacher");
+    auth = { role: "teacher", authenticated: true, teacher: result.teacher };
+    renderAuthControl();
+    await startApp();
+    hideRoleGate();
+    notify(`Benvenuto, ${result.teacher.display_name || result.teacher.email}.`);
+  } catch (e) {
+    if (error) {
+      error.textContent = e.message;
+      error.classList.remove("hidden");
+    } else notify(e.message, true);
+  }
 }
 function renderNav() {
   const visible = list.filter((t) => !t.archived_at);
@@ -293,7 +369,7 @@ function eventCard(t, i) {
   const progress = t.progress.total
     ? Math.round((t.progress.completed / t.progress.total) * 100)
     : 0;
-  return `<article class="event-card ${t.archived_at ? "archived" : ""}"><div class="event-card-top"><div class="sport-symbol ${["", "gold", "blue", "rose"][i % 4]}">${icon(t.format === "knockout" ? "trophy" : t.format === "groups" ? "grid" : "ball")}</div>${t.archived_at ? '<span class="tag archived"><i></i>Archiviato</span>' : `<span class="tag ${t.status}"><i></i>${stateLabel(t.status)}</span>`}</div><h3>${h(t.name)}</h3><p class="event-format">${h(t.sport)}${t.variant ? ` · ${h(variantFor(t.variant)?.name || t.variant)}` : ""} <span aria-hidden="true">/</span> ${label(t.format)}</p><div class="event-meta"><span>${icon("users")}${t.team_count} ${t.participant_kind === "team" ? "squadre" : "giocatori"}</span><span>${icon("calendar")}${t.progress.total} incontri${t.format === "groups" ? " · gironi" : ""}</span></div><div class="progress-track" role="progressbar" aria-label="Incontri completati" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100"><span style="width:${progress}%"></span></div><div class="progress-copy"><span>${t.progress.completed} di ${t.progress.total} incontri completati</span><span>${progress}%</span></div><div class="event-card-footer"><div class="avatar-stack"><span>${h(t.sport.slice(0, 1))}</span><span>OS</span><small>${t.demo_key ? "Torneo dimostrativo" : "Il nostro torneo"}</small></div><div class="card-actions"><button class="text-button" data-open="${t.id}">Apri ${icon("arrow")}</button>${t.archived_at && canEdit() ? `<button class="text-button" data-restore="${t.id}">Ripristina ${icon("refresh")}</button>` : ""}</div></div></article>`;
+  return `<article class="event-card ${t.archived_at ? "archived" : ""}"><div class="event-card-top"><div class="sport-symbol ${["", "gold", "blue", "rose"][i % 4]}">${icon(t.format === "knockout" ? "trophy" : t.format === "groups" ? "grid" : "ball")}</div>${t.archived_at ? '<span class="tag archived"><i></i>Archiviato</span>' : `<span class="tag ${t.status}"><i></i>${stateLabel(t.status)}</span>`}${!t.can_manage && canEdit() ? '<span class="tag archived"><i></i>Solo lettura</span>' : ""}</div><h3>${h(t.name)}</h3><p class="event-format">${h(t.sport)}${t.variant ? ` · ${h(variantFor(t.variant)?.name || t.variant)}` : ""} <span aria-hidden="true">/</span> ${label(t.format)}</p><div class="event-meta"><span>${icon("users")}${t.team_count} ${t.participant_kind === "team" ? "squadre" : "giocatori"}</span><span>${icon("calendar")}${t.progress.total} incontri${t.format === "groups" ? " · gironi" : ""}</span></div><div class="progress-track" role="progressbar" aria-label="Incontri completati" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100"><span style="width:${progress}%"></span></div><div class="progress-copy"><span>${t.progress.completed} di ${t.progress.total} incontri completati</span><span>${progress}%</span></div><div class="event-card-footer"><div class="avatar-stack"><span>${h(t.sport.slice(0, 1))}</span><span>OS</span><small>${t.demo_key ? "Torneo dimostrativo" : "Il nostro torneo"}</small></div><div class="card-actions"><button class="text-button" data-open="${t.id}">Apri ${icon("arrow")}</button>${t.archived_at && t.can_manage ? `<button class="text-button" data-restore="${t.id}">Ripristina ${icon("refresh")}</button>` : ""}</div></div></article>`;
 }
 function hashRoute() {
   const parts = location.hash
@@ -420,7 +496,7 @@ function renderTournament() {
               : overview();
   const legacy = data.legacy_sport;
   $("#content").innerHTML =
-    `${!publicToken ? `<button class="back-link" data-action="dashboard">${icon("back")} Tutti i tornei</button>` : '<p class="eyebrow">SEGUI IL TORNEO · SOLA LETTURA</p>'}<div class="tournament-heading"><div><p class="eyebrow">${h(t.sport)} <span>/</span> ${h(variant?.name || "Sport storico")} <span>/</span> ${label(t.format)} ${t.archived_at ? '<span class="tag archived"><i></i>Archiviato</span>' : legacy ? '<span class="tag archived"><i></i>Solo lettura</span>' : `<span class="tag ${data.status}">${stateLabel(data.status)}</span>`}</p><h1>${h(t.name)}</h1><p>${h(t.description || "Ogni partita, un passo verso una nuova sfida.")}</p></div><div class="toolbar">${publicToken ? button("Aggiorna", "refresh", "", "check") : t.archived_at ? `${canEdit() ? button("Ripristina", "restore", "primary", "refresh") : button("Accedi", "login", "", "check")}<a class="button" href="/api/tournaments/${t.id}/export.csv" download>${icon("download")}Esporta</a>` : `${!legacy && canEdit() ? button("Modifica", "edit", "", "edit") : !legacy ? button("Accedi", "login", "", "check") : ""}${button("Condividi", "share", "", "share")}<a class="button" href="/api/tournaments/${t.id}/export.csv" download>${icon("download")}Esporta</a>${!legacy && canEdit() ? button("Archivia", "archive", "danger") : ""}`}</div></div><div class="tabs" role="tablist" aria-label="Sezioni torneo">${tabs.map(([v, l]) => `<button class="tab ${tab === v ? "active" : ""}" role="tab" id="tab-${v}" aria-controls="tournament-panel" tabindex="${tab === v ? 0 : -1}" aria-selected="${tab === v}" data-tab="${v}">${l}</button>`).join("")}</div><div id="tournament-panel" role="tabpanel" aria-labelledby="tab-${tab}">${champion()}${body}</div>`;
+    `${!publicToken ? `<button class="back-link" data-action="dashboard">${icon("back")} Tutti i tornei</button>` : '<p class="eyebrow">SEGUI IL TORNEO · SOLA LETTURA</p>'}<div class="tournament-heading"><div><p class="eyebrow">${h(t.sport)} <span>/</span> ${h(variant?.name || "Sport storico")} <span>/</span> ${label(t.format)} ${t.archived_at ? '<span class="tag archived"><i></i>Archiviato</span>' : legacy ? '<span class="tag archived"><i></i>Solo lettura</span>' : `<span class="tag ${data.status}">${stateLabel(data.status)}</span>${!canManage() ? '<span class="tag archived"><i></i>Solo lettura</span>' : ''}`}</p><h1>${h(t.name)}</h1><p>${h(t.description || "Ogni partita, un passo verso una nuova sfida.")}</p></div><div class="toolbar">${publicToken ? button("Aggiorna", "refresh", "", "check") : `${t.archived_at && canManage() ? button("Ripristina", "restore", "primary", "refresh") : ""}${!t.archived_at && !legacy && canManage() ? button("Modifica", "edit", "", "edit") : ""}${button("Condividi", "share", "", "share")}<a class="button" href="/api/tournaments/${t.id}/export.csv" download>${icon("download")}Esporta</a>${!t.archived_at && !legacy && canManage() ? button("Archivia", "archive", "danger") : ""}`}</div></div><div class="tabs" role="tablist" aria-label="Sezioni torneo">${tabs.map(([v, l]) => `<button class="tab ${tab === v ? "active" : ""}" role="tab" id="tab-${v}" aria-controls="tournament-panel" tabindex="${tab === v ? 0 : -1}" aria-selected="${tab === v}" data-tab="${v}">${l}</button>`).join("")}</div><div id="tournament-panel" role="tabpanel" aria-labelledby="tab-${tab}">${champion()}${body}</div>`;
   $("#content").setAttribute("aria-busy", "false");
 }
 function overview() {
@@ -430,7 +506,7 @@ function overview() {
   const next = fixtures.filter((m) => m.status === "ready").slice(0, 3);
   const groupsComplete =
     t.format === "groups" && fixtures.some((m) => m.kind === "knockout");
-  return `<div class="stat-grid">${stat("Partecipanti", data.teams.length, t.participant_kind === "team" ? "Squadre iscritte" : "Giocatori iscritti", "users")}${stat("Incontri", p.total, "Esclusi i passaggi per BYE", "calendar")}${stat("Completati", p.completed, "Risultati confermati", "check")}${stat("Da giocare", p.total - p.completed, "Il campo vi aspetta", "ball")}</div><div class="overview-grid"><div><div class="panel"><div class="section-header"><h2>${data.status === "completed" ? "Torneo completato" : "Il prossimo passo"}</h2><span class="panel-label">SI SCENDE IN CAMPO</span></div><p class="muted" style="font-size:12px">${publicToken ? "Segui gli incontri e aggiorna la pagina per vedere gli ultimi risultati." : !fixtures.length ? "Aggiungi i partecipanti e genera gli incontri per dare inizio al torneo." : data.status === "completed" ? "Tutte le partite sono state giocate. Puoi rivedere il percorso e i risultati." : t.format === "groups" && !groupsComplete ? "Completa tutte le partite dei gironi: le qualificate passeranno automaticamente alla fase finale." : "Registra il risultato di un incontro: classifica e percorso si aggiornano subito."}</p><div class="steps"><div class="step ${data.teams.length >= 2 ? "done" : ""}">01<b>Partecipanti</b>Le squadre sono pronte</div><div class="step ${fixtures.length ? "done" : ""}">02<b>Si gioca</b>Incontri e risultati</div><div class="step ${data.status === "completed" ? "done" : ""}">03<b>La finale</b>${t.format === "round_robin" ? "Una classifica completa" : "Un campione da celebrare"}</div></div>${!fixtures.length && !publicToken && canEdit() ? `<div style="margin-top:25px">${button("Genera incontri", "generate", "primary", "spark")}</div>` : ""}</div><div class="panel"><div class="section-header"><h2>${next.length ? "Pronte da giocare" : "Le ultime partite"}</h2><button class="text-button" data-tab="matches">Vedi tutte ${icon("arrow")}</button></div>${(next.length ? next : fixtures.filter((m) => m.status === "completed").slice(-3)).map(matchRow).join("") || '<p class="muted" style="font-size:12px">Gli incontri compariranno qui dopo la generazione.</p>'}</div></div><div><div class="panel"><h2>Il torneo in breve</h2><dl class="details-list"><div><dt>Sport</dt><dd>${h(t.sport)}</dd></div>${currentVariant() ? `<div><dt>Variante</dt><dd>${h(currentVariant().name)}</dd></div>` : ""}<div><dt>Formato</dt><dd>${label(t.format)}</dd></div><div><dt>Partecipanti</dt><dd>${t.participant_kind === "team" ? "Squadre" : "Giocatori individuali"}</dd></div>${t.format === "groups" ? `<div><dt>Qualificazione</dt><dd>Prime ${t.qualifiers} di ${t.group_count} gironi</dd></div>` : ""}<div><dt>Andata / ritorno</dt><dd>${t.legs === 2 ? "Andata e ritorno" : "Sola andata"}</dd></div>${t.format !== "knockout" ? `<div><dt>Punti V / N / P</dt><dd>${t.win_points} / ${t.draw_points} / ${t.loss_points}</dd></div>` : ""}<div><dt>Orari</dt><dd>Europe/Rome</dd></div></dl></div>${
+  return `<div class="stat-grid">${stat("Partecipanti", data.teams.length, t.participant_kind === "team" ? "Squadre iscritte" : "Giocatori iscritti", "users")}${stat("Incontri", p.total, "Esclusi i passaggi per BYE", "calendar")}${stat("Completati", p.completed, "Risultati confermati", "check")}${stat("Da giocare", p.total - p.completed, "Il campo vi aspetta", "ball")}</div><div class="overview-grid"><div><div class="panel"><div class="section-header"><h2>${data.status === "completed" ? "Torneo completato" : "Il prossimo passo"}</h2><span class="panel-label">SI SCENDE IN CAMPO</span></div><p class="muted" style="font-size:12px">${publicToken ? "Segui gli incontri e aggiorna la pagina per vedere gli ultimi risultati." : !fixtures.length ? "Aggiungi i partecipanti e genera gli incontri per dare inizio al torneo." : data.status === "completed" ? "Tutte le partite sono state giocate. Puoi rivedere il percorso e i risultati." : t.format === "groups" && !groupsComplete ? "Completa tutte le partite dei gironi: le qualificate passeranno automaticamente alla fase finale." : "Registra il risultato di un incontro: classifica e percorso si aggiornano subito."}</p><div class="steps"><div class="step ${data.teams.length >= 2 ? "done" : ""}">01<b>Partecipanti</b>Le squadre sono pronte</div><div class="step ${fixtures.length ? "done" : ""}">02<b>Si gioca</b>Incontri e risultati</div><div class="step ${data.status === "completed" ? "done" : ""}">03<b>La finale</b>${t.format === "round_robin" ? "Una classifica completa" : "Un campione da celebrare"}</div></div>${!fixtures.length && !publicToken && canManage() ? `<div style="margin-top:25px">${button("Genera incontri", "generate", "primary", "spark")}</div>` : ""}</div><div class="panel"><div class="section-header"><h2>${next.length ? "Pronte da giocare" : "Le ultime partite"}</h2><button class="text-button" data-tab="matches">Vedi tutte ${icon("arrow")}</button></div>${(next.length ? next : fixtures.filter((m) => m.status === "completed").slice(-3)).map(matchRow).join("") || '<p class="muted" style="font-size:12px">Gli incontri compariranno qui dopo la generazione.</p>'}</div></div><div><div class="panel"><h2>Il torneo in breve</h2><dl class="details-list"><div><dt>Sport</dt><dd>${h(t.sport)}</dd></div>${currentVariant() ? `<div><dt>Variante</dt><dd>${h(currentVariant().name)}</dd></div>` : ""}<div><dt>Formato</dt><dd>${label(t.format)}</dd></div><div><dt>Partecipanti</dt><dd>${t.participant_kind === "team" ? "Squadre" : "Giocatori individuali"}</dd></div>${t.format === "groups" ? `<div><dt>Qualificazione</dt><dd>Prime ${t.qualifiers} di ${t.group_count} gironi</dd></div>` : ""}<div><dt>Andata / ritorno</dt><dd>${t.legs === 2 ? "Andata e ritorno" : "Sola andata"}</dd></div>${t.format !== "knockout" ? `<div><dt>Punti V / N / P</dt><dd>${t.win_points} / ${t.draw_points} / ${t.loss_points}</dd></div>` : ""}<div><dt>Orari</dt><dd>Europe/Rome</dd></div></dl></div>${
     !publicToken
       ? `<div class="panel"><h2>Diario del torneo</h2>${(data.audit || [])
           .slice(0, 5)
@@ -446,7 +522,7 @@ function matchRow(m) {
   const ready = m.status === "ready" || m.status === "completed";
   const group = data.groups.find((g) => g.id === m.group_id);
   const setDetail = (m.sets || []).map((s) => `${s.home}-${s.away}`).join(" · ");
-  return `<div class="match-row"><div class="match-round">${group ? h(group.name) + "<br>" : ""}${h(roundName(m))}</div><div class="match-players"><div class="match-player">${avatar(teamName(m.home_team_id), m.home_team_id)}<span>${h(m.home_team_id ? teamName(m.home_team_id) : m.is_bye ? "Riposo" : "Da definire")}</span></div><span class="score">${m.home_score ?? "–"} : ${m.away_score ?? "–"}</span><div class="match-player"><span>${h(m.away_team_id ? teamName(m.away_team_id) : m.is_bye ? "Riposo" : "Da definire")}</span>${avatar(teamName(m.away_team_id), m.away_team_id)}</div></div><div class="match-actions">${!publicToken && ready ? `<button class="button ${m.status === "ready" ? "primary" : ""}" data-result="${m.id}">${m.status === "ready" ? "Risultato" : "Modifica"}</button>` : `<span class="tag">${m.is_bye ? "BYE" : m.status === "waiting" ? "In attesa" : m.status === "completed" ? "Giocata" : "Da giocare"}</span>`}</div></div>${setDetail ? `<p class="match-note">${icon("chart")}Set: ${h(setDetail)}</p>` : ""}${m.scheduled_at || m.location ? `<p class="match-note">${icon("clock")}${m.scheduled_at ? h(dateText(m.scheduled_at)) : "Orario da definire"}${m.location ? " · " + h(m.location) : ""}</p>` : ""}`;
+  return `<div class="match-row"><div class="match-round">${group ? h(group.name) + "<br>" : ""}${h(roundName(m))}</div><div class="match-players"><div class="match-player">${avatar(teamName(m.home_team_id), m.home_team_id)}<span>${h(m.home_team_id ? teamName(m.home_team_id) : m.is_bye ? "Riposo" : "Da definire")}</span></div><span class="score">${m.home_score ?? "–"} : ${m.away_score ?? "–"}</span><div class="match-player"><span>${h(m.away_team_id ? teamName(m.away_team_id) : m.is_bye ? "Riposo" : "Da definire")}</span>${avatar(teamName(m.away_team_id), m.away_team_id)}</div></div><div class="match-actions">${!publicToken && canManage() && ready ? `<button class="button ${m.status === "ready" ? "primary" : ""}" data-result="${m.id}">${m.status === "ready" ? "Risultato" : "Modifica"}</button>` : `<span class="tag">${m.is_bye ? "BYE" : m.status === "waiting" ? "In attesa" : m.status === "completed" ? "Giocata" : "Da giocare"}</span>`}</div></div>${setDetail ? `<p class="match-note">${icon("chart")}Set: ${h(setDetail)}</p>` : ""}${m.scheduled_at || m.location ? `<p class="match-note">${icon("clock")}${m.scheduled_at ? h(dateText(m.scheduled_at)) : "Orario da definire"}${m.location ? " · " + h(m.location) : ""}</p>` : ""}`;
 }
 function matchesView() {
   let fixtures = data.matches
@@ -489,12 +565,12 @@ function participants() {
   const rosterNote = teamMode && variant
     ? ` · Rose pronte ${ready}/${data.teams.length} (minimo ${minimum})`
     : "";
-  return `<div class="section-header"><div><h2>Le persone fanno il torneo.</h2><p class="section-sub">${data.teams.length} ${teamMode ? "squadre" : "giocatori"} · I nomi si possono modificare anche a torneo iniziato.${rosterNote}</p></div>${!generated && !publicToken && canEdit() ? button("Genera incontri", "generate", "primary", "spark") : ""}</div>${!generated && !publicToken && canEdit() ? '<form id="team-form" class="inline-form"><input name="name" required maxlength="60" aria-label="Nome del partecipante" placeholder="Nome del partecipante"><button class="button primary">Aggiungi</button></form>' : ""}<div class="roster">${data.teams.map((p, i) => {
+  return `<div class="section-header"><div><h2>Le persone fanno il torneo.</h2><p class="section-sub">${data.teams.length} ${teamMode ? "squadre" : "giocatori"} · I nomi si possono modificare anche a torneo iniziato.${rosterNote}</p></div>${!generated && !publicToken && canManage() ? button("Genera incontri", "generate", "primary", "spark") : ""}</div>${!generated && !publicToken && canManage() ? '<form id="team-form" class="inline-form"><input name="name" required maxlength="60" aria-label="Nome del partecipante" placeholder="Nome del partecipante"><button class="button primary">Aggiungi</button></form>' : ""}<div class="roster">${data.teams.map((p, i) => {
     const group = data.groups.find((g) => g.id === p.group_id)?.name;
     const roster = teamMode && variant
       ? ` · ${p.player_count || 0}/${variant.max_roster} in rosa${(p.player_count || 0) < minimum ? ` · mancano ${minimum - (p.player_count || 0)}` : ""}`
       : "";
-    return `<div class="roster-item"><button type="button" class="roster-info" data-team="${p.id}" aria-label="Apri la scheda di ${h(p.name)}">${avatar(p.name, i)}<span><strong>${h(p.name)}</strong><small>${h(group || "Partecipante " + (i + 1).toString().padStart(2, "0"))}${roster}</small></span></button>${!publicToken && canEdit() ? `<button class="icon-button" data-rename="${p.id}" aria-label="Rinomina ${h(p.name)}">${icon("edit")}</button>${!generated ? `<button class="icon-button" data-remove="${p.id}" aria-label="Elimina ${h(p.name)}">${icon("close")}</button>` : ""}` : ""}</div>`;
+    return `<div class="roster-item"><button type="button" class="roster-info" data-team="${p.id}" aria-label="Apri la scheda di ${h(p.name)}">${avatar(p.name, i)}<span><strong>${h(p.name)}</strong><small>${h(group || "Partecipante " + (i + 1).toString().padStart(2, "0"))}${roster}</small></span></button>${!publicToken && canManage() ? `<button class="icon-button" data-rename="${p.id}" aria-label="Rinomina ${h(p.name)}">${icon("edit")}</button>${!generated ? `<button class="icon-button" data-remove="${p.id}" aria-label="Elimina ${h(p.name)}">${icon("close")}</button>` : ""}` : ""}</div>`;
   }).join("") || '<p class="muted">Aggiungi almeno due partecipanti per cominciare.</p>'}</div>`;
 }
 function standingsTable(rows, qualifiers = 0) {
@@ -560,6 +636,7 @@ function bracket() {
       const pos = coords[m.id],
         editable =
           !publicToken &&
+          canManage() &&
           !m.is_bye &&
           ["ready", "completed"].includes(m.status),
         el = editable ? "button" : "div";
@@ -581,7 +658,7 @@ async function teamModal(id) {
       : "";
   const roster =
     info.participant_kind === "team"
-      ? `<h3 class="subsection-title" style="margin-top:24px">Rosa <span class="muted">${info.players.length}/${info.max_roster}</span></h3>${lineup}<div class="panel" style="margin:0">${!publicToken && canEdit() ? `<form id="player-form" data-team="${info.team.id}" class="inline-form"><input name="name" required maxlength="60" aria-label="Nome del giocatore" placeholder="Nome del giocatore"><input name="shirt_number" type="number" min="0" max="99" aria-label="Numero di maglia" placeholder="N." style="max-width:80px"><button class="button primary">Aggiungi</button></form>` : ""}${info.players.map((p) => `<div class="roster-item"><div class="roster-info">${avatar(p.name, p.id)}<span><strong>${h(p.name)}</strong><small>${p.shirt_number !== null ? "Maglia " + p.shirt_number : "Giocatore"}</small></span></div>${!publicToken && canEdit() ? `<button class="icon-button" data-remove-player="${p.id}" data-player-team="${info.team.id}" aria-label="Rimuovi ${h(p.name)}">${icon("close")}</button>` : ""}</div>`).join("") || '<p class="muted" style="padding:16px">Nessun giocatore in rosa. Aggiungi i nomi per completare la squadra.</p>'}</div>`
+      ? `<h3 class="subsection-title" style="margin-top:24px">Rosa <span class="muted">${info.players.length}/${info.max_roster}</span></h3>${lineup}<div class="panel" style="margin:0">${!publicToken && canManage() ? `<form id="player-form" data-team="${info.team.id}" class="inline-form"><input name="name" required maxlength="60" aria-label="Nome del giocatore" placeholder="Nome del giocatore"><input name="shirt_number" type="number" min="0" max="99" aria-label="Numero di maglia" placeholder="N." style="max-width:80px"><button class="button primary">Aggiungi</button></form>` : ""}${info.players.map((p) => `<div class="roster-item"><div class="roster-info">${avatar(p.name, p.id)}<span><strong>${h(p.name)}</strong><small>${p.shirt_number !== null ? "Maglia " + p.shirt_number : "Giocatore"}</small></span></div>${!publicToken && canManage() ? `<button class="icon-button" data-remove-player="${p.id}" data-player-team="${info.team.id}" aria-label="Rimuovi ${h(p.name)}">${icon("close")}</button>` : ""}</div>`).join("") || '<p class="muted" style="padding:16px">Nessun giocatore in rosa. Aggiungi i nomi per completare la squadra.</p>'}</div>`
       : "";
   const rows = info.matches
     .map((m) => {
@@ -614,7 +691,10 @@ async function teamModal(id) {
 function resultModal(id) {
   const m = data.matches.find((x) => x.id === Number(id));
   if (!m || publicToken) return;
-  if (!canEdit()) return loginModal();
+  if (!canManage()) {
+    requireManage();
+    return;
+  }
   const variant = currentVariant();
   const setMode = !!variant?.supports_sets;
   const maxSets = variant?.max_sets || 5;
@@ -764,17 +844,14 @@ function sportOptionsFor(current) {
     .join("");
 }
 function loginModal() {
-  if (!auth.required || auth.authenticated) return;
-  if ($("#modal").open) close();
-  modal(
-    "Entra come organizzatore.",
-    `<p class="project-intro">Creare tornei, modificare regole e registrare risultati richiede la password di organizzazione. Chi segue il torneo può usare il link pubblico senza accedere.</p><form id="login-form"><label>Password<input type="password" name="password" required autofocus autocomplete="current-password" maxlength="200"></label></form>`,
-    `${button("Annulla", "close", "ghost")}<button class="button primary" form="login-form">${icon("check")}Accedi</button>`,
-    "ACCESSO ORGANIZZATORE",
-  );
+  if (canEdit()) return;
+  showRoleGate("login");
 }
 function editTournament() {
-  if (!canEdit()) return loginModal();
+  if (!canManage()) {
+    requireManage();
+    return;
+  }
   const t = data.tournament;
   const generated = data.matches.length > 0;
   const variant = currentVariant();
@@ -948,7 +1025,7 @@ async function wizardSubmit() {
 function project() {
   modal(
     "Un campo aperto alle idee.",
-    `<p class="project-intro">Open Score è un progetto di Leonardo e del suo collaboratore per organizzare tornei a scuola. Nome e direzione si scelgono insieme al professore.</p><ol class="project-list"><li><strong>Oggi:</strong> una demo locale con gironi, tabelloni, risultati e qualificazioni.</li><li><strong>Il prossimo incontro:</strong> scegliere lo sport, le regole e il primo torneo da provare in palestra.</li><li><strong>Poi:</strong> sport a set, account e collaborazione online, pianificazione e nuovi formati.</li></ol><p class="field-help">Il codice della demo è indipendente. Gli esempi sono dimostrativi; non è ancora un servizio pubblico con account.</p><p class="field-help"><a href="https://github.com/Leonardo-Lalli/Open-score" target="_blank" rel="noopener">Codice, roadmap e report su GitHub ↗</a></p>`,
+    `<p class="project-intro">Open Score è un progetto di Leonardo e del suo collaboratore per organizzare tornei a scuola. Nome e direzione si scelgono insieme al professore.</p><ol class="project-list"><li><strong>Oggi:</strong> una webapp con gironi, tabelloni, risultati, qualificazioni e account docenti separati.</li><li><strong>Il prossimo incontro:</strong> scegliere lo sport, le regole e il primo torneo da provare in palestra.</li><li><strong>Poi:</strong> pianificazione automatica, statistiche e nuovi formati.</li></ol><p class="field-help">Il codice è indipendente. Gli esempi sono dimostrativi; non è ancora un servizio pubblico su Internet.</p><p class="field-help"><a href="https://github.com/Leonardo-Lalli/Open-score" target="_blank" rel="noopener">Codice, roadmap e report su GitHub ↗</a></p>`,
     `${button("Torna in campo", "close", "primary")}`,
     "IL PROGETTO",
   );
@@ -975,9 +1052,13 @@ const actions = {
   login: loginModal,
   logout: async () => {
     await api("/auth/logout", { method: "POST" });
-    auth.authenticated = false;
+    setStoredRole(null);
+    auth = { role: null, authenticated: false, teacher: null };
+    selectedId = null;
+    data = null;
+    list = [];
     renderAuthControl();
-    await dashboard();
+    showRoleGate("choice");
     notify("Sessione chiusa.");
   },
   project,
@@ -985,7 +1066,7 @@ const actions = {
   share,
   edit: editTournament,
   archive: () => {
-    if (!canEdit()) return loginModal();
+    if (!requireManage()) return;
     modal(
       "Archiviare il torneo?",
       `<p class="project-intro">“${h(data.tournament.name)}” uscirà dall’elenco principale. Potrai ripristinarlo dal filtro Archiviati: nessun dato viene cancellato.</p>`,
@@ -994,7 +1075,7 @@ const actions = {
     );
   },
   restore: async () => {
-    if (!canEdit()) return loginModal();
+    if (!requireManage()) return;
     await api(`/tournaments/${selectedId}/restore`, { method: "POST" });
     await openTournament(selectedId, true);
     notify("Torneo ripristinato.");
@@ -1006,7 +1087,7 @@ const actions = {
   refresh: () =>
     selectedId || publicToken ? openTournament(selectedId, true) : dashboard(),
   generate: async () => {
-    if (!canEdit()) return loginModal();
+    if (!requireManage()) return;
     await api("/tournaments/" + selectedId + "/generate", { method: "POST" });
     await openTournament(selectedId, true);
     notify("Incontri generati. Si gioca!");
@@ -1018,8 +1099,7 @@ const actions = {
     notify("Gli esempi sono pronti.");
   },
   explore: async () => {
-    if (!canEdit()) return loginModal();
-    if (!list.length) await actions.seed();
+    if (!list.length && canEdit()) await actions.seed();
     const t =
       list.find((t) => !t.archived_at && t.demo_key === "school-cup") ||
       list.find((t) => !t.archived_at);
@@ -1027,6 +1107,8 @@ const actions = {
       await openTournament(t.id);
       tab = "bracket";
       renderTournament();
+    } else {
+      notify("Nessun torneo disponibile da esplorare.", true);
     }
   },
   copy: async () => {
@@ -1208,6 +1290,10 @@ document.addEventListener("change", (e) => {
 document.addEventListener("submit", (e) => {
   e.preventDefault();
   const form = e.target;
+  if (form.id === "role-login-form") {
+    loginTeacher(new FormData(form));
+    return;
+  }
   safely(async () => {
     const submitter = e.submitter;
     if (submitter) submitter.disabled = true;
@@ -1287,17 +1373,7 @@ document.addEventListener("submit", (e) => {
         await openTournament(selectedId, true);
         notify("Torneo aggiornato.");
       }
-      if (form.id === "login-form") {
-        const result = await api("/auth/login", {
-          method: "POST",
-          body: JSON.stringify({ password: fd.get("password") }),
-        });
-        auth = { required: !!result.auth_required, authenticated: true };
-        renderAuthControl();
-        close();
-        await (selectedId && !publicToken ? openTournament(selectedId, true) : dashboard());
-        notify("Accesso eseguito. Ora puoi organizzare.");
-      }
+
       if (form.id === "result-form" || form.id === "schedule-form") {
         const m = data.matches.find((m) => m.id === Number(form.dataset.id));
         const schedule = form.id === "schedule-form";
@@ -1377,9 +1453,29 @@ window.addEventListener("resize", () => {
   if (window.innerWidth > 800 && document.body.classList.contains("menu-open"))
     setMenu(false);
 });
+document.addEventListener("click", (e) => {
+  const choice = e.target.closest("[data-role]");
+  if (!choice) return;
+  e.preventDefault();
+  if (choice.dataset.role === "student")
+    safely(() => enterStudentMode());
+  else if (choice.dataset.role === "teacher") showRoleGate("login");
+  else if (choice.dataset.role === "back") showRoleGate("choice");
+});
+async function startApp() {
+  selectedId = null;
+  data = null;
+  catalogMode = false;
+  tab = "overview";
+  await loadSports();
+  const route = hashRoute();
+  if (route.kind === "sport") await openCatalog(route.sport, route.variant);
+  else await dashboard();
+}
 async function init() {
   try {
     if (publicToken) {
+      hideRoleGate();
       $("#sidebar").classList.add("hidden");
       $(".app-shell").style.marginLeft = "0";
       $(".top-actions").innerHTML =
@@ -1390,13 +1486,24 @@ async function init() {
         if (!document.hidden && !$("#modal").open)
           safely(() => openTournament(null, true));
       }, 30000);
-    } else {
-      await loadSession();
-      await loadSports();
-      const route = hashRoute();
-      if (route.kind === "sport") await openCatalog(route.sport, route.variant);
-      else await dashboard();
+      return;
     }
+    await loadSession();
+    if (auth.authenticated) {
+      hideRoleGate();
+      await startApp();
+      return;
+    }
+    const preference = storedRole();
+    if (preference === "student") {
+      auth.role = "student";
+      hideRoleGate();
+      renderAuthControl();
+      await startApp();
+      return;
+    }
+    showRoleGate(preference === "teacher" ? "login" : "choice");
+    renderAuthControl();
   } catch (e) {
     $("#content").innerHTML =
       `<div class="error-page"><h1>Il campo non è raggiungibile.</h1><p>${h(e.message)}</p><button class="button primary" data-action="refresh">Riprova</button></div>`;
@@ -1405,7 +1512,7 @@ async function init() {
 }
 init();
 window.addEventListener("hashchange", () => {
-  if (publicToken) return;
+  if (publicToken || document.body.classList.contains("role-pending")) return;
   const route = hashRoute();
   safely(() =>
     route.kind === "sport"

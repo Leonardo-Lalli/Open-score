@@ -97,7 +97,13 @@ class PlayerInput(Input):
     shirt_number: Optional[int] = Field(default=None, strict=True, ge=0, le=99)
 
 
+Email = Annotated[str, StringConstraints(
+    strip_whitespace=True, min_length=3, max_length=200,
+    pattern=r'^[^@\s]+@[^@\s]+\.[^@\s]+$')]
+
+
 class LoginInput(Input):
+    email: Email
     password: Annotated[str, StringConstraints(min_length=1, max_length=200)]
 
 

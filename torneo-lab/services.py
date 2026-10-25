@@ -39,6 +39,26 @@ def active(db, tid):
     return tournament
 
 
+def require_owner(db, tid, teacher_id: int):
+    """Only the teacher who created a tournament may change it."""
+    tournament = active(db, tid)
+    if tournament['teacher_id'] is None:
+        raise HTTPException(403, 'Torneo non assegnato a un docente: sola lettura')
+    if tournament['teacher_id'] != teacher_id:
+        raise HTTPException(403, 'Non hai i permessi su questo torneo')
+    return tournament
+
+
+def require_owner_any(db, tid, teacher_id: int):
+    """Ownership check that also works on archived tournaments (restore)."""
+    tournament = required(db, tid)
+    if tournament['teacher_id'] is None:
+        raise HTTPException(403, 'Torneo non assegnato a un docente: sola lettura')
+    if tournament['teacher_id'] != teacher_id:
+        raise HTTPException(403, 'Non hai i permessi su questo torneo')
+    return tournament
+
+
 def audit(db, tid, action, payload):
     db.execute('INSERT INTO audit_logs(tournament_id,action,payload) VALUES (?,?,?)',
                (tid, action, json.dumps(payload, ensure_ascii=False)))
@@ -134,7 +154,7 @@ def _apply_variant_defaults(values: dict, fields_set: set[str], variant) -> None
         values['tie_breaker'] = variant.default_tie_breaker
 
 
-def create(db, data: TournamentInput, demo_key=None):
+def create(db, data: TournamentInput, demo_key=None, teacher_id: int | None = None):
     values = data.model_dump(exclude={'team_names'})
     fields_set = set(data.model_fields_set)
     sport_name = values.pop('sport')
@@ -148,6 +168,7 @@ def create(db, data: TournamentInput, demo_key=None):
     values['sport'] = sport_row['name']
     values['sport_id'] = sport_row['id']
     values['participant_kind'] = kind
+    values['teacher_id'] = teacher_id
     _apply_variant_defaults(values, fields_set, variant)
     values.update(public_token=secrets.token_urlsafe(18), demo_key=demo_key)
     cols = ','.join(values)
@@ -337,7 +358,7 @@ def detail(db, tid, public=False) -> dict[str, Any]:
     }
     if public:
         result['tournament'] = {k: v for k, v in t.items()
-                                if k not in ('public_token', 'demo_key')}
+                                if k not in ('public_token', 'demo_key', 'teacher_id')}
     else:
         result['audit'] = rows(db, 'SELECT id,action,created_at FROM audit_logs '
                                     'WHERE tournament_id=? ORDER BY id DESC LIMIT 30', (tid,))
@@ -378,7 +399,8 @@ def team_detail(db, tid, team_id) -> dict[str, Any]:
     position = standing_rows.index(standing) + 1 if standing else None
     public_tournament = {k: t[k] for k in (
         'id', 'name', 'sport', 'variant', 'format', 'participant_kind',
-        'win_points', 'draw_points', 'loss_points', 'qualifiers', 'tie_breaker')}
+        'win_points', 'draw_points', 'loss_points', 'qualifiers', 'tie_breaker',
+        'teacher_id')}
     variant = _variant_for_tournament(db, t)
     return {'team': team, 'standing': standing, 'position': position,
             'matches': fixtures, 'tournament': public_tournament,

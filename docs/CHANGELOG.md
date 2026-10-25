@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.0 — 25 ottobre 2026
+
+- Nuovo ingresso con due scelte: **Sono un prof** (login email/password) e **Sono uno studente** (sola lettura). La scelta studente nasconde i comandi di modifica; il backend rifiuta comunque ogni scrittura senza sessione docente con 401.
+- Migrazione 007: tabella `teachers` con email unica e hash PBKDF2-SHA256, colonna `tournaments.teacher_id`. I tornei esistenti restano NULL e di sola lettura finché non vengono assegnati.
+- Account docenti separati: ogni prof gestisce solo i propri tornei; i tornei altrui rispondono 403 alle scritture e mostrano `can_manage: false`. Lista `?mine=1` per la dashboard del docente.
+- Bootstrap del primo docente con `TORNEO_ADMIN_EMAIL`/`TORNEO_ADMIN_PASSWORD`; CLI `manage.py` per creare docenti, elencarli e reimpostare la password. Rimosso il Bearer token globale.
+- UI: gate iniziale con card verde per il prof e secondaria per lo studente, login dedicato, topbar con identità/ruolo, tag **Solo lettura** e azioni nascoste per studenti e tornei non propri.
+- Versione applicativa 0.7.0, asset a `v=0.7.0` e **189 test**.
+
 ## 0.6.0 — 25 ottobre 2026
 
 - Ottimizzazione mobile iPhone/Android: `viewport-fit=cover`, `100dvh` e safe area su topbar, sidebar, main, footer, toast e modali.

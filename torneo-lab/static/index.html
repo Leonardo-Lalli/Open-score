@@ -13,11 +13,62 @@
     />
     <title>Open Score · Il tuo campo di gioco</title>
     <link rel="icon" type="image/svg+xml" href="/static/mark.svg" />
-    <link rel="stylesheet" href="/static/styles.css?v=0.6.0" />
-    <script defer src="/static/app.js?v=0.6.0"></script>
+    <link rel="stylesheet" href="/static/styles.css?v=0.7.0" />
+    <script defer src="/static/app.js?v=0.7.0"></script>
   </head>
   <body data-app="spa">
     <a class="skip-link" href="#content">Vai al contenuto</a>
+    <section id="role-gate" class="role-gate" aria-labelledby="role-title">
+      <div class="role-gate-panel">
+        <a class="brand role-brand" href="/" aria-label="Open Score">
+          <img src="/static/mark.svg" alt="" width="38" height="38" />
+          <span
+            >open<span class="brand-light">score</span
+            ><small>IL TUO CAMPO DI GIOCO</small></span
+          >
+        </a></small>
+        <p class="eyebrow">OPEN SCORE · ACCESSO</p>
+        <h1 id="role-title">Come vuoi entrare?</h1>
+        <p class="role-intro" id="role-intro">
+          Scegli il tuo ruolo. Potrai cambiarlo in seguito dalla barra in alto.
+        </p>
+        <div class="role-options" id="role-options">
+          <button class="role-choice role-teacher" type="button" data-role="teacher">
+            <span class="role-choice-icon" data-icon="trophy"></span>
+            <strong>Sono un prof</strong>
+            <span>Acc</span>edi per creare e gestire i tuoi tornei.</span>
+          </button>
+          <button class="role-choice role-student" type="button" data-role="student">
+            <span class="role-choice-icon" data-icon="users"></span>
+            <strong>Sono uno studente</strong>
+            <span>Consulta tornei, calendario e</span> risultati in sola lettura.</span>
+          </button>
+        </div>
+        <form id="role-login-form" class="role-login hidden">
+</form>          <p class="eyebrow">ACCESSO PROF</p>
+          <h2>Entra nel tuo spazio.</h2>
+          <label></label></label>
+            Email
+            <input type="email" name="email" autocomplete="username"
+              inputmode="email" required maxlength="200" />
+          </label>
+          <label></label>
+            Password
+            <input type="password" name="password" autocomplete="current-password"
+              required maxlength="200" />
+          </label>
+          <div id="role-login-error" class="modal-error hidden" role="alert"></div>
+          <div class="role-login-actions">
+            <button type="button" class="button ghost" data-role="back">Torna indietro</button>
+            <button type="submit" class="button primary">Accedi</button>
+          </div>
+        </form>
+        <button type="button" id="role-switch-student"
+          class="button ghost role-switch hidden" data-role="student">
+          Continua come studente
+        </button>
+      </div>
+    </section>
     <aside id="sidebar" class="sidebar">
       <a class="brand" href="/" aria-label="Open Score, panoramica"
         ><img src="/static/mark.svg" alt="" width="38" height="38" /><span
@@ -58,7 +109,7 @@
             Scopri il progetto <span aria-hidden="true">↗</span>
           </button>
         </div>
-        <div class="local-status"><i></i> Spazio locale <span>v0.6.0</span></div>
+        <div class="local-status"><i></i> Spazio locale <span>v0.7.0</span></div>
       </div>
     </aside>
     <div class="app-shell">

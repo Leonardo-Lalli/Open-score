@@ -1,4 +1,4 @@
-# Matrice funzionale — demo 0.6
+# Matrice funzionale — demo 0.7
 
 Stati ammessi: **Non analizzata**, **Documentata**, **Progettata**, **Implementata**, **Testata**, **Verificata end-to-end**. Lo stato indica il livello massimo raggiunto per il perimetro scritto nella riga. Una funzione parziale non diventa completa per la presenza di una schermata. `tests/` e i file applicativi sono nella cartella `torneo-lab`.
 
@@ -30,7 +30,7 @@ Fonti: **U** = screenshot/JSON utente; **KB** = [indice ufficiale](https://kb.sc
 | Tab Regolamento e regolamento congelato per torneo | Verificata end-to-end | Scelta originale | services.py, app.js; test_sets; browser | Stampa tramite finestra del browser |
 | Statistiche aggregate dei risultati | Testata | Scelta originale | services.detail, dashboard; test_api | Statistiche individuali non implementate |
 | Pagina spettatore locale | Verificata end-to-end | KB | GET public, app.js; test_public_read_only…; browser | Sola lettura; nessun hosting su Internet |
-| Accesso organizzatore e blocco delle scritture | Verificata end-to-end | Scelta originale | auth.py, app.py, app.js; test_auth, test_hosts; browser | Password unica condivisa, nessun account individuale o ruolo per torneo |
+| Gate prof/studente, login email/password e blocco scritture | Implementata e testata | Scelta originale | auth.py, app.py, app.js, index.html; test_auth, test_static_ui | Manca una prova browser automatizzata del gate |
 | Deployment in LAN, backup e segreto di sessione | Testata | Scelta originale | deploy/, backup.py; test_backup, test_hosts | HTTPS richiede un reverse proxy esterno |
 | Personalizzazione nome/descrizione iniziale | Testata | U, KB | wizard, schemas.py | Loghi, temi e URL personalizzati non presenti |
 | CSV export incontri con dettaglio set | Testata | KB | app.py; test_csv_zero_scores_and_formula_names | Import CSV e PDF non implementati |
@@ -38,7 +38,7 @@ Fonti: **U** = screenshot/JSON utente; **KB** = [indice ufficiale](https://kb.sc
 | Database persistente e schema versionato | Testata | Starter, scelta originale | db.py, migrations; test_persistence_and_migration, test_migrations | Import legacy e produzione PostgreSQL |
 | URL legacy, asset statici e cache | Verificata | Scelta originale | app.py, static/*.html, static/app.js; test_static_ui | Vecchi URL reindirizzati alla SPA; asset versionati e dashboard no-cache |
 | Interfaccia mobile iPhone/Android | Implementata e verificata staticamente | Scelta originale | styles.css, index.html, app.js; test_static_ui | Manca una prova su dispositivo reale o browser farm; layout responsive fino a 360 px |
-| Accessi collaborativi e account individuali | Parziale | KB, master prompt | auth.py, DEVELOPMENT_PLAN | Implementato un solo organizzatore con password; mancano utenti, ruoli per torneo e isolamento fra organizzatori |
+| Account docenti e isolamento per torneo | Implementata e testata | KB, master prompt | migrations/007_teachers.sql, auth.py, services.py, app.py; test_teacher_isolation | Ogni prof gestisce solo i propri tornei; mancano disattivazione account e ruoli amministrativi |
 | Varianti e regolamenti del catalogo standard | Implementata e verificata | — | migrations/006_sport_variants.sql; test_sports | Sedici varianti standard coperte e verificate una per una; eventuali nuovi formati vanno concordati con il professore |
 
 Le fonti e il grado di certezza sono dettagliati in [REFERENCE_ANALYSIS.md](REFERENCE_ANALYSIS.md). L'architettura futura non è dichiarata esistente.

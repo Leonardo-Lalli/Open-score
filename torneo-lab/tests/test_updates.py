@@ -164,7 +164,10 @@ def test_archive_hides_tournament_and_blocks_writes(client):
 
 def test_data_survives_application_restart(tmp_path):
     path = tmp_path / 'restart.sqlite3'
-    with TestClient(create_app(path, seed=False)) as client:
+    credentials = dict(admin_email='prof@test.local', admin_password='password-lunga')
+    with TestClient(create_app(path, seed=False, **credentials)) as client:
+        client.post('/api/auth/login', json={
+            'email': 'prof@test.local', 'password': 'password-lunga'})
         tid = draft(client)
         team = client.get(f'/api/tournaments/{tid}').json()['teams'][0]
         client.post(f'/api/tournaments/{tid}/generate')
@@ -172,7 +175,9 @@ def test_data_survives_application_restart(tmp_path):
         assert score(client, tid, match, 3, 0).status_code == 200
         client.patch(f'/api/tournaments/{tid}', json={'name': 'Coppa persistente'})
 
-    with TestClient(create_app(path, seed=False)) as client:
+    with TestClient(create_app(path, seed=False, **credentials)) as client:
+        client.post('/api/auth/login', json={
+            'email': 'prof@test.local', 'password': 'password-lunga'})
         detail = client.get(f'/api/tournaments/{tid}').json()
         assert detail['tournament']['name'] == 'Coppa persistente'
         assert detail['teams'][0]['name'] == team['name']
@@ -190,6 +195,6 @@ def test_documented_online_backup_copies_every_tournament(tmp_path):
         db.execute('VACUUM INTO ?', (str(backup),))
 
     with sqlite3.connect(backup) as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0] == 6
+        assert db.execute('PRAGMA user_version').fetchone()[0] == 7
         assert db.execute('SELECT count(*) FROM tournaments').fetchone()[0] == 4
         assert db.execute('PRAGMA foreign_key_check').fetchall() == []

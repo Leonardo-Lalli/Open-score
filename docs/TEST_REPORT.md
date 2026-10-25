@@ -13,6 +13,7 @@ Ambiente: Windows, Python 3.14.3; FastAPI 0.162.0, Pydantic 2.14.1, Uvicorn 0.54
 - Dopo la verifica esaustiva delle sedici coppie sport/variante: **179 passed, 1 warning**, 6.64 secondi nell'ultima esecuzione locale.
 - Dopo la pulizia dei mockup legacy e il cache-busting 0.5.0: **184 passed, 1 warning**, 6.60 secondi nell'ultima esecuzione locale.
 - Dopo l'ottimizzazione mobile 0.6.0 (safe area, touch target, drawer e modali): **185 passed, 1 warning**, 6.65 secondi nell'ultima esecuzione locale.
+- Dopo l'introduzione di account docenti, gate prof/studente e isolamento per torneo 0.7.0: **189 passed, 1 warning**, 15.80 secondi nell'ultima esecuzione locale.
 - Il warning è la deprecazione Starlette relativa all'uso di httpx nel TestClient; non indica un fallimento dei test. L'ambiente di sviluppo contiene ancora httpx per compatibilità con il test client usato.
 - Il sandbox impediva le richieste del TestClient. I test sono stati eseguiti realmente con il terminale autorizzato; non si è sostituito il risultato con un output simulato.
 
@@ -39,7 +40,7 @@ Comando dalla cartella `torneo-lab`: `python -m pytest -q`, dopo `python -m pip 
 | Confini locali | Incontro di altro torneo rifiutato, Origin esterno rifiutato, Host inatteso rifiutato, endpoint spettatore solo GET |
 | Modifica e archivio | Nome/descrizione sempre modificabili, formato e sport modificabili in bozza con opzioni gironi dinamiche, campi strutturali bloccati dopo la generazione, payload della modale senza `format` che conserva la struttura, `null` espliciti rifiutati con 422, archivio in sola lettura e ripristino, persistenza dopo riavvio, scritture 409 sui tornei di sport rimossi |
 | Scheda squadra e spareggi | Girone, posizione, classifica e incontri del partecipante; giocatori in campo, lineup minima e rosa massima dalla variante; 404 per squadra di altro torneo; mini-classifica `head_to_head`; default `goal_difference` conservato dalla migrazione 005 |
-| Autenticazione | Letture aperte, scritture 401 senza sessione, login/logout, cookie resistente al reload, Bearer token, token scaduto o manomesso rifiutato, 5 errori → 429, modalità demo senza password |
+| Autenticazione e ruoli | Gate prof/studente, login email/password, hash PBKDF2, sessione scaduta o manomessa rifiutata, 5 errori → 429, scritture 401 per studenti/anonimi, 403 su tornei altrui, isolamento fra due docenti, `mine=1` e `can_manage` |
 | Host LAN | Host sconosciuto 400, IP e nome configurati ammessi, `TORNEO_ALLOWED_HOSTS` letto dall'ambiente |
 | Backup | `VACUUM INTO` leggibile con schema e dati completi, `integrity_check` e `foreign_key_check` puliti, conservazione dei più recenti |
 | CSV | Punteggio zero conservato, dettaglio dei set esportato, testo che inizia con formula neutralizzato |
@@ -82,7 +83,7 @@ La suite Playwright non è versionata nel repository: la verifica è stata esegu
 
 ## Limiti di verifica
 
-Nessuna prova su hardware mobile reale o su tutti i browser. La UI ha regole responsive fino a schermi piccoli; l'anteprima osservata verifica una larghezza intermedia. Nessuna verifica di carico, account individuali, ruoli per torneo, scheduler globale, statistiche individuali o formati avanzati: non sono implementati. I regolamenti delle sedici varianti sono scelte della demo da confermare con il professore. L'autenticazione è verificata su un solo organizzatore condiviso; il limite ai tentativi è in memoria e non è stato provato con più IP simultanei.
+Nessuna prova su hardware mobile reale o su tutti i browser. La UI ha regole responsive fino a schermi piccoli; l'anteprima osservata verifica una larghezza intermedia. La nuova schermata di scelta prof/studente e il login docente sono coperti da test statici e API, non da una prova browser automatizzata. Nessuna verifica di carico, disattivazione account, ruoli amministrativi, scheduler globale, statistiche individuali o formati avanzati. I regolamenti delle sedici varianti sono scelte della demo da confermare con il professore. Il limite ai tentativi è in memoria e non è stato provato con più IP simultanei.
 
 ## Verifica GitHub Actions
 

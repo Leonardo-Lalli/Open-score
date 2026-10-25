@@ -37,7 +37,7 @@ python3 -m venv .venv
 ## 2. Configurazione
 
 Copiare `deploy/open-score.env.example` in `deploy/open-score.env` e compilare
-almeno la password:
+almeno l'account bootstrap del primo docente:
 
 ```powershell
 Copy-Item C:\OpenScore\deploy\open-score.env.example C:\OpenScore\deploy\open-score.env
@@ -46,8 +46,8 @@ notepad C:\OpenScore\deploy\open-score.env
 
 | Variabile | Effetto |
 | --- | --- |
-| `TORNEO_ADMIN_PASSWORD` | Password unica dell'organizzatore. Se assente o vuota, l'app resta in modalità demo locale e accetta scritture senza accesso: usarla solo su `127.0.0.1`. |
-| `TORNEO_API_TOKEN` | Token facoltativo per script: `Authorization: Bearer <token>`. Utile per importazioni o controlli automatici. |
+| `TORNEO_ADMIN_EMAIL` | Email del primo docente, creata al primo avvio se non esiste. Predefinita `admin@open-score.local` se si imposta solo la password. |
+| `TORNEO_ADMIN_PASSWORD` | Password del primo docente. Almeno 8 caratteri. Gli altri docenti si creano con `manage.py`. |
 | `TORNEO_ALLOWED_HOSTS` | Elenco separato da virgole di IP e nomi con cui si raggiunge il server, per esempio `192.168.1.50,open-score.local`. `127.0.0.1`, `localhost` e `testserver` sono sempre ammessi. Se l'indirizzo non è in elenco il server risponde 400. |
 | `TORNEO_SECRET` | Segreto di firma dei cookie. Se assente viene creato `torneo-lab/data/session.secret` al primo avvio. |
 | `TORNEO_SESSION_HOURS` | Durata della sessione in ore. Predefinito `12`. |
@@ -103,11 +103,20 @@ set -a; . /etc/open-score/open-score.env; set +a
 Dal computer server aprire `http://127.0.0.1:8000`, da un altro dispositivo
 della LAN `http://192.168.1.50:8000` (con l'IP reale). Verificare:
 
-1. La dashboard si carica.
-2. In alto a destra compare **Accedi** e **Nuovo torneo** è nascosto.
-3. **Accedi** chiede la password; dopo l'accesso compaiono **Organizzatore**,
-   **Esci** e **Nuovo torneo**.
+1. Compare il gate **Sono un prof** / **Sono uno studente**.
+2. **Sono uno studente** apre la dashboard in sola lettura: **Nuovo torneo** ed
+   eventuali comandi di modifica sono nascosti.
+3. **Sono un prof** apre il login email/password; dopo l'accesso compaiono il
+   nome del docente, **Esci** e **Nuovo torneo**, ma solo i propri tornei sono
+   modificabili.
 4. Un altro dispositivo vede il torneo e il link **Condividi** in sola lettura.
+
+Per creare altri docenti, dalla cartella `torneo-lab`:
+
+```powershell
+.\.venv\Scripts\python.exe manage.py create-teacher altro.prof@scuola.it --name "Nome Cognome"
+.\.venv\Scripts\python.exe manage.py list-teachers
+```
 
 Se l'app risponde 400 `Invalid host header`, l'indirizzo usato non è in
 `TORNEO_ALLOWED_HOSTS`. Se risponde 401 su una scrittura, la sessione è scaduta:
@@ -236,17 +245,18 @@ non forzare la versione, aggiornare l'applicazione.
   `torneo-lab/backup/backup.log`.
 - **systemd**: `journalctl -u open-score -f`.
 - **NSSM**: configurare un file di log nelle impostazioni del servizio.
-- **Stato**: `GET /api/health` restituisce versione, modalità (`school-lan` o
-  `local-demo`) e se l'autenticazione è attiva.
+- **Stato**: `GET /api/health` restituisce versione, modalità `school-lan` e
+  `auth: teacher-login`.
 
 ## 9. Lista di controllo prima dell'uso
 
-- [ ] `TORNEO_ADMIN_PASSWORD` impostata e diversa da quella di esempio.
-- [ ] Password condivisa solo con gli organizzatori, non scritta nella repository.
+- [ ] `TORNEO_ADMIN_EMAIL` e `TORNEO_ADMIN_PASSWORD` impostati e diversi da quelli di esempio.
+- [ ] Account docenti creati solo per le persone autorizzate, password non scritte nella repository.
 - [ ] IP del server prenotato nel router e presente in `TORNEO_ALLOWED_HOSTS`.
 - [ ] Porta 8000 aperta solo sul profilo di rete privato.
 - [ ] Accesso verificato da un secondo dispositivo della LAN.
-- [ ] Un utente anonimo non vede i pulsanti di modifica e riceve 401 se tenta una scrittura.
+- [ ] Uno studente non vede i pulsanti di modifica e riceve 401 se tenta una scrittura.
+- [ ] Un secondo docente non può modificare i tornei del primo (403).
 - [ ] Backup manuale riuscito e integrità verificata.
 - [ ] Backup giornaliero attivo e copia esterna configurata.
 - [ ] `torneo-lab/data/`, `torneo-lab/backup/` e `open-score.env` fuori da Git.

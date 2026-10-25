@@ -4052,3 +4052,166 @@ textarea {
     width: 100%;
   }
 }
+
+/* ==========================================================================
+   Role gate: teacher login / student read-only entry
+   ========================================================================== */
+.role-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: max(20px, env(safe-area-inset-top))
+    max(20px, env(safe-area-inset-right))
+    max(20px, env(safe-area-inset-bottom))
+    max(20px, env(safe-area-inset-left));
+  background:
+    radial-gradient(circle at 80% 15%, #d6f4731f, transparent 35%),
+    radial-gradient(circle at 10% 90%, #2d694d66, transparent 40%),
+    var(--dark);
+  overflow-y: auto;
+}
+.role-gate[hidden] {
+  display: none !important;
+}
+body.role-pending {
+  overflow: hidden;
+}
+#toast {
+  z-index: 300;
+}
+.role-gate-panel {
+  width: min(920px, 100%);
+  background: #fbfcf8;
+  border-radius: 24px;
+  padding: 42px;
+  box-shadow: 0 30px 100px #0a1e2650;
+}
+.role-brand {
+  color: var(--ink);
+  margin-bottom: 28px;
+}
+.role-brand .brand-light {
+  color: #738077;
+}
+.role-brand small {
+  color: var(--muted);
+}
+.role-gate h1 {
+  font-size: clamp(30px, 5vw, 48px);
+  letter-spacing: -1.5px;
+  margin: 0 0 10px;
+}
+.role-intro {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.75;
+  max-width: 560px;
+  margin-bottom: 26px;
+}
+.role-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.role-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  text-align: left;
+  border: 0;
+  border-radius: 18px;
+  padding: 26px;
+  min-height: 200px;
+  color: #fff;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.role-choice:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px #18292326;
+}
+.role-choice strong {
+  font-size: 24px;
+  letter-spacing: -0.6px;
+}
+.role-choice > span:last-child {
+  font-size: 12px;
+  line-height: 1.7;
+  opacity: 0.85;
+  max-width: 260px;
+}
+.role-choice-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: #ffffff26;
+}
+.role-choice-icon .icon {
+  width: 26px;
+  height: 26px;
+}
+.role-teacher {
+  background: linear-gradient(145deg, #2d694d, #1f4d38);
+}
+.role-student {
+  background: linear-gradient(145deg, #d6f473, #b9df4d);
+  color: #1c3028;
+}
+.role-student .role-choice-icon {
+  background: #1c302814;
+}
+.role-login {
+  max-width: 460px;
+}
+.role-login h2 {
+  font-size: 26px;
+  margin: 0 0 8px;
+}
+.role-login label {
+  margin-top: 14px;
+}
+.role-login-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+.role-login-actions .button {
+  flex: 1 1 auto;
+}
+.role-switch {
+  margin-top: 18px;
+}
+@media (max-width: 800px) {
+  .role-gate {
+    padding: 16px;
+    align-items: start;
+  }
+  .role-gate-panel {
+    padding: 26px 20px;
+    border-radius: 18px;
+    margin: auto 0;
+  }
+  .role-options {
+    grid-template-columns: 1fr;
+  }
+  .role-choice {
+    min-height: 150px;
+    padding: 20px;
+  }
+  .role-choice strong {
+    font-size: 21px;
+  }
+  .role-gate h1 {
+    font-size: 32px;
+  }
+}
+@media (max-width: 380px) {
+  .role-login-actions {
+    flex-direction: column-reverse;
+  }
+}

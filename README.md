@@ -31,6 +31,8 @@ Apri [http://127.0.0.1:8000](http://127.0.0.1:8000). Per fermare il server: **Ct
 
 Su macOS/Linux: `python3 -m venv .venv`, `source .venv/bin/activate`, poi gli stessi comandi `python`.
 
+Al primo avvio serve un account docente. Impostare `TORNEO_ADMIN_EMAIL` e `TORNEO_ADMIN_PASSWORD` prima di avviare il server, oppure creare un account dalla cartella `torneo-lab` con `python manage.py create-teacher email@scuola.it --name "Nome"`. Senza account si può entrare come studente in sola lettura.
+
 ## Cosa mostrare al professore in cinque minuti
 
 1. **Knockout Bracket of Football:** il caso fornito, Team #1 contro Team #2. Apri il tabellone e inserisci un risultato per proclamare il campione.
@@ -42,11 +44,13 @@ Su macOS/Linux: `python3 -m venv .venv`, `source .venv/bin/activate`, poi gli st
 
 I quattro esempi vengono salvati al primo avvio. I nomi, gli incontri e i risultati si possono cambiare; i dati persistono dopo il riavvio. Non c'è una scadenza di 24 ore. Gli esempi aggiuntivi sono sintetici; il campione JSON fornito è conservato come fixture con i relativi ID di provenienza.
 
-## Funzioni della versione 0.6.0
+## Funzioni della versione 0.7.0
 
 - Dashboard e interfaccia italiana responsive, procedura guidata, partecipanti rinominabili.
 - Interfaccia unica SPA: le vecchie pagine mockup sono state rimosse e i relativi URL reindirizzano alla dashboard; gli asset sono versionati per evitare cache stantia.
 - Ottimizzazione mobile iPhone/Android: safe area, viewport con notch, topbar sticky, drawer con scrim, touch target da 44 px, modali full-screen e input a 16 px.
+- Ingresso con due scelte: **Sono un prof** (login email/password) e **Sono uno studente** (sola lettura). Gli studenti non possono creare, modificare o eliminare tornei né da UI né da API.
+- Account docenti separati: ogni prof vede e gestisce solo i propri tornei; i tornei altrui restano leggibili ma non modificabili (403 lato API).
 - Sei sport con sedici varianti: Calcio, Basket, Pallavolo, Badminton, Ping pong e Biliardino. Catalogo navigabile con schermate dedicate e link diretti alle regole.
 - La variante determina composizione della squadra, durata, punteggio, classifica e regolamento; il torneo conserva uno snapshot delle regole scelte.
 - La scheda squadra mostra giocatori in campo, lineup minima, rosa massima e giocatori mancanti; la pagina partecipanti riepiloga le rose pronte rispetto al minimo della variante.
@@ -62,12 +66,12 @@ I quattro esempi vengono salvati al primo avvio. I nomi, gli incontri e i risult
 - I tornei di sport rimossi restano consultabili in sola lettura.
 - Criterio a parità di punti configurabile: differenza reti, scontri diretti, reti fatte o vittorie.
 - Scheda partecipante con girone, posizione, classifica, rosa e incontri.
-- Accesso dell'organizzatore con password singola o token, scritture protette, host della LAN ammessi e limite ai tentativi di accesso.
+- Accesso docenti con email e password, sessioni firmate, scritture protette, host della LAN ammessi e limite ai tentativi di accesso.
 - Database SQLite persistente, backup consistenti, avvio automatico e API documentate.
 
-**È un'applicazione per la LAN scolastica, non l'intera piattaforma del master prompt.** Non ci sono account individuali, ruoli per torneo, statistiche individuali, rigori, doppia eliminazione, Swiss, consolazione o scheduler automatico. Gli sport non più in catalogo restano leggibili solo per i tornei storici ma non sono selezionabili. I regolamenti delle varianti sono scelte della demo e vanno confermati con il professore.
+**È un'applicazione per la LAN scolastica, non l'intera piattaforma del master prompt.** Non ci sono ruoli amministrativi oltre ai docenti, statistiche individuali, rigori, doppia eliminazione, Swiss, consolazione o scheduler automatico. Gli sport non più in catalogo restano leggibili solo per i tornei storici ma non sono selezionabili. I regolamenti delle varianti sono scelte della demo e vanno confermati con il professore.
 
-Con `TORNEO_ADMIN_PASSWORD` impostata, chiunque può leggere i tornei ma solo l'organizzatore può modificarli; senza password l'app resta in modalità demo locale e accetta scritture. Il link spettatore è di sola lettura in entrambi i casi. Il server può essere raggiunto dalla LAN, ma non è destinato a Internet: installazione, firewall, backup e limiti sono in [DEPLOY.md](docs/DEPLOY.md) e [SECURITY.md](docs/SECURITY.md).
+Con `TORNEO_ADMIN_EMAIL` e `TORNEO_ADMIN_PASSWORD` viene creato il primo account docente; altri account si aggiungono con `python manage.py create-teacher`. Chi non accede resta in sola lettura, come gli studenti. Ogni docente può gestire solo i tornei della propria utenza; il link spettatore è di sola lettura. Il server può essere raggiunto dalla LAN, ma non è destinato a Internet: installazione, firewall, backup e limiti sono in [DEPLOY.md](docs/DEPLOY.md) e [SECURITY.md](docs/SECURITY.md).
 
 ## Hosting sulla LAN scolastica
 
@@ -91,14 +95,25 @@ Copy-Item deploy\open-score.env.example deploy\open-score.env
 notepad deploy\open-score.env
 ```
 
-Nel file impostare almeno la password dell'organizzatore e gli indirizzi con cui il server viene raggiunto:
+Nel file impostare almeno l'account del primo docente e gli indirizzi con cui il server viene raggiunto:
 
 ```text
+TORNEO_ADMIN_EMAIL=prof@scuola.it
 TORNEO_ADMIN_PASSWORD=una-password-lunga-e-condivisa
 TORNEO_ALLOWED_HOSTS=192.168.1.50,open-score.local
 ```
 
 Sostituire `192.168.1.50` con l'IP reale del server e aggiungere il nome del computer solo se lo si usa. `127.0.0.1` e `localhost` sono sempre ammessi. Il file `deploy/open-score.env` contiene segreti e non va condiviso né caricato su Git.
+
+Per creare gli altri account docente:
+
+```powershell
+cd C:\OpenScore\torneo-lab
+.\.venv\Scripts\python.exe manage.py create-teacher altro.prof@scuola.it --name "Nome Cognome"
+.\.venv\Scripts\python.exe manage.py list-teachers
+```
+
+Per reimpostare una password usare `manage.py reset-password <email>`.
 
 ### 3. Aprire la porta nel firewall
 
@@ -156,7 +171,7 @@ Sono verificati algoritmi, avanzamenti, multifase, correzioni, concorrenza, pers
 | [Architettura](docs/ARCHITECTURE.md) · [Database](docs/DATABASE.md) · [API](docs/API.md) | Struttura effettiva dell'applicazione |
 | [Deploy in LAN](docs/DEPLOY.md) · [Sicurezza](docs/SECURITY.md) | Installazione, firewall, backup, ripristino, credenziali e limiti |
 | [Piano di sviluppo](docs/DEVELOPMENT_PLAN.md) · [Decisioni](docs/DECISIONS.md) | Passi successivi e ipotesi da discutere |
-| [Changelog](docs/CHANGELOG.md) | Incrementi 0.4 → 0.6 |
+| [Changelog](docs/CHANGELOG.md) | Incrementi 0.4 → 0.7 |
 
 Il codice è originale e non dipende dai server di Score7. La licenza per il rilascio open source stabile va concordata tra gli autori; non è ancora stata assegnata. Database, credenziali e ambienti locali non sono inclusi nella repository.
 

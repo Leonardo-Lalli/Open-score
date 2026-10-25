@@ -6,8 +6,11 @@ from schemas import TournamentInput
 from services import create, games, generate, save_result
 
 
-def load_examples(db):
+def load_examples(db, teacher_id=None):
     result = []
+    if teacher_id is not None:
+        db.execute('UPDATE tournaments SET teacher_id=? '
+                   'WHERE demo_key IS NOT NULL AND teacher_id IS NULL', (teacher_id,))
     specs = [
         ('reference', 'Knockout Bracket of Football', 'knockout', ['Team #1','Team #2'],
          'Il caso di partenza: due squadre, una finale. Dati del campione JSON fornito da Leonardo.'),
@@ -26,7 +29,7 @@ def load_examples(db):
             result.append(existing[0])
             continue
         tid = create(db,TournamentInput(name=name,format=fmt,team_names=names,description=description,
-                                       group_count=4 if fmt=='groups' else 2), key)
+                                       group_count=4 if fmt=='groups' else 2), key, teacher_id)
         generate(db,tid)
         if key == 'reference':
             sample = json.loads((BASE/'fixtures/score7_sample.json').read_text(encoding='utf-8'))

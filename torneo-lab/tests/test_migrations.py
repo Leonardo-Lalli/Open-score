@@ -11,18 +11,18 @@ def read_migration(name: str) -> str:
     return (BASE / 'migrations' / name).read_text(encoding='utf-8')
 
 
-def test_fresh_database_is_version_six_with_canonical_catalog(tmp_path):
+def test_fresh_database_is_version_seven_with_canonical_catalog(tmp_path):
     path = tmp_path / 'fresh.sqlite3'
     assert initialize(path) is True
 
     with sqlite3.connect(path) as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0] == 6
+        assert db.execute('PRAGMA user_version').fetchone()[0] == 7
         assert db.execute('PRAGMA journal_mode').fetchone()[0].lower() == 'wal'
         assert db.execute('PRAGMA foreign_key_check').fetchall() == []
         columns = {row[1] for row in db.execute('PRAGMA table_info(tournaments)')}
         assert {'sport_id', 'variant_id', 'variant', 'rules_snapshot',
                 'regulation_snapshot', 'tournament_type', 'scoring_system',
-                'archived_at', 'updated_at', 'tie_breaker'} <= columns
+                'archived_at', 'updated_at', 'tie_breaker', 'teacher_id'} <= columns
         names = [row[0] for row in db.execute(
             'SELECT name FROM sport_configs ORDER BY sort_order, id')]
         assert names == ['Calcio', 'Basket', 'Pallavolo', 'Badminton',
@@ -32,7 +32,7 @@ def test_fresh_database_is_version_six_with_canonical_catalog(tmp_path):
                           "WHERE slug='badminton-singolare'").fetchone()[0] == 1
         tables = {row[0] for row in db.execute(
             "SELECT name FROM sqlite_master WHERE type='table'")}
-        assert {'sport_variants', 'team_players', 'match_sets'} <= tables
+        assert {'sport_variants', 'team_players', 'match_sets', 'teachers'} <= tables
 
 
 def test_version_two_database_migrates_and_maps_legacy_sport(tmp_path):
@@ -48,7 +48,7 @@ def test_version_two_database_migrates_and_maps_legacy_sport(tmp_path):
     assert initialize(path) is False
 
     with sqlite3.connect(path) as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0] == 6
+        assert db.execute('PRAGMA user_version').fetchone()[0] == 7
         sport, sport_id, variant = db.execute(
             'SELECT sport,sport_id,variant FROM tournaments WHERE id=1').fetchone()
         assert sport == 'Pallavolo'
@@ -70,7 +70,7 @@ def test_version_three_database_adds_archive_columns_and_backfills_update_time(t
     assert initialize(path) is False
 
     with sqlite3.connect(path) as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0] == 6
+        assert db.execute('PRAGMA user_version').fetchone()[0] == 7
         archived_at, updated_at, created_at, tie_breaker = db.execute(
             'SELECT archived_at,updated_at,created_at,tie_breaker FROM tournaments WHERE id=1'
         ).fetchone()
@@ -94,7 +94,7 @@ def test_version_four_database_adds_tie_breaker_with_default(tmp_path):
     assert initialize(path) is False
 
     with sqlite3.connect(path) as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0] == 6
+        assert db.execute('PRAGMA user_version').fetchone()[0] == 7
         assert db.execute('SELECT tie_breaker FROM tournaments WHERE id=1').fetchone()[0] == 'goal_difference'
         with pytest.raises(sqlite3.IntegrityError):
             db.execute("UPDATE tournaments SET tie_breaker='coin_toss' WHERE id=1")
@@ -119,7 +119,7 @@ def test_version_five_remaps_calcio_a_5_and_preserves_removed_sports(tmp_path):
     assert initialize(path) is False
 
     with sqlite3.connect(path) as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0] == 6
+        assert db.execute('PRAGMA user_version').fetchone()[0] == 7
         sport, sport_id, variant, snapshot = db.execute(
             "SELECT sport,sport_id,variant,rules_snapshot FROM tournaments WHERE id=1"
         ).fetchone()
@@ -145,7 +145,10 @@ def test_fresh_install_seeds_examples_with_sport_and_variant_links(tmp_path):
 
 def test_create_tournament_resolves_sport_id_and_rejects_mismatch(tmp_path):
     path = tmp_path / 'create.sqlite3'
-    with TestClient(create_app(path, seed=False)) as client:
+    with TestClient(create_app(path, seed=False, admin_email='prof@test.local',
+                               admin_password='password-lunga')) as client:
+        assert client.post('/api/auth/login', json={
+            'email': 'prof@test.local', 'password': 'password-lunga'}).status_code == 200
         response = client.post('/api/tournaments', json={
             'name': 'Coppa di prova',
             'sport': 'Pallavolo',

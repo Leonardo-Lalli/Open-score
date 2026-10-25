@@ -4,16 +4,16 @@ Server di sviluppo: `http://127.0.0.1:8000`. Sulla LAN l'indirizzo è quello del
 
 | Metodo | Percorso | Operazione |
 | --- | --- | --- |
-| GET | /api/health | Versione, modalità (`local-demo` o `school-lan`) e stato dell'autenticazione |
-| GET | /api/auth/session | Stato della sessione: `authenticated`, `auth_required`, `role` |
-| POST | /api/auth/login | Accesso con password; imposta il cookie di sessione |
+| GET | /api/health | Versione, modalità `school-lan` e stato `teacher-login` |
+| GET | /api/auth/session | Stato della sessione: `authenticated`, `role` (`teacher` o `student`) e dati del docente |
+| POST | /api/auth/login | Accesso con `email` e `password`; imposta il cookie di sessione |
 | POST | /api/auth/logout | Cancella il cookie di sessione |
 | GET | /api/sports | Catalogo degli sport padre con le varianti annidate |
 | GET | /api/sports/{sport_name} | Sport, varianti e regole della variante predefinita; 404 se assente |
 | GET | /api/sports/{sport_name}/variants/{variant_slug} | Regole e regolamento di una variante; 404 se assente o di un altro sport |
 | GET | /api/variants/{variant_slug} | Scorciatoia per leggere una variante senza indicare lo sport |
-| GET, POST | /api/tournaments | Elenco con stato e contatori (`?archived=exclude\|include\|only`); creazione (201) |
-| GET | /api/tournaments/{id} | Torneo con sport/variante, regole e regolamento, squadre, fasi, gironi, incontri con set, classifiche, campione e diario |
+| GET, POST | /api/tournaments | Elenco con stato, contatori e `can_manage` (`?archived=exclude\|include\|only`, `?mine=1` per i propri tornei); creazione docente (201) |
+| GET | /api/tournaments/{id} | Torneo con sport/variante, regole e regolamento, squadre, fasi, gironi, incontri con set, classifiche, campione, diario e `can_manage` |
 | GET | /api/tournaments/{id}/teams/{team_id} | Scheda partecipante: girone, posizione, classifica, incontri, rosa e massimo della variante |
 | PATCH | /api/tournaments/{id} | Modifica nome/descrizione sempre; sport, variante, formato e regole solo in bozza |
 | POST | /api/tournaments/{id}/archive | Archivia senza cancellare; nasconde dall'elenco predefinito |
@@ -30,18 +30,18 @@ Server di sviluppo: `http://127.0.0.1:8000`. Sulla LAN l'indirizzo è quello del
 | GET | /api/public/{token} | Dati spettatore, senza diario o metadati privati del torneo |
 | POST | /api/demo | Caricamento idempotente dei quattro esempi |
 
-`/public/{token}` serve l'interfaccia spettatore. Non esistono endpoint di scrittura sotto `/api/public`. Con `TORNEO_ADMIN_PASSWORD` o `TORNEO_API_TOKEN` impostati, ogni altro metodo diverso da `GET`/`HEAD`/`OPTIONS` sotto `/api` richiede una sessione o un token; senza configurazione l'app resta in modalità demo locale e le scritture sono aperte. Dettagli e limiti in [SECURITY.md](SECURITY.md).
+`/public/{token}` serve l'interfaccia spettatore. Non esistono endpoint di scrittura sotto `/api/public`. Ogni metodo diverso da `GET`/`HEAD`/`OPTIONS` sotto `/api` richiede una sessione docente, tranne `login` e `logout`: studenti e anonimi ricevono `401`. Ogni scrittura su un torneo richiede inoltre che il torneo appartenga al docente autenticato, altrimenti `403`. Le letture restano pubbliche. Dettagli e limiti in [SECURITY.md](SECURITY.md).
 
 ## Accesso e sessioni
 
 ```json
 POST /api/auth/login
-{"password": "..."}
+{"email": "prof@scuola.it", "password": "..."}
 ```
 
-Risposta `200`: `{"authenticated": true, "auth_required": true, "role": "admin"}` e cookie `open_score_session` (`HttpOnly`, `SameSite=Lax`, durata 12 ore salvo `TORNEO_SESSION_HOURS`). Password errata: `401`; troppi tentativi dallo stesso IP: `429` dopo 5 errori in 5 minuti, con blocco di 60 secondi. `POST /api/auth/logout` risponde `{"ok": true}` e cancella il cookie.
+Risposta `200`: `{"authenticated": true, "role": "teacher", "teacher": {"id": 1, "email": "prof@scuola.it", "display_name": "Amministratore"}}` e cookie `open_score_session` (`HttpOnly`, `SameSite=Lax`, durata 12 ore salvo `TORNEO_SESSION_HOURS`). Credenziali errate: `401`; email non valida: `422`; troppi tentativi dallo stesso IP: `429` dopo 5 errori in 5 minuti, con blocco di 60 secondi. `POST /api/auth/logout` risponde `{"ok": true}` e cancella il cookie.
 
-Gli script possono evitare il login con `Authorization: Bearer <TORNEO_API_TOKEN>`. Una scrittura senza credenziali valide riceve `401 {"detail": "Accesso richiesto"}`. Con autenticazione attiva la UI mostra **Accedi** e nasconde i comandi di modifica; un tentativo di scrittura da spettatore riapre la finestra di accesso. Senza password configurata `auth_required` è `false` e il ruolo locale è `admin`.
+La sessione contiene l'id e l'email del docente ed è firmata con HMAC-SHA256. Una scrittura senza sessione riceve `401 {"detail": "Accesso richiesto"}`; una scrittura su un torneo di un altro docente riceve `403`. La UI mostra il gate iniziale **Sono un prof** / **Sono uno studente**, nasconde i comandi di modifica agli studenti e mostra **Solo lettura** sui tornei non gestibili. Non esiste più il Bearer token globale: l'isolamento è per account docente.
 
 ## Esempio riproducibile
 
@@ -115,4 +115,4 @@ La modifica parziale accetta solo i campi inviati. Nome e descrizione sono sempr
 - Tornei: `draft`, `active`, `completed`, derivati dai dati, non impostati manualmente dal browser.
 - Nomi ripuliti e limitati; campi extra rifiutati. Punteggi interi 0–999; booleani, decimali e stringhe numeriche non accettati.
 - 404 per risorse mancanti o incontro di un altro torneo; 409 per versioni obsolete, duplicati, sovrapposizioni, tornei archiviati e dipendenze da confermare; 422 per input/regole non validi; 401 per scritture senza sessione quando l'autenticazione è attiva; 429 per troppi tentativi di accesso; 403 per scritture da Origin diverso; 400 per Host non consentito.
-- Generazione ripetuta: 409 senza duplicati. Caricamento esempi ripetuto: stessi ID e risultati preservati. Le scritture su più tabelle sono atomiche. Paginazione e account individuali restano da implementare.
+- Generazione ripetuta: 409 senza duplicati. Caricamento esempi ripetuto: stessi ID e risultati preservati. Le scritture su più tabelle sono atomiche. Paginazione e ruoli amministrativi aggiuntivi restano da implementare.

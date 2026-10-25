@@ -1,4 +1,4 @@
-"""Open Score API: local demo by default, single-organiser auth for the LAN."""
+"""Open Score API: read-only for students, teacher-scoped writes for the LAN."""
 import csv
 import io
 import os
@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from auth import COOKIE_NAME, build as build_auth
+from auth import COOKIE_NAME, authenticate, build as build_auth, ensure_teacher
 from db import BASE, database, initialize
 from demo import load_examples
 from schemas import (ClearInput, LoginInput, PlayerInput, ResultInput, ScheduleInput,
@@ -20,14 +20,28 @@ import sport_rules
 
 
 def create_app(db_path: str | Path | None = None, seed: bool = True, *,
-               admin_password: str | None = None, api_token: str | None = None,
+               admin_email: str | None = None,
+               admin_password: str | None = None,
                session_secret: str | bytes | None = None,
                allowed_hosts: list[str] | None = None,
                cookie_secure: bool | None = None) -> FastAPI:
     path = Path(db_path or os.environ.get('TORNEO_DB_PATH', str(BASE/'data/open_score.sqlite3')))
     fresh = initialize(path)
-    auth = build_auth(BASE, password=admin_password, api_token=api_token,
-                      secret=session_secret, cookie_secure=cookie_secure)
+    auth = build_auth(BASE, secret=session_secret, cookie_secure=cookie_secure)
+
+    bootstrap_email = (admin_email if admin_email is not None
+                       else os.environ.get('TORNEO_ADMIN_EMAIL', '')).strip()
+    bootstrap_password = (admin_password if admin_password is not None
+                          else os.environ.get('TORNEO_ADMIN_PASSWORD', '')).strip()
+    bootstrap_id = None
+    if bootstrap_password:
+        with database(path, True) as db:
+            bootstrap_id = ensure_teacher(db, bootstrap_email or 'admin@open-score.local',
+                                          bootstrap_password, 'Amministratore')
+            # Existing demo rows become manageable by the bootstrap teacher.
+            db.execute('UPDATE tournaments SET teacher_id=? '
+                       'WHERE teacher_id IS NULL AND demo_key IS NOT NULL',
+                       (bootstrap_id,))
 
     default_hosts = ['127.0.0.1', 'localhost', 'testserver']
     configured = allowed_hosts
@@ -36,7 +50,7 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
                       os.environ.get('TORNEO_ALLOWED_HOSTS', '').split(',') if host.strip()]
     hosts = list(dict.fromkeys(default_hosts + list(configured)))
 
-    api = FastAPI(title='Open Score · API', version='0.6.0',
+    api = FastAPI(title='Open Score · API', version='0.7.0',
                   description='Applicazione originale per i tornei scolastici. Nessun collegamento alle API di Score7.')
     api.state.db_path = path
     api.state.auth = auth
@@ -46,16 +60,18 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
 
     @api.middleware('http')
     async def local_security(request: Request, call_next):
-        # Block cross-origin browser writes, then require an admin session for
-        # every mutation when a password or API token is configured.
+        # Block cross-origin browser writes, then require a teacher session for
+        # every mutation. Reads and public links stay open.
         origin = request.headers.get('origin')
         if (request.method not in ('GET','HEAD','OPTIONS') and origin
                 and origin != str(request.base_url).rstrip('/')):
             return Response('Origine non consentita',status_code=403)
-        if (auth.required and request.method not in ('GET','HEAD','OPTIONS')
+        session = auth.session_from_request(request)
+        request.state.teacher = session
+        if (request.method not in ('GET','HEAD','OPTIONS')
                 and request.url.path.startswith('/api')
                 and request.url.path not in ('/api/auth/login','/api/auth/logout')
-                and not auth.is_authenticated(request)):
+                and session is None):
             return JSONResponse({'detail':'Accesso richiesto'},status_code=401)
         response = await call_next(request)
         if (request.url.path.startswith('/static/')
@@ -69,6 +85,17 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
         if request.url.path not in ('/docs','/redoc','/docs/oauth2-redirect'):
             response.headers['Content-Security-Policy']="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:; frame-ancestors 'none'"
         return response
+
+    def teacher(request: Request) -> dict:
+        session = getattr(request.state, 'teacher', None)
+        if session is None:
+            raise HTTPException(401, 'Accesso richiesto')
+        return session
+
+    def managed(detail: dict, session: dict | None) -> dict:
+        detail['can_manage'] = bool(session and
+            detail['tournament'].get('teacher_id') == session['teacher_id'])
+        return detail
 
     @api.get('/',include_in_schema=False)
     @api.get('/public/{token}',include_in_schema=False)
@@ -89,29 +116,42 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
 
     @api.get('/api/health')
     def health():
-        return {'status':'ok','version':'0.6.0',
-                'mode':'school-lan' if auth.required else 'local-demo',
-                'auth':'required' if auth.required else 'disabled'}
+        return {'status':'ok','version':'0.7.0',
+                'mode':'school-lan','auth':'teacher-login'}
 
     @api.get('/api/auth/session')
     def session_info(request: Request):
-        authenticated = (not auth.required) or auth.is_authenticated(request)
-        return {'authenticated':authenticated,'auth_required':auth.required,
-                'role':'admin' if authenticated else 'viewer'}
+        session = getattr(request.state, 'teacher', None)
+        teacher_info = None
+        if session:
+            with database(path) as db:
+                row = db.execute('SELECT display_name FROM teachers WHERE id=?',
+                                 (session['teacher_id'],)).fetchone()
+            teacher_info = {'id': session['teacher_id'], 'email': session['email'],
+                            'display_name': row[0] if row else ''}
+        return {'authenticated': bool(session),
+                'role': 'teacher' if session else 'student',
+                'teacher': teacher_info}
 
     @api.post('/api/auth/login')
     def login(data: LoginInput, request: Request):
-        if not auth.required:
-            return {'authenticated':True,'auth_required':False,'role':'admin'}
         key = request.client.host if request.client else 'unknown'
         if not auth.login_allowed(key):
             raise HTTPException(429,'Troppi tentativi. Riprova tra un minuto.')
-        if not auth.check_password(data.password):
+        with database(path) as db:
+            teacher_row = authenticate(db, data.email, data.password)
+        if teacher_row is None:
             auth.record_failure(key)
-            raise HTTPException(401,'Password non corretta')
+            raise HTTPException(401,'Email o password non corretti')
         auth.record_success(key)
-        response = JSONResponse({'authenticated':True,'auth_required':True,'role':'admin'})
-        response.set_cookie(COOKIE_NAME, auth.issue(), max_age=auth.ttl, httponly=True,
+        response = JSONResponse({
+            'authenticated': True, 'role': 'teacher',
+            'teacher': {'id': teacher_row['id'], 'email': teacher_row['email'],
+                        'display_name': teacher_row['display_name']},
+        })
+        response.set_cookie(COOKIE_NAME,
+                            auth.issue(teacher_row['id'], teacher_row['email']),
+                            max_age=auth.ttl, httponly=True,
                             samesite='lax', secure=auth.cookie_secure, path='/')
         return response
 
@@ -122,45 +162,77 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
         return response
 
     @api.get('/api/tournaments')
-    def list_tournaments(archived: Literal['exclude', 'include', 'only'] = 'exclude'):
-        where = {'exclude': 'WHERE archived_at IS NULL',
-                 'only': 'WHERE archived_at IS NOT NULL'}.get(archived, '')
+    def list_tournaments(request: Request,
+                         archived: Literal['exclude', 'include', 'only'] = 'exclude',
+                         mine: bool = False):
+        session = getattr(request.state, 'teacher', None)
+        clauses, params = [], []
+        if archived == 'exclude':
+            clauses.append('archived_at IS NULL')
+        elif archived == 'only':
+            clauses.append('archived_at IS NOT NULL')
+        if mine:
+            if session is None:
+                raise HTTPException(401, 'Accesso richiesto')
+            clauses.append('teacher_id=?')
+            params.append(session['teacher_id'])
+        where = (' WHERE ' + ' AND '.join(clauses)) if clauses else ''
         with database(path) as db:
-            return [dict(t, **{k:v for k,v in svc.detail(db,t['id']).items()
-                    if k in ('status','progress','champion_team_id')},
-                    archived=bool(t['archived_at']),
-                    team_count=db.execute('SELECT count(*) FROM teams WHERE tournament_id=?',(t['id'],)).fetchone()[0])
-                    for t in svc.rows(db,f'SELECT * FROM tournaments {where} ORDER BY id DESC')]
+            result = []
+            for tournament in svc.rows(
+                    db, f'SELECT * FROM tournaments{where} ORDER BY id DESC', tuple(params)):
+                state = svc.detail(db, tournament['id'])
+                result.append(dict(
+                    tournament,
+                    **{key: state[key] for key in
+                       ('status','progress','champion_team_id')},
+                    archived=bool(tournament['archived_at']),
+                    team_count=db.execute(
+                        'SELECT count(*) FROM teams WHERE tournament_id=?',
+                        (tournament['id'],)).fetchone()[0],
+                    can_manage=bool(session and
+                        tournament['teacher_id'] == session['teacher_id']),
+                ))
+            return result
 
     @api.post('/api/tournaments',status_code=201)
-    def create_tournament(data: TournamentInput):
+    def create_tournament(data: TournamentInput, request: Request):
+        session = teacher(request)
         with database(path,True) as db:
-            return {'id':svc.create(db,data)}
+            return {'id':svc.create(db, data, teacher_id=session['teacher_id'])}
 
     @api.patch('/api/tournaments/{tid}')
-    def update_tournament(tid: int, data: TournamentUpdate):
+    def update_tournament(tid: int, data: TournamentUpdate, request: Request):
+        session = teacher(request)
         with database(path,True) as db:
+            svc.require_owner(db, tid, session['teacher_id'])
             return svc.update_tournament(db,tid,data)
 
     @api.post('/api/tournaments/{tid}/archive')
-    def archive_tournament(tid: int):
+    def archive_tournament(tid: int, request: Request):
+        session = teacher(request)
         with database(path,True) as db:
+            svc.require_owner(db, tid, session['teacher_id'])
             return svc.set_archived(db,tid,True)
 
     @api.post('/api/tournaments/{tid}/restore')
-    def restore_tournament(tid: int):
+    def restore_tournament(tid: int, request: Request):
+        session = teacher(request)
         with database(path,True) as db:
+            svc.require_owner_any(db, tid, session['teacher_id'])
             return svc.set_archived(db,tid,False)
 
     @api.get('/api/tournaments/{tid}')
-    def get_tournament(tid: int):
+    def get_tournament(tid: int, request: Request):
         with database(path) as db:
-            return svc.detail(db,tid)
+            return managed(svc.detail(db,tid),
+                           getattr(request.state, 'teacher', None))
 
     @api.get('/api/tournaments/{tid}/teams/{team_id}')
-    def get_team(tid: int, team_id: int):
+    def get_team(tid: int, team_id: int, request: Request):
         with database(path) as db:
-            return svc.team_detail(db,tid,team_id)
+            return managed(svc.team_detail(db,tid,team_id),
+                           getattr(request.state, 'teacher', None))
 
     @api.get('/api/public/{token}')
     def public_tournament(token: str):
@@ -168,17 +240,21 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
             t = db.execute('SELECT id FROM tournaments WHERE public_token=?',(token,)).fetchone()
             if not t:
                 raise HTTPException(404,'Link del torneo non trovato')
-            return svc.detail(db,t[0],public=True)
+            detail = svc.detail(db,t[0],public=True)
+            detail['can_manage'] = False
+            return detail
 
     @api.post('/api/demo')
-    def examples():
+    def examples(request: Request):
+        session = teacher(request)
         with database(path,True) as db:
-            return load_examples(db)
+            return load_examples(db, teacher_id=session['teacher_id'])
 
     @api.post('/api/tournaments/{tid}/teams',status_code=201)
-    def add_team(tid: int,data: TeamInput):
+    def add_team(tid: int,data: TeamInput, request: Request):
+        session = teacher(request)
         with database(path,True) as db:
-            svc.active(db,tid)
+            svc.require_owner(db, tid, session['teacher_id'])
             if svc.games(db,tid):
                 raise HTTPException(409,'Partecipanti bloccati dopo la generazione degli incontri')
             if len(svc.teams(db,tid)) >= 32:
@@ -190,9 +266,10 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
             return {'id':cur.lastrowid}
 
     @api.patch('/api/tournaments/{tid}/teams/{team_id}')
-    def rename_team(tid: int,team_id: int,data: TeamInput):
+    def rename_team(tid: int,team_id: int,data: TeamInput, request: Request):
+        session = teacher(request)
         with database(path,True) as db:
-            svc.active(db,tid)
+            svc.require_owner(db, tid, session['teacher_id'])
             if any(t['id']!=team_id and t['name'].casefold()==data.name.casefold() for t in svc.teams(db,tid)):
                 raise HTTPException(409,'Questo nome è già presente')
             cur = db.execute('UPDATE teams SET name=? WHERE id=? AND tournament_id=?',(data.name,team_id,tid))
@@ -202,9 +279,10 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
             return {'ok':True}
 
     @api.delete('/api/tournaments/{tid}/teams/{team_id}',status_code=204)
-    def delete_team(tid: int,team_id: int):
+    def delete_team(tid: int,team_id: int, request: Request):
+        session = teacher(request)
         with database(path,True) as db:
-            svc.active(db,tid)
+            svc.require_owner(db, tid, session['teacher_id'])
             if svc.games(db,tid):
                 raise HTTPException(409,'Partecipanti bloccati dopo la generazione degli incontri')
             if not db.execute('DELETE FROM teams WHERE id=? AND tournament_id=?',(team_id,tid)).rowcount:
@@ -216,34 +294,46 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
             return {'players': svc.players(db, tid, team_id)}
 
     @api.post('/api/tournaments/{tid}/teams/{team_id}/players', status_code=201)
-    def add_player(tid: int, team_id: int, data: PlayerInput):
+    def add_player(tid: int, team_id: int, data: PlayerInput, request: Request):
+        session = teacher(request)
         with database(path, True) as db:
+            svc.require_owner(db, tid, session['teacher_id'])
             return svc.add_player(db, tid, team_id, data)
 
     @api.delete('/api/tournaments/{tid}/teams/{team_id}/players/{player_id}', status_code=204)
-    def remove_player(tid: int, team_id: int, player_id: int):
+    def remove_player(tid: int, team_id: int, player_id: int, request: Request):
+        session = teacher(request)
         with database(path, True) as db:
+            svc.require_owner(db, tid, session['teacher_id'])
             svc.remove_player(db, tid, team_id, player_id)
 
     @api.post('/api/tournaments/{tid}/generate')
-    def generate(tid: int):
+    def generate(tid: int, request: Request):
+        session = teacher(request)
         with database(path,True) as db:
+            svc.require_owner(db, tid, session['teacher_id'])
             return svc.generate(db,tid)
 
     @api.patch('/api/tournaments/{tid}/matches/{mid}')
-    def result(tid: int,mid: int,data: ResultInput):
+    def result(tid: int,mid: int,data: ResultInput, request: Request):
+        session = teacher(request)
         with database(path,True) as db:
+            svc.require_owner(db, tid, session['teacher_id'])
             return svc.save_result(db,tid,mid,data.version,data.home_score,data.away_score,
                                    data.invalidate, data.sets)
 
     @api.delete('/api/tournaments/{tid}/matches/{mid}/result')
-    def clear_result(tid: int,mid: int,data: ClearInput):
+    def clear_result(tid: int,mid: int,data: ClearInput, request: Request):
+        session = teacher(request)
         with database(path,True) as db:
+            svc.require_owner(db, tid, session['teacher_id'])
             return svc.save_result(db,tid,mid,data.version,invalidate=data.invalidate)
 
     @api.patch('/api/tournaments/{tid}/matches/{mid}/schedule')
-    def schedule(tid: int,mid: int,data: ScheduleInput):
+    def schedule(tid: int,mid: int,data: ScheduleInput, request: Request):
+        session = teacher(request)
         with database(path,True) as db:
+            svc.require_owner(db, tid, session['teacher_id'])
             return svc.schedule(db,tid,mid,data)
 
     @api.get('/api/tournaments/{tid}/export.csv')
@@ -300,7 +390,7 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
 
     if seed and fresh:
         with database(path,True) as db:
-            load_examples(db)
+            load_examples(db, teacher_id=bootstrap_id)
     return api
 
 

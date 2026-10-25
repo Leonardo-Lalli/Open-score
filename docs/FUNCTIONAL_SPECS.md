@@ -1,6 +1,6 @@
 # Schede funzionali
 
-Perimetro: demo 0.6 e funzioni future chiaramente distinte. Le regole della demo sono scelte originali, non una ricostruzione certa del backend di Score7. Fonti e link completi in [REFERENCE_ANALYSIS.md](REFERENCE_ANALYSIS.md); stato di copertura in [FEATURE_MATRIX.md](FEATURE_MATRIX.md). P0 = nucleo della demo, P1 = passo vicino o prerequisito per uso pubblico, P2 = evoluzione.
+Perimetro: demo 0.7 e funzioni future chiaramente distinte. Le regole della demo sono scelte originali, non una ricostruzione certa del backend di Score7. Fonti e link completi in [REFERENCE_ANALYSIS.md](REFERENCE_ANALYSIS.md); stato di copertura in [FEATURE_MATRIX.md](FEATURE_MATRIX.md). P0 = nucleo della demo, P1 = passo vicino o prerequisito per uso pubblico, P2 = evoluzione.
 
 ## 01. Creazione, elenco e gestione tornei
 
@@ -358,17 +358,17 @@ Perimetro: demo 0.6 e funzioni future chiaramente distinte. Le regole della demo
 
 | Campo | Specifica |
 | --- | --- |
-| Descrizione | Proteggere le scritture sulla LAN e consentire la consultazione senza accesso. |
-| Input | Password unica dell'organizzatore (`TORNEO_ADMIN_PASSWORD`) oppure Bearer token (`TORNEO_API_TOKEN`). |
-| Regole di business | Con autenticazione attiva ogni scrittura `/api` richiede sessione o token; letture e vista pubblica restano aperte. Limite di 5 errori in 5 minuti per IP, blocco di 60 secondi. |
-| Output | Cookie firmato `open_score_session`, ruolo `admin`, `401` per scritture anonime, `429` per troppi tentativi. |
-| Entità database | Nessuna tabella utenti o sessioni: segreto HMAC su file o variabile d'ambiente. |
-| Stati | `local-demo` senza password; `school-lan` con autenticazione attiva; sessione valida o scaduta. |
-| Errori e casi limite | Password errata, sessione scaduta, host non ammesso (400), Origin diverso (403), logout che non revoca un cookie già copiato. |
-| Dipendenze | Configurazione del server e rete interna. |
+| Descrizione | Proteggere le scritture sulla LAN, consentire la consultazione senza accesso e isolare i tornei per docente. |
+| Input | Gate iniziale **Sono un prof** / **Sono uno studente**; login docente con email e password. |
+| Regole di business | Lo studente è sempre in sola lettura. Ogni scrittura `/api` richiede una sessione docente; ogni scrittura su un torneo richiede che appartenga al docente autenticato. Limite di 5 errori in 5 minuti per IP, blocco di 60 secondi. |
+| Output | Cookie firmato `open_score_session` con `teacher_id` ed email; `401` per scritture anonime, `403` per tornei altrui, `429` per troppi tentativi. |
+| Entità database | `teachers` (email unica, hash PBKDF2, nome) e `tournaments.teacher_id`; nessuna tabella sessioni server-side. |
+| Stati | Anonimo/studente in sola lettura; docente autenticato; sessione scaduta; torneo storico o demo non assegnato. |
+| Errori e casi limite | Email o password errate, sessione scaduta, host non ammesso (400), Origin diverso (403), logout che non revoca un cookie già copiato. |
+| Dipendenze | Configurazione del server, database e rete interna. |
 | Priorità | P1 |
 | Fonte | Master prompt; indice KB; scelta originale |
-| Grado di certezza | Implementato e testato; account individuali, ruoli per torneo e revoca centralizzata restano da progettare. |
+| Grado di certezza | Implementato e testato; mancano ruoli amministrativi aggiuntivi, revoca centralizzata e disattivazione account dalla UI. |
 
 ## 24. Persistenza e migrazioni
 

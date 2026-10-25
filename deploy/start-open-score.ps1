@@ -32,7 +32,7 @@ if (Test-Path $EnvFile) {
     }
     Write-Host "Configurazione caricata da $EnvFile"
 } else {
-    Write-Warning "File di configurazione assente: $EnvFile. Il server partira in modalita demo locale."
+    Write-Warning "File di configurazione assente: $EnvFile. Il server partira in sola lettura finche non viene creato un account docente."
 }
 
 if (-not $env:TORNEO_ALLOWED_HOSTS -and $HostAddress -ne '127.0.0.1') {
