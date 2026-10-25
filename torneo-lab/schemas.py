@@ -14,7 +14,7 @@ class Input(BaseModel):
 
 class TournamentInput(Input):
     name: Title
-    sport: Literal['Calcio', 'Calcio a 5', 'Basket', 'Pallamano', 'Badminton', 'Tennis', 'Volley', 'Pallavolo', 'Pallacanestro'] = 'Calcio'
+    sport: Literal['Calcio', 'Calcio a 5', 'Basket', 'Pallamano', 'Badminton', 'Tennis', 'Pallavolo'] = 'Calcio'
     sport_id: Optional[int] = None
     format: Literal['round_robin', 'knockout', 'groups'] = 'round_robin'
     description: str = Field(default='', max_length=1000)

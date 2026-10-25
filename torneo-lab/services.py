@@ -25,8 +25,24 @@ def audit(db, tid, action, payload):
                (tid, action, json.dumps(payload, ensure_ascii=False)))
 
 
+def resolve_sport_id(db, data: TournamentInput):
+    """Keep the textual sport name and the sport_configs foreign key aligned."""
+    if data.sport_id is not None:
+        row = db.execute('SELECT id,name FROM sport_configs WHERE id=?', (data.sport_id,)).fetchone()
+        if row is None:
+            raise HTTPException(422, 'Sport non valido')
+        if row['name'].casefold() != data.sport.casefold():
+            raise HTTPException(422, 'Sport e sport_id non corrispondono')
+        return row['id']
+    row = db.execute('SELECT id FROM sport_configs WHERE name=?', (data.sport,)).fetchone()
+    if row is None:
+        raise HTTPException(422, 'Sport non supportato')
+    return row['id']
+
+
 def create(db, data: TournamentInput, demo_key=None):
     values = data.model_dump(exclude={'team_names'})
+    values['sport_id'] = resolve_sport_id(db, data)
     values.update(public_token=secrets.token_urlsafe(18), demo_key=demo_key)
     cols = ','.join(values)
     tid = db.execute(f'INSERT INTO tournaments({cols}) VALUES ({",".join("?" for _ in values)})',

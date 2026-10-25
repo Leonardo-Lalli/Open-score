@@ -119,24 +119,10 @@ SPORT_CONFIGS = {
             'time_based_scoring': False
         }
     ),
-    'Volley': SportConfig(
-        id=7,
-        name='Volley',
-        description='Sport di squadra con rete',
-        points_system='standard',
-        rules={
-            'max_team_size': 6,
-            'min_team_size': 6,
-            'court_type': 'indoor',
-            'net_type': 'standard',
-            'set_based_scoring': True,
-            'time_based_scoring': False
-        }
-    ),
     'Pallavolo': SportConfig(
-        id=8,
+        id=7,
         name='Pallavolo',
-        description='Sport con palla e rete',
+        description='Sport di squadra con palla e rete',
         points_system='standard',
         rules={
             'max_team_size': 6,
@@ -144,20 +130,6 @@ SPORT_CONFIGS = {
             'court_type': 'indoor',
             'net_type': 'standard',
             'set_based_scoring': True,
-            'time_based_scoring': False
-        }
-    ),
-    'Pallacanestro': SportConfig(
-        id=9,
-        name='Pallacanestro',
-        description='Basket specifico (pallacanestro)',
-        points_system='standard',
-        rules={
-            'max_team_size': 5,
-            'min_team_size': 5,
-            'court_type': 'indoor',
-            'ball_type': 'basket',
-            'set_based_scoring': False,
             'time_based_scoring': False
         }
     )

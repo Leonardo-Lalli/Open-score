@@ -90,7 +90,7 @@ def test_multiphase_16_teams_and_requalification(client):
     assert score(client,tid,finals[0]).status_code==404
 
 
-@pytest.mark.parametrize('payload',[{'name':'  '},{'name':'A'},{'name':'OK','team_names':['Alfa','alfa']},{'name':'OK','team_names':['  ']},{'name':'OK','sport':'Pallavolo'},{'name':'OK','format':'swiss'}])
+@pytest.mark.parametrize('payload',[{'name':'  '},{'name':'A'},{'name':'OK','team_names':['Alfa','alfa']},{'name':'OK','team_names':['  ']},{'name':'OK','sport':'Curling'},{'name':'OK','format':'swiss'}])
 def test_tournament_validation(client,payload):
     assert client.post('/api/tournaments',json=payload).status_code==422
     assert client.get('/api/tournaments').json()==[]
@@ -174,7 +174,7 @@ def test_persistence_and_migration(tmp_path):
     with TestClient(create_app(path,False)) as c:
         assert state(c,tid)['progress']['completed']==1
     with sqlite3.connect(path) as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0]==2
+        assert db.execute('PRAGMA user_version').fetchone()[0]==3
         assert db.execute('PRAGMA foreign_key_check').fetchall()==[]
 
 
@@ -216,5 +216,5 @@ def test_version_one_database_migrates_without_data_loss(tmp_path):
         data=state(c,1)
         assert data['champion_team_id']==1 and data['matches'][0]['home_score']==3
     with sqlite3.connect(path) as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0]==2
+        assert db.execute('PRAGMA user_version').fetchone()[0]==3
         assert db.execute('PRAGMA foreign_key_check').fetchall()==[]

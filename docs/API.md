@@ -33,7 +33,7 @@ POST /api/tournaments
 }
 ```
 
-Dopo la risposta `{"id": ...}`, chiamare `/generate` e leggere il dettaglio. Ogni incontro contiene `version`, `status` e riferimenti ai suoi avversari/sorgenti.
+Dopo la risposta `{"id": ...}`, chiamare `/generate` e leggere il dettaglio. Ogni incontro contiene `version`, `status` e riferimenti ai suoi avversari/sorgenti. `sport_id` è facoltativo: se omesso il server lo ricava da `sport`; se inviato deve corrispondere al nome.
 
 ```json
 PATCH /api/tournaments/{id}/matches/{match_id}
@@ -46,7 +46,7 @@ Per la programmazione: `{"scheduled_at":"2026-11-03T10:00:00+01:00","location":"
 
 ## Contratti e stati
 
-- Formati: `round_robin`, `knockout`, `groups`. Sport: Calcio, Calcio a 5, Basket, Pallamano, con solo punteggio numerico generico. Nessuna pretesa di implementare i regolamenti federali completi.
+- Formati: `round_robin`, `knockout`, `groups`. Sport ammessi (catalogo `sport_configs`): Calcio, Calcio a 5, Basket, Pallamano, Badminton, Tennis, Pallavolo, con punteggio numerico generico. Il server risolve `sport_id` dal nome; una coppia incoerente restituisce 422. Nessuna pretesa di implementare i regolamenti federali completi.
 - Da 2 a 32 partecipanti per generazione. Gironi multifase di uguale dimensione, almeno 2 partecipanti ciascuno; 1 o 2 promossi per girone. Le qualificazioni attendono tutti i gironi.
 - Incontri: `waiting` → `ready` → `completed`; `bye` è un passaggio automatico senza punteggio. Le correzioni possono riportare incontri dipendenti a `waiting`/`ready`.
 - Tornei: `draft`, `active`, `completed`, derivati dai dati, non impostati manualmente dal browser.

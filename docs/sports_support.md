@@ -12,9 +12,9 @@ Open Score ora supporta una vasta gamma di sport con configurazioni personalizza
 | Calcio a 5 | 5 giocatori | Erba | Piccola | Campo ridotto |
 | Basket | 5 giocatori | Interno | Basket | |
 | Pallamano | 7 giocatori | Interno | Pallamano | |
-| Volley | 6 giocatori | Interno | Volley | |
-| Pallavolo | 6 giocatori | Interno | Pallavolo | |
-| Pallacanestro | 5 giocatori | Interno | Basket | Versione specifica |
+| Pallavolo | 6 giocatori | Interno | Pallavolo | Ex `Volley`, nome normalizzato |
+
+I nomi `Volley` e `Pallacanestro` non sono più accettati: la migrazione `003` li converte in `Pallavolo` e `Basket`.
 
 ### Sport Individuali o a Coppia
 
@@ -58,6 +58,9 @@ La struttura è progettata per essere estesa facilmente. Per aggiungere un nuovo
 
 ## API di Accesso
 
-Gli endpoint dell'API per le configurazioni sportive:
-- `GET /api/sports` - Elenco di tutti gli sport
-- `GET /api/sports/{sport_name}` - Dettagli di uno sport specifico
+Stato attuale: il catalogo è nella tabella `sport_configs` (fonte unica) e viene usato per validare `sport` e risolvere `sport_id`. **Non esistono ancora endpoint dedicati**; sono previsti nella Fase 2:
+
+- `GET /api/sports` — elenco di tutti gli sport (previsto)
+- `GET /api/sports/{sport_name}` — dettagli di uno sport (previsto)
+
+Fino ad allora la UI usa l'elenco canonico cablato in `static/app.js`.
