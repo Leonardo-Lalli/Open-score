@@ -200,7 +200,7 @@ cd C:\OpenScore\torneo-lab
 .venv\Scripts\python.exe -c "import sqlite3,sys; db=sqlite3.connect(sys.argv[1]); print(db.execute('PRAGMA integrity_check').fetchone()[0], db.execute('PRAGMA user_version').fetchone()[0], db.execute('SELECT count(*) FROM tournaments').fetchone()[0])" C:\OpenScore\torneo-lab\backup\open_score-....sqlite3
 ```
 
-Deve stampare `ok`, la versione dello schema (5) e il numero di tornei
+Deve stampare `ok`, la versione dello schema (6) e il numero di tornei
 atteso.
 
 ### Ripristinare un backup

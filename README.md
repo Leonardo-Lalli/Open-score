@@ -65,17 +65,71 @@ I quattro esempi vengono salvati al primo avvio. I nomi, gli incontri e i risult
 
 Con `TORNEO_ADMIN_PASSWORD` impostata, chiunque può leggere i tornei ma solo l'organizzatore può modificarli; senza password l'app resta in modalità demo locale e accetta scritture. Il link spettatore è di sola lettura in entrambi i casi. Il server può essere raggiunto dalla LAN, ma non è destinato a Internet: installazione, firewall, backup e limiti sono in [DEPLOY.md](docs/DEPLOY.md) e [SECURITY.md](docs/SECURITY.md).
 
-## Sulla LAN della scuola
+## Hosting sulla LAN scolastica
 
-Impostare la password e gli indirizzi ammessi, poi avviare il server su `0.0.0.0`:
+La webapp va installata su **un solo computer** della scuola e usata dagli altri dispositivi tramite l'indirizzo IP del server nella rete interna. Non va pubblicata su Internet. Servono Python 3.10 o successivo, un indirizzo IP fisso o prenotato nel router e l'accesso amministratore solo per aprire la porta e installare l'avvio automatico.
+
+### 1. Preparare il server
+
+Copiare la repository sul computer, per esempio in `C:\OpenScore`, poi creare l'ambiente e installare le dipendenze:
 
 ```powershell
-$env:TORNEO_ADMIN_PASSWORD = 'una-password-lunga-e-condivisa'
-$env:TORNEO_ALLOWED_HOSTS = '192.168.1.50,open-score.local'
-.venv\Scripts\python.exe -m uvicorn app:app --host 0.0.0.0 --port 8000
+cd C:\OpenScore\torneo-lab
+py -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-Aprire `http://<IP-del-server>:8000` da un altro dispositivo della stessa rete e usare **Accedi**. Un solo worker `uvicorn`: SQLite serializza già le scritture. Per configurazione completa, avvio automatico, backup e ripristino seguire [DEPLOY.md](docs/DEPLOY.md).
+### 2. Configurare password e indirizzi ammessi
+
+```powershell
+cd C:\OpenScore
+Copy-Item deploy\open-score.env.example deploy\open-score.env
+notepad deploy\open-score.env
+```
+
+Nel file impostare almeno la password dell'organizzatore e gli indirizzi con cui il server viene raggiunto:
+
+```text
+TORNEO_ADMIN_PASSWORD=una-password-lunga-e-condivisa
+TORNEO_ALLOWED_HOSTS=192.168.1.50,open-score.local
+```
+
+Sostituire `192.168.1.50` con l'IP reale del server e aggiungere il nome del computer solo se lo si usa. `127.0.0.1` e `localhost` sono sempre ammessi. Il file `deploy/open-score.env` contiene segreti e non va condiviso né caricato su Git.
+
+### 3. Aprire la porta nel firewall
+
+Da PowerShell come amministratore, sulla rete privata:
+
+```powershell
+New-NetFirewallRule -DisplayName "Open Score" -Direction Inbound `
+  -Protocol TCP -LocalPort 8000 -Action Allow -Profile Private
+```
+
+### 4. Avviare e verificare l'accesso
+
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\OpenScore\deploy\start-open-score.ps1
+```
+
+Il server ascolta su `0.0.0.0:8000` con un solo processo `uvicorn`: SQLite serializza già le scritture e più worker non sono necessari. Dal computer server aprire `http://127.0.0.1:8000`; da un altro dispositivo della stessa rete aprire `http://192.168.1.50:8000` con l'IP reale. Verificare che **Accedi** chieda la password e che **Nuovo torneo** compaia solo dopo l'accesso.
+
+Se compare `Invalid host header`, l'indirizzo usato non è presente in `TORNEO_ALLOWED_HOSTS`. Per fermare un avvio manuale usare **Ctrl+C**.
+
+### 5. Avvio automatico e backup
+
+Da PowerShell come amministratore:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\OpenScore\deploy\install-windows-task.ps1
+```
+
+Lo script registra l'avvio del server all'accensione del computer e un backup giornaliero alle 18:30. Un backup manuale si esegue con:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\OpenScore\deploy\backup-open-score.ps1
+```
+
+I backup finiscono in `torneo-lab\backup\`; copiarli periodicamente su un secondo disco o su una cartella di rete. Per Linux/systemd, aggiornamenti, ripristino e lista di controllo completa seguire [DEPLOY.md](docs/DEPLOY.md).
 
 ## Verifica e documentazione
 
@@ -98,7 +152,7 @@ Sono verificati algoritmi, avanzamenti, multifase, correzioni, concorrenza, pers
 | [Architettura](docs/ARCHITECTURE.md) · [Database](docs/DATABASE.md) · [API](docs/API.md) | Struttura effettiva dell'applicazione |
 | [Deploy in LAN](docs/DEPLOY.md) · [Sicurezza](docs/SECURITY.md) | Installazione, firewall, backup, ripristino, credenziali e limiti |
 | [Piano di sviluppo](docs/DEVELOPMENT_PLAN.md) · [Decisioni](docs/DECISIONS.md) | Passi successivi e ipotesi da discutere |
-| [Changelog](docs/CHANGELOG.md) | Incremento 0.3 |
+| [Changelog](docs/CHANGELOG.md) | Incremento 0.4 |
 
 Il codice è originale e non dipende dai server di Score7. La licenza per il rilascio open source stabile va concordata tra gli autori; non è ancora stata assegnata. Database, credenziali e ambienti locali non sono inclusi nella repository.
 
