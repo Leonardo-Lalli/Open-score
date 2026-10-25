@@ -1042,21 +1042,7 @@ const actions = {
     renderWizard();
   },
 };
-const spaEnabled = document.body.dataset.app === "spa";
-if (!spaEnabled) {
-  // Pagine di design statiche: i pulsanti principali portano alle pagine reali.
-  document.addEventListener("click", (e) => {
-    const a = e.target.closest("[data-action]");
-    if (!a) return;
-    if (a.dataset.action === "dashboard") location.href = "../";
-    if (a.dataset.action === "new") location.href = "create.html";
-  });
-  document.addEventListener("click", (e) => {
-    if (e.target.closest("[data-open]")) location.href = "panoramica_torneo.html";
-  });
-}
 document.addEventListener("click", (e) => {
-  if (!spaEnabled) return;
   const a = e.target.closest("[data-action]");
   if (a) {
     e.preventDefault();
@@ -1398,9 +1384,9 @@ async function init() {
     $("#content").setAttribute("aria-busy", "false");
   }
 }
-if (spaEnabled) init();
+init();
 window.addEventListener("hashchange", () => {
-  if (!spaEnabled || publicToken) return;
+  if (publicToken) return;
   const route = hashRoute();
   safely(() =>
     route.kind === "sport"
@@ -1410,7 +1396,6 @@ window.addEventListener("hashchange", () => {
 });
 
 document.addEventListener("keydown", (e) => {
-  if (!spaEnabled) return;
   const current = e.target.closest("[role=tab]");
   if (!current || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key))
     return;

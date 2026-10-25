@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0 — 25 ottobre 2026
+
+- Allineamento branch: `sport-e-regole` è già antenato di `develop`; il merge è risultato "Already up to date", senza conflitti.
+- Rimosse le pagine mockup legacy che contenevano sport non previsti dal progetto. I vecchi URL (`/create.html`, `/gestione_partecipanti.html`, `/panoramica_torneo.html`, `/tabellone_torneo.html`, `/campione_sport_editorial.html`) reindirizzano alla SPA.
+- La SPA è l'unica interfaccia: rimosso il ramo JavaScript che collegava le pagine di design e i relativi rimandi.
+- Cache e file statici: `index.html` referenzia `app.js?v=0.5.0` e `styles.css?v=0.5.0`; dashboard e asset HTML/JS/CSS sono serviti con `Cache-Control: no-cache, must-revalidate`.
+- Nuovi test su redirect legacy, assenza di sport fuori catalogo negli asset, versionamento e cache. Versione applicativa 0.5.0 e **184 test**.
+
 ## 0.4.1 — 25 ottobre 2026
 
 - Corretto il salvataggio della modifica di una bozza: il form SPA inviava `format: null` e il server rispondeva 500 per il vincolo `NOT NULL`. Ora il formato viene omesso quando non è modificato e i `null` espliciti sui campi non annullabili ricevono 422.
@@ -14,7 +22,7 @@
 
 - Migrazione 006: catalogo di sei sport padre e sedici varianti in `sport_variants`, snapshot `rules_snapshot`/`regulation_snapshot`, rose `team_players`, dettaglio set `match_sets`.
 - Catalogo definitivo: Calcio (a 11, a 7, a 5), Basket (5v5, 3x3), Pallavolo (6v6, 4v4, beach 2v2), Badminton (singolare, doppio, misto), Ping pong (singolare, doppio, misto), Biliardino (singolare, doppio).
-- Calcio a 5 non è più uno sport separato; Pallamano e Tennis sono rimossi e i relativi tornei restano leggibili in sola lettura con risposte 409 alle scritture.
+- Calcio a 5 non è più uno sport separato; gli sport fuori catalogo sono rimossi e i relativi tornei restano leggibili in sola lettura con risposte 409 alle scritture.
 - La variante determina tipo partecipante, durata degli incontri, punti di classifica, criterio predefinito, rosa e regolamento; i valori sono congelati alla creazione del torneo.
 - Nuove API per varianti (`/api/sports/{sport}/variants/{slug}`, `/api/variants/{slug}`) e per le rose (`/teams/{id}/players`), con massimo da variante e duplicati bloccati.
 - Punteggio set per set per Pallavolo, Badminton e Ping pong: validazione di set, punti minimi, scarto, limite e vittoria; classifica con set vinti/persi e bonus 2/1 al quinto set della Pallavolo 6v6.

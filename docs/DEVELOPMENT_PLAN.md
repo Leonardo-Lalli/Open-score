@@ -13,7 +13,7 @@ Obiettivo: portare la demo da un unico modello numerico a sei sport con varianti
 | 4 — Multifase | Implementata e testata nel perimetro demo | 16 squadre → 4 gironi → 8 qualificate → 7 knockout → campione; niente promozione anticipata |
 | 5 — Formati avanzati | Documentata, non implementata | Futuro: doppia eliminazione collegata, Swiss Classic e Pots distinti, Cup & Consolation; test propri prima della UI |
 | 6 — Calendario | Parziale | Durata predefinita dalla variante, assegnazione manuale UTC e controllo conflitti noti; scheduler globale non implementato |
-| 7 — Interfaccia demo | Implementata | Dashboard, catalogo sport, wizard gerarchico sport → variante, riepilogo, partecipanti, rose, scheda squadra, incontri, classifica, bracket, regolamento, diario, CSV e vista spettatore |
+| 7 — Interfaccia demo | Implementata | SPA unica: dashboard, catalogo sport, wizard gerarchico sport → variante, riepilogo, partecipanti, rose, scheda squadra, incontri, classifica, bracket, regolamento, diario, CSV e vista spettatore; i vecchi URL di design reindirizzano alla SPA |
 | 8 — Sicurezza e multiutenza | Implementata per un solo organizzatore | Password o token, sessione firmata, blocco scritture, host ammessi, limite ai tentativi e test 401/429; mancano account individuali e ruoli per torneo |
 | 9 — Produzione LAN | Implementata e documentata | Avvio come attività pianificata o servizio systemd, backup `VACUUM INTO` con conservazione, ripristino, HTTPS tramite proxy esterno e lista di controllo |
 | 10 — Sport, varianti e regole | Implementata e testata | Sei sport, sedici varianti, schermate dedicate con deep link, rose con minimo/massimo e lineup visibile, durata e classifica derivate dalle regole, set per set, snapshot del regolamento |
@@ -32,9 +32,21 @@ Obiettivo: chiudere i difetti emersi durante la verifica del percorso sport → 
 | Formato in bozza | Implementata e testata | La modale permette di scegliere eliminazione, girone unico o gironi + finali, con opzioni dei gironi dinamiche e controllo client sui gruppi |
 | Integrità del catalogo | Testata | Un test verifica tutte le sedici varianti: slug univoci, lineup coerente, durata, modalità di punteggio, parametri set e regolamento |
 | Regressioni | Testata | Cinque test nuovi o estesi; suite a **147 passed** |
-| Conformità sport/varianti | Verificata | 32 test parametrizzati coprono tutte le 16 coppie sport/variante: regole, regolamento, creazione, generazione e durata; suite a **179 passed** |
+| Conformità sport/varianti | Verificata | 32 test parametrizzati coprono tutte le 16 coppie sport/variante: regole, regolamento, creazione, generazione e durata; suite a **184 passed** |
 
 Residuo noto: la lineup minima è mostrata ma non bloccante; la generazione resta possibile anche con rose incomplete, scelta utile per la demo scolastica. Il formato è modificabile solo finché il torneo è in bozza, coerentemente con il blocco dei campi strutturali dopo la generazione.
+
+## Incremento 0.5.0 — allineamento, pulizia e cache
+
+Obiettivo: eliminare i disallineamenti tra branch e i contenuti legacy che mostravano sport non previsti, quindi rendere visibile lo stato reale del codice.
+
+| Milestone | Stato in questa consegna | Criterio di completamento |
+| --- | --- | --- |
+| Merge `sport-e-regole` → `develop` | Allineato | `sport-e-regole` è antenato di `develop`; merge "Already up to date", nessun conflitto |
+| Pulizia mockup legacy | Completata e testata | I cinque URL legacy reindirizzano alla SPA; nessun riferimento a sport fuori catalogo negli asset statici |
+| Interfaccia unica | Completata | Rimosso il ramo JavaScript delle pagine di design; la SPA è l'unica UI |
+| Cache file statici | Corretta e testata | `app.js?v=0.5.0`, `styles.css?v=0.5.0`, dashboard e asset HTML/JS/CSS con `Cache-Control: no-cache` |
+| Verifica | Testata | `test_static_ui` più suite completa a **184 passed** |
 
 ## Verifica di conformità alla specifica
 

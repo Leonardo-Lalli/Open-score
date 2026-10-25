@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
@@ -36,7 +36,7 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
                       os.environ.get('TORNEO_ALLOWED_HOSTS', '').split(',') if host.strip()]
     hosts = list(dict.fromkeys(default_hosts + list(configured)))
 
-    api = FastAPI(title='Open Score · API', version='0.4.1',
+    api = FastAPI(title='Open Score · API', version='0.5.0',
                   description='Applicazione originale per i tornei scolastici. Nessun collegamento alle API di Score7.')
     api.state.db_path = path
     api.state.auth = auth
@@ -58,6 +58,10 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
                 and not auth.is_authenticated(request)):
             return JSONResponse({'detail':'Accesso richiesto'},status_code=401)
         response = await call_next(request)
+        if (request.url.path.startswith('/static/')
+                and request.url.path.endswith(('.html', '.js', '.css'))):
+            # Revalidate the shell and its assets so a stale mockup cannot survive.
+            response.headers['Cache-Control'] = 'no-cache, must-revalidate'
         response.headers['X-Content-Type-Options']='nosniff'
         response.headers['Referrer-Policy']='same-origin'
         if auth.cookie_secure:
@@ -69,11 +73,23 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
     @api.get('/',include_in_schema=False)
     @api.get('/public/{token}',include_in_schema=False)
     def homepage(token: str = ''):
-        return FileResponse(BASE/'static/index.html')
+        # The shell must always reference the current versioned assets.
+        return FileResponse(BASE/'static/index.html', headers={
+            'Cache-Control': 'no-cache, must-revalidate', 'Pragma': 'no-cache'})
+
+    legacy_pages = ('create.html', 'gestione_partecipanti.html',
+                    'panoramica_torneo.html', 'tabellone_torneo.html',
+                    'campione_sport_editorial.html')
+
+    def legacy_page():
+        return RedirectResponse('/', status_code=302)
+
+    for page in legacy_pages:
+        api.add_api_route(f'/{page}', legacy_page, include_in_schema=False)
 
     @api.get('/api/health')
     def health():
-        return {'status':'ok','version':'0.4.1',
+        return {'status':'ok','version':'0.5.0',
                 'mode':'school-lan' if auth.required else 'local-demo',
                 'auth':'required' if auth.required else 'disabled'}
 

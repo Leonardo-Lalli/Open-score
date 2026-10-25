@@ -1,6 +1,6 @@
 # Schede funzionali
 
-Perimetro: demo 0.4 e funzioni future chiaramente distinte. Le regole della demo sono scelte originali, non una ricostruzione certa del backend di Score7. Fonti e link completi in [REFERENCE_ANALYSIS.md](REFERENCE_ANALYSIS.md); stato di copertura in [FEATURE_MATRIX.md](FEATURE_MATRIX.md). P0 = nucleo della demo, P1 = passo vicino o prerequisito per uso pubblico, P2 = evoluzione.
+Perimetro: demo 0.5 e funzioni future chiaramente distinte. Le regole della demo sono scelte originali, non una ricostruzione certa del backend di Score7. Fonti e link completi in [REFERENCE_ANALYSIS.md](REFERENCE_ANALYSIS.md); stato di copertura in [FEATURE_MATRIX.md](FEATURE_MATRIX.md). P0 = nucleo della demo, P1 = passo vicino o prerequisito per uso pubblico, P2 = evoluzione.
 
 ## 01. Creazione, elenco e gestione tornei
 

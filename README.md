@@ -42,9 +42,10 @@ Su macOS/Linux: `python3 -m venv .venv`, `source .venv/bin/activate`, poi gli st
 
 I quattro esempi vengono salvati al primo avvio. I nomi, gli incontri e i risultati si possono cambiare; i dati persistono dopo il riavvio. Non c'è una scadenza di 24 ore. Gli esempi aggiuntivi sono sintetici; il campione JSON fornito è conservato come fixture con i relativi ID di provenienza.
 
-## Funzioni della versione 0.4.1
+## Funzioni della versione 0.5.0
 
 - Dashboard e interfaccia italiana responsive, procedura guidata, partecipanti rinominabili.
+- Interfaccia unica SPA: le vecchie pagine mockup sono state rimosse e i relativi URL reindirizzano alla dashboard; gli asset sono versionati per evitare cache stantia.
 - Sei sport con sedici varianti: Calcio, Basket, Pallavolo, Badminton, Ping pong e Biliardino. Catalogo navigabile con schermate dedicate e link diretti alle regole.
 - La variante determina composizione della squadra, durata, punteggio, classifica e regolamento; il torneo conserva uno snapshot delle regole scelte.
 - La scheda squadra mostra giocatori in campo, lineup minima, rosa massima e giocatori mancanti; la pagina partecipanti riepiloga le rose pronte rispetto al minimo della variante.
@@ -63,7 +64,7 @@ I quattro esempi vengono salvati al primo avvio. I nomi, gli incontri e i risult
 - Accesso dell'organizzatore con password singola o token, scritture protette, host della LAN ammessi e limite ai tentativi di accesso.
 - Database SQLite persistente, backup consistenti, avvio automatico e API documentate.
 
-**È un'applicazione per la LAN scolastica, non l'intera piattaforma del master prompt.** Non ci sono account individuali, ruoli per torneo, statistiche individuali, rigori, doppia eliminazione, Swiss, consolazione o scheduler automatico. Pallamano e Tennis sono fuori dal catalogo: eventuali tornei storici restano leggibili ma non modificabili. I regolamenti delle varianti sono scelte della demo e vanno confermati con il professore.
+**È un'applicazione per la LAN scolastica, non l'intera piattaforma del master prompt.** Non ci sono account individuali, ruoli per torneo, statistiche individuali, rigori, doppia eliminazione, Swiss, consolazione o scheduler automatico. Gli sport non più in catalogo restano leggibili solo per i tornei storici ma non sono selezionabili. I regolamenti delle varianti sono scelte della demo e vanno confermati con il professore.
 
 Con `TORNEO_ADMIN_PASSWORD` impostata, chiunque può leggere i tornei ma solo l'organizzatore può modificarli; senza password l'app resta in modalità demo locale e accetta scritture. Il link spettatore è di sola lettura in entrambi i casi. Il server può essere raggiunto dalla LAN, ma non è destinato a Internet: installazione, firewall, backup e limiti sono in [DEPLOY.md](docs/DEPLOY.md) e [SECURITY.md](docs/SECURITY.md).
 
@@ -154,7 +155,7 @@ Sono verificati algoritmi, avanzamenti, multifase, correzioni, concorrenza, pers
 | [Architettura](docs/ARCHITECTURE.md) · [Database](docs/DATABASE.md) · [API](docs/API.md) | Struttura effettiva dell'applicazione |
 | [Deploy in LAN](docs/DEPLOY.md) · [Sicurezza](docs/SECURITY.md) | Installazione, firewall, backup, ripristino, credenziali e limiti |
 | [Piano di sviluppo](docs/DEVELOPMENT_PLAN.md) · [Decisioni](docs/DECISIONS.md) | Passi successivi e ipotesi da discutere |
-| [Changelog](docs/CHANGELOG.md) | Incrementi 0.4 e 0.4.1 |
+| [Changelog](docs/CHANGELOG.md) | Incrementi 0.4, 0.4.1 e 0.5.0 |
 
 Il codice è originale e non dipende dai server di Score7. La licenza per il rilascio open source stabile va concordata tra gli autori; non è ancora stata assegnata. Database, credenziali e ambienti locali non sono inclusi nella repository.
 

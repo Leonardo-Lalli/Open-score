@@ -11,6 +11,7 @@ Ambiente: Windows, Python 3.14.3; FastAPI 0.162.0, Pydantic 2.14.1, Uvicorn 0.54
 - Dopo la fase 6 (sport, varianti, rose e punteggi set per set): **142 passed, 1 warning**, 4.01 secondi nell'ultima esecuzione locale.
 - Dopo la correzione 0.4.1 del flusso di modifica, del formato in bozza, della lineup e dell'integrità del catalogo: **147 passed, 1 warning**, 5.62 secondi nell'ultima esecuzione locale.
 - Dopo la verifica esaustiva delle sedici coppie sport/variante: **179 passed, 1 warning**, 6.64 secondi nell'ultima esecuzione locale.
+- Dopo la pulizia dei mockup legacy e il cache-busting 0.5.0: **184 passed, 1 warning**, 6.60 secondi nell'ultima esecuzione locale.
 - Il warning è la deprecazione Starlette relativa all'uso di httpx nel TestClient; non indica un fallimento dei test. L'ambiente di sviluppo contiene ancora httpx per compatibilità con il test client usato.
 - Il sandbox impediva le richieste del TestClient. I test sono stati eseguiti realmente con il terminale autorizzato; non si è sostituito il risultato con un output simulato.
 
@@ -41,6 +42,7 @@ Comando dalla cartella `torneo-lab`: `python -m pytest -q`, dopo `python -m pip 
 | Host LAN | Host sconosciuto 400, IP e nome configurati ammessi, `TORNEO_ALLOWED_HOSTS` letto dall'ambiente |
 | Backup | `VACUUM INTO` leggibile con schema e dati completi, `integrity_check` e `foreign_key_check` puliti, conservazione dei più recenti |
 | CSV | Punteggio zero conservato, dettaglio dei set esportato, testo che inizia con formula neutralizzato |
+| Asset e URL legacy | Redirect 302 dei vecchi URL, stub di redirect per le pagine statiche, nessun riferimento a sport fuori catalogo in HTML/JS, asset versionati e HTML/JS/CSS con `no-cache` |
 
 ## Verifica browser effettiva
 
