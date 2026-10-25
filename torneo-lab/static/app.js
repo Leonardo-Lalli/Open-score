@@ -188,9 +188,15 @@ function modal(title, body, footer = "", eyebrow = "OPEN SCORE") {
   $("#modal-content").innerHTML =
     `<div class="modal-header"><div><p class="eyebrow">${eyebrow}</p><h2 id="modal-title">${title}</h2></div><button class="icon-button" data-action="close" aria-label="Chiudi finestra">${icon("close")}</button></div><div class="modal-body"><div id="form-error" class="modal-error hidden" role="alert"></div>${body}</div>${footer ? `<div class="modal-footer">${footer}</div>` : ""}`;
   if (!$("#modal").open) $("#modal").showModal();
+  document.body.classList.add("modal-open");
 }
 function close() {
   $("#modal").close();
+}
+function setMenu(open) {
+  $("#sidebar").classList.toggle("open", open);
+  document.body.classList.toggle("menu-open", open);
+  $("#mobile-menu").setAttribute("aria-expanded", String(open));
 }
 function stat(title, value, foot, i) {
   return `<div class="stat"><div class="stat-top">${title}${icon(i)}</div><div class="stat-number">${value}</div><div class="stat-foot">${foot}</div></div>`;
@@ -251,8 +257,7 @@ async function dashboard() {
   if (location.hash) history.replaceState(null, "", location.pathname);
   $("#breadcrumb").textContent = "Panoramica";
   renderDashboard();
-  $("#sidebar").classList.remove("open");
-  $("#mobile-menu").setAttribute("aria-expanded", "false");
+  setMenu(false);
 }
 function renderDashboard() {
   const active = list.filter((t) => !t.archived_at);
@@ -327,8 +332,7 @@ async function openCatalog(sportName = null, variantSlug = null) {
     : "#/sport";
   history.replaceState(null, "", location.pathname + hash);
   renderCatalog();
-  $("#sidebar").classList.remove("open");
-  $("#mobile-menu").setAttribute("aria-expanded", "false");
+  setMenu(false);
 }
 function catalogSportCard(sport) {
   const variants = sport.variants || [];
@@ -384,8 +388,7 @@ async function openTournament(id, keepTab = false) {
   $("#breadcrumb").textContent = publicToken
     ? "Torneo condiviso"
     : data.tournament.name;
-  $("#sidebar").classList.remove("open");
-  $("#mobile-menu").setAttribute("aria-expanded", "false");
+  setMenu(false);
   renderTournament();
 }
 function champion() {
@@ -1046,11 +1049,21 @@ document.addEventListener("click", (e) => {
   const a = e.target.closest("[data-action]");
   if (a) {
     e.preventDefault();
+    setMenu(false);
     const fn = actions[a.dataset.action];
     if (fn) safely(() => fn(a));
   }
   const open = e.target.closest("[data-open]");
-  if (open) safely(() => openTournament(Number(open.dataset.open)));
+  if (open) {
+    setMenu(false);
+    safely(() => openTournament(Number(open.dataset.open)));
+  }
+  if (
+    document.body.classList.contains("menu-open") &&
+    !e.target.closest("#sidebar") &&
+    !e.target.closest("#mobile-menu")
+  )
+    setMenu(false);
   const catalogSport = e.target.closest("[data-catalog-sport]");
   if (catalogSport)
     safely(() => openCatalog(catalogSport.dataset.catalogSport));
@@ -1354,9 +1367,15 @@ $("#modal").addEventListener("click", (e) => {
       close();
   }
 });
+$("#modal").addEventListener("close", () => {
+  document.body.classList.remove("modal-open");
+});
 $("#mobile-menu").addEventListener("click", () => {
-  const open = $("#sidebar").classList.toggle("open");
-  $("#mobile-menu").setAttribute("aria-expanded", String(open));
+  setMenu(!$("#sidebar").classList.contains("open"));
+});
+window.addEventListener("resize", () => {
+  if (window.innerWidth > 800 && document.body.classList.contains("menu-open"))
+    setMenu(false);
 });
 async function init() {
   try {
@@ -1396,6 +1415,10 @@ window.addEventListener("hashchange", () => {
 });
 
 document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && document.body.classList.contains("menu-open")) {
+    setMenu(false);
+    return;
+  }
   const current = e.target.closest("[role=tab]");
   if (!current || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key))
     return;

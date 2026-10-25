@@ -12,6 +12,7 @@ Ambiente: Windows, Python 3.14.3; FastAPI 0.162.0, Pydantic 2.14.1, Uvicorn 0.54
 - Dopo la correzione 0.4.1 del flusso di modifica, del formato in bozza, della lineup e dell'integrità del catalogo: **147 passed, 1 warning**, 5.62 secondi nell'ultima esecuzione locale.
 - Dopo la verifica esaustiva delle sedici coppie sport/variante: **179 passed, 1 warning**, 6.64 secondi nell'ultima esecuzione locale.
 - Dopo la pulizia dei mockup legacy e il cache-busting 0.5.0: **184 passed, 1 warning**, 6.60 secondi nell'ultima esecuzione locale.
+- Dopo l'ottimizzazione mobile 0.6.0 (safe area, touch target, drawer e modali): **185 passed, 1 warning**, 6.65 secondi nell'ultima esecuzione locale.
 - Il warning è la deprecazione Starlette relativa all'uso di httpx nel TestClient; non indica un fallimento dei test. L'ambiente di sviluppo contiene ancora httpx per compatibilità con il test client usato.
 - Il sandbox impediva le richieste del TestClient. I test sono stati eseguiti realmente con il terminale autorizzato; non si è sostituito il risultato con un output simulato.
 
@@ -43,6 +44,7 @@ Comando dalla cartella `torneo-lab`: `python -m pytest -q`, dopo `python -m pip 
 | Backup | `VACUUM INTO` leggibile con schema e dati completi, `integrity_check` e `foreign_key_check` puliti, conservazione dei più recenti |
 | CSV | Punteggio zero conservato, dettaglio dei set esportato, testo che inizia con formula neutralizzato |
 | Asset e URL legacy | Redirect 302 dei vecchi URL, stub di redirect per le pagine statiche, nessun riferimento a sport fuori catalogo in HTML/JS, asset versionati e HTML/JS/CSS con `no-cache` |
+| Interfaccia mobile | Viewport con notch, `100dvh`, safe area, touch target ≥44 px, input 16 px, topbar sticky, drawer con scrim e modali full-screen |
 
 ## Verifica browser effettiva
 

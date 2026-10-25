@@ -2,7 +2,10 @@
 <html lang="it">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
     <meta name="theme-color" content="#182923" />
     <meta
       name="description"
@@ -10,8 +13,8 @@
     />
     <title>Open Score · Il tuo campo di gioco</title>
     <link rel="icon" type="image/svg+xml" href="/static/mark.svg" />
-    <link rel="stylesheet" href="/static/styles.css?v=0.5.0" />
-    <script defer src="/static/app.js?v=0.5.0"></script>
+    <link rel="stylesheet" href="/static/styles.css?v=0.6.0" />
+    <script defer src="/static/app.js?v=0.6.0"></script>
   </head>
   <body data-app="spa">
     <a class="skip-link" href="#content">Vai al contenuto</a>
@@ -55,7 +58,7 @@
             Scopri il progetto <span aria-hidden="true">↗</span>
           </button>
         </div>
-        <div class="local-status"><i></i> Spazio locale <span>v0.5.0</span></div>
+        <div class="local-status"><i></i> Spazio locale <span>v0.6.0</span></div>
       </div>
     </aside>
     <div class="app-shell">
@@ -65,6 +68,7 @@
             id="mobile-menu"
             class="icon-button"
             aria-label="Apri navigazione"
+            aria-controls="sidebar"
             aria-expanded="false"
           >
             <span data-icon="menu"></span></button

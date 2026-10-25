@@ -1,4 +1,4 @@
-# Matrice funzionale — demo 0.5
+# Matrice funzionale — demo 0.6
 
 Stati ammessi: **Non analizzata**, **Documentata**, **Progettata**, **Implementata**, **Testata**, **Verificata end-to-end**. Lo stato indica il livello massimo raggiunto per il perimetro scritto nella riga. Una funzione parziale non diventa completa per la presenza di una schermata. `tests/` e i file applicativi sono nella cartella `torneo-lab`.
 
@@ -37,6 +37,7 @@ Fonti: **U** = screenshot/JSON utente; **KB** = [indice ufficiale](https://kb.sc
 | Ritiri e forfait | Documentata | KB | FUNCTIONAL_SPECS | Nessun esito a tavolino distinto da punteggio |
 | Database persistente e schema versionato | Testata | Starter, scelta originale | db.py, migrations; test_persistence_and_migration, test_migrations | Import legacy e produzione PostgreSQL |
 | URL legacy, asset statici e cache | Verificata | Scelta originale | app.py, static/*.html, static/app.js; test_static_ui | Vecchi URL reindirizzati alla SPA; asset versionati e dashboard no-cache |
+| Interfaccia mobile iPhone/Android | Implementata e verificata staticamente | Scelta originale | styles.css, index.html, app.js; test_static_ui | Manca una prova su dispositivo reale o browser farm; layout responsive fino a 360 px |
 | Accessi collaborativi e account individuali | Parziale | KB, master prompt | auth.py, DEVELOPMENT_PLAN | Implementato un solo organizzatore con password; mancano utenti, ruoli per torneo e isolamento fra organizzatori |
 | Varianti e regolamenti del catalogo standard | Implementata e verificata | — | migrations/006_sport_variants.sql; test_sports | Sedici varianti standard coperte e verificate una per una; eventuali nuovi formati vanno concordati con il professore |
 

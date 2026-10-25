@@ -42,10 +42,11 @@ Su macOS/Linux: `python3 -m venv .venv`, `source .venv/bin/activate`, poi gli st
 
 I quattro esempi vengono salvati al primo avvio. I nomi, gli incontri e i risultati si possono cambiare; i dati persistono dopo il riavvio. Non c'è una scadenza di 24 ore. Gli esempi aggiuntivi sono sintetici; il campione JSON fornito è conservato come fixture con i relativi ID di provenienza.
 
-## Funzioni della versione 0.5.0
+## Funzioni della versione 0.6.0
 
 - Dashboard e interfaccia italiana responsive, procedura guidata, partecipanti rinominabili.
 - Interfaccia unica SPA: le vecchie pagine mockup sono state rimosse e i relativi URL reindirizzano alla dashboard; gli asset sono versionati per evitare cache stantia.
+- Ottimizzazione mobile iPhone/Android: safe area, viewport con notch, topbar sticky, drawer con scrim, touch target da 44 px, modali full-screen e input a 16 px.
 - Sei sport con sedici varianti: Calcio, Basket, Pallavolo, Badminton, Ping pong e Biliardino. Catalogo navigabile con schermate dedicate e link diretti alle regole.
 - La variante determina composizione della squadra, durata, punteggio, classifica e regolamento; il torneo conserva uno snapshot delle regole scelte.
 - La scheda squadra mostra giocatori in campo, lineup minima, rosa massima e giocatori mancanti; la pagina partecipanti riepiloga le rose pronte rispetto al minimo della variante.
@@ -155,7 +156,7 @@ Sono verificati algoritmi, avanzamenti, multifase, correzioni, concorrenza, pers
 | [Architettura](docs/ARCHITECTURE.md) · [Database](docs/DATABASE.md) · [API](docs/API.md) | Struttura effettiva dell'applicazione |
 | [Deploy in LAN](docs/DEPLOY.md) · [Sicurezza](docs/SECURITY.md) | Installazione, firewall, backup, ripristino, credenziali e limiti |
 | [Piano di sviluppo](docs/DEVELOPMENT_PLAN.md) · [Decisioni](docs/DECISIONS.md) | Passi successivi e ipotesi da discutere |
-| [Changelog](docs/CHANGELOG.md) | Incrementi 0.4, 0.4.1 e 0.5.0 |
+| [Changelog](docs/CHANGELOG.md) | Incrementi 0.4 → 0.6 |
 
 Il codice è originale e non dipende dai server di Score7. La licenza per il rilascio open source stabile va concordata tra gli autori; non è ancora stata assegnata. Database, credenziali e ambienti locali non sono inclusi nella repository.
 

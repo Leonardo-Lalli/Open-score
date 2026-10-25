@@ -33,9 +33,27 @@ def test_static_ui_has_no_out_of_catalog_sports(client):
 def test_index_references_versioned_assets_and_disables_cache(client):
     response = client.get('/')
     assert response.status_code == 200
-    assert 'app.js?v=0.5.0' in response.text
-    assert 'styles.css?v=0.5.0' in response.text
+    assert 'app.js?v=0.6.0' in response.text
+    assert 'styles.css?v=0.6.0' in response.text
     assert 'no-cache' in response.headers['cache-control']
+
+
+def test_mobile_shell_has_safe_area_and_touch_targets(client):
+    html = client.get('/').text
+    assert 'viewport-fit=cover' in html
+
+    css = (BASE / 'static' / 'styles.css').read_text(encoding='utf-8')
+    assert '100dvh' in css
+    assert 'env(safe-area-inset-top)' in css
+    assert 'env(safe-area-inset-bottom)' in css
+    assert '@media (max-width: 800px)' in css
+    assert 'min-height: 44px' in css
+    assert 'font-size: 16px' in css
+    assert css.count('{') == css.count('}')
+
+    script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
+    assert 'menu-open' in script
+    assert 'modal-open' in script
 
 
 def test_static_shell_assets_are_revalidated(client):

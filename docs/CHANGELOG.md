@@ -1,11 +1,18 @@
 # Changelog
 
+## 0.6.0 — 25 ottobre 2026
+
+- Ottimizzazione mobile iPhone/Android: `viewport-fit=cover`, `100dvh` e safe area su topbar, sidebar, main, footer, toast e modali.
+- Topbar sticky, drawer con scrim e blocco dello scroll, chiusura con tap esterno, tasto Escape o resize; touch target minimo di 44 px.
+- Modali full-screen con header e footer fissi e corpo scrollabile; input a 16 px per evitare lo zoom automatico di iOS; tabelle e bracket con scroll orizzontale e overscroll contenuto.
+- Cache-busting degli asset a `v=0.6.0`; versione applicativa 0.6.0 e **185 test**.
+
 ## 0.5.0 — 25 ottobre 2026
 
 - Allineamento branch: `sport-e-regole` è già antenato di `develop`; il merge è risultato "Already up to date", senza conflitti.
 - Rimosse le pagine mockup legacy che contenevano sport non previsti dal progetto. I vecchi URL (`/create.html`, `/gestione_partecipanti.html`, `/panoramica_torneo.html`, `/tabellone_torneo.html`, `/campione_sport_editorial.html`) reindirizzano alla SPA.
 - La SPA è l'unica interfaccia: rimosso il ramo JavaScript che collegava le pagine di design e i relativi rimandi.
-- Cache e file statici: `index.html` referenzia `app.js?v=0.5.0` e `styles.css?v=0.5.0`; dashboard e asset HTML/JS/CSS sono serviti con `Cache-Control: no-cache, must-revalidate`.
+- Cache e file statici: `index.html` referenzia gli asset versionati; dashboard e asset HTML/JS/CSS sono serviti con `Cache-Control: no-cache, must-revalidate`.
 - Nuovi test su redirect legacy, assenza di sport fuori catalogo negli asset, versionamento e cache. Versione applicativa 0.5.0 e **184 test**.
 
 ## 0.4.1 — 25 ottobre 2026

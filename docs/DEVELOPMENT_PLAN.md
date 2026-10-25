@@ -45,8 +45,21 @@ Obiettivo: eliminare i disallineamenti tra branch e i contenuti legacy che mostr
 | Merge `sport-e-regole` → `develop` | Allineato | `sport-e-regole` è antenato di `develop`; merge "Already up to date", nessun conflitto |
 | Pulizia mockup legacy | Completata e testata | I cinque URL legacy reindirizzano alla SPA; nessun riferimento a sport fuori catalogo negli asset statici |
 | Interfaccia unica | Completata | Rimosso il ramo JavaScript delle pagine di design; la SPA è l'unica UI |
-| Cache file statici | Corretta e testata | `app.js?v=0.5.0`, `styles.css?v=0.5.0`, dashboard e asset HTML/JS/CSS con `Cache-Control: no-cache` |
+| Cache file statici | Corretta e testata | Asset versionati (`app.js`, `styles.css`), dashboard e asset HTML/JS/CSS con `Cache-Control: no-cache` |
 | Verifica | Testata | `test_static_ui` più suite completa a **184 passed** |
+
+## Incremento 0.6.0 — ottimizzazione mobile
+
+Obiettivo: rendere l’interfaccia utilizzabile senza attriti su iPhone e Android, prima di aggiungere nuove funzionalità.
+
+| Milestone | Stato in questa consegna | Criterio di completamento |
+| --- | --- | --- |
+| Viewport e safe area | Implementata | `viewport-fit=cover`, `100dvh` e `env(safe-area-inset-*)` su shell, drawer, toast e modali |
+| Touch target | Implementata | Pulsanti, icone, tab, filtri e navigazione almeno 44 px; input a 16 px contro lo zoom iOS |
+| Navigazione mobile | Implementata | Topbar sticky, drawer con scrim, blocco scroll, chiusura con tap esterno, Escape o resize |
+| Modali | Implementata | Full-screen su mobile, header/footer fissi e corpo scrollabile |
+| Tabelle e bracket | Implementata | Scroll orizzontale, overscroll contenuto e larghezza minima leggibile |
+| Verifica | Testata | `test_static_ui` aggiornato; suite a **185 passed** |
 
 ## Verifica di conformità alla specifica
 
