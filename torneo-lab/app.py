@@ -13,8 +13,8 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from auth import COOKIE_NAME, build as build_auth
 from db import BASE, database, initialize
 from demo import load_examples
-from schemas import (ClearInput, LoginInput, ResultInput, ScheduleInput, TeamInput,
-                     TournamentInput, TournamentUpdate)
+from schemas import (ClearInput, LoginInput, PlayerInput, ResultInput, ScheduleInput,
+                     TeamInput, TournamentInput, TournamentUpdate)
 import services as svc
 import sport_rules
 
@@ -36,7 +36,7 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
                       os.environ.get('TORNEO_ALLOWED_HOSTS', '').split(',') if host.strip()]
     hosts = list(dict.fromkeys(default_hosts + list(configured)))
 
-    api = FastAPI(title='Open Score · API', version='0.3.0',
+    api = FastAPI(title='Open Score · API', version='0.4.0',
                   description='Applicazione originale per i tornei scolastici. Nessun collegamento alle API di Score7.')
     api.state.db_path = path
     api.state.auth = auth
@@ -73,7 +73,7 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
 
     @api.get('/api/health')
     def health():
-        return {'status':'ok','version':'0.3.0',
+        return {'status':'ok','version':'0.4.0',
                 'mode':'school-lan' if auth.required else 'local-demo',
                 'auth':'required' if auth.required else 'disabled'}
 
@@ -194,6 +194,21 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
             if not db.execute('DELETE FROM teams WHERE id=? AND tournament_id=?',(team_id,tid)).rowcount:
                 raise HTTPException(404,'Partecipante non trovato')
 
+    @api.get('/api/tournaments/{tid}/teams/{team_id}/players')
+    def list_players(tid: int, team_id: int):
+        with database(path) as db:
+            return {'players': svc.players(db, tid, team_id)}
+
+    @api.post('/api/tournaments/{tid}/teams/{team_id}/players', status_code=201)
+    def add_player(tid: int, team_id: int, data: PlayerInput):
+        with database(path, True) as db:
+            return svc.add_player(db, tid, team_id, data)
+
+    @api.delete('/api/tournaments/{tid}/teams/{team_id}/players/{player_id}', status_code=204)
+    def remove_player(tid: int, team_id: int, player_id: int):
+        with database(path, True) as db:
+            svc.remove_player(db, tid, team_id, player_id)
+
     @api.post('/api/tournaments/{tid}/generate')
     def generate(tid: int):
         with database(path,True) as db:
@@ -202,7 +217,8 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
     @api.patch('/api/tournaments/{tid}/matches/{mid}')
     def result(tid: int,mid: int,data: ResultInput):
         with database(path,True) as db:
-            return svc.save_result(db,tid,mid,data.version,data.home_score,data.away_score,data.invalidate)
+            return svc.save_result(db,tid,mid,data.version,data.home_score,data.away_score,
+                                   data.invalidate, data.sets)
 
     @api.delete('/api/tournaments/{tid}/matches/{mid}/result')
     def clear_result(tid: int,mid: int,data: ClearInput):
@@ -221,7 +237,7 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
         names={t['id']:t['name'] for t in state['teams']}
         out=io.StringIO(newline='')
         writer=csv.writer(out)
-        writer.writerow(['Fase','Girone','Turno','Casa','Ospite','Punti casa','Punti ospite','Data UTC','Campo'])
+        writer.writerow(['Fase','Girone','Turno','Casa','Ospite','Punti casa','Punti ospite','Data UTC','Campo','Dettaglio set'])
         def safe(value):
             text=str(value or '')
             return "'"+text if text.startswith(('=','+','-','@','\t','\r')) else text
@@ -230,7 +246,8 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
                              safe(names.get(m['away_team_id'],'')),
                              m['home_score'] if m['home_score'] is not None else '',
                              m['away_score'] if m['away_score'] is not None else '',
-                             m['scheduled_at'] or '',safe(m['location'])])
+                             m['scheduled_at'] or '',safe(m['location']),
+                             ' '.join(f"{s['home']}-{s['away']}" for s in m.get('sets', []))])
         return Response('\ufeff'+out.getvalue(),media_type='text/csv',
                         headers={'Content-Disposition':f'attachment; filename="torneo-{tid}.csv"'})
     
@@ -239,15 +256,31 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
         """Canonical catalog read from the database, so UI and validation agree."""
         with database(path) as db:
             return {'sports': [sport_rules.summary(config)
-                               for config in sport_rules.list_configs(db)]}
+                               for config in sport_rules.list_sports(db)]}
 
     @api.get('/api/sports/{sport_name}')
     def get_sport_info(sport_name: str):
         with database(path) as db:
-            config = sport_rules.get_config(db, sport_name)
+            config = sport_rules.get_sport(db, sport_name)
         if not config:
             raise HTTPException(404, 'Sport non trovato')
-        return {**sport_rules.summary(config), 'rules': config.rules}
+        return sport_rules.summary(config)
+
+    @api.get('/api/sports/{sport_name}/variants/{variant_slug}')
+    def get_variant_info(sport_name: str, variant_slug: str):
+        with database(path) as db:
+            variant = sport_rules.get_variant(db, sport_name, variant_slug)
+        if not variant:
+            raise HTTPException(404, 'Variante non trovata')
+        return sport_rules.variant_detail(variant)
+
+    @api.get('/api/variants/{variant_slug}')
+    def get_variant_shortcut(variant_slug: str):
+        with database(path) as db:
+            variant = sport_rules.get_variant_by_slug(db, variant_slug)
+        if not variant:
+            raise HTTPException(404, 'Variante non trovata')
+        return sport_rules.variant_detail(variant)
 
     if seed and fresh:
         with database(path,True) as db:

@@ -78,7 +78,8 @@ def _empty_row(team: dict) -> dict:
 
 
 def _apply_match(row_home: dict, row_away: dict, match: dict, win_points: int,
-                 draw_points: int, loss_points: int) -> None:
+                 draw_points: int, loss_points: int,
+                 rules: dict | None = None) -> None:
     ga, gb = match['home_score'], match['away_score']
     if ga is None or gb is None or match.get('is_bye'):
         return
@@ -92,10 +93,20 @@ def _apply_match(row_home: dict, row_away: dict, match: dict, win_points: int,
             row['points'] += draw_points
     else:
         winner, loser = (row_home, row_away) if ga > gb else (row_away, row_home)
+        winner_points, loser_points = win_points, loss_points
+        # Sports such as volleyball award a bonus point when the match goes to
+        # the deciding set. `home_score`/`away_score` hold the sets won.
+        profile = (rules or {}).get('standings') or {}
+        max_sets = (rules or {}).get('max_sets')
+        win_tiebreak = profile.get('win_tiebreak')
+        if (max_sets and win_tiebreak is not None
+                and (ga + gb) == int(max_sets)):
+            winner_points = int(win_tiebreak)
+            loser_points = int(profile.get('loss_tiebreak') or 0)
         winner['won'] += 1
-        winner['points'] += win_points
+        winner['points'] += winner_points
         loser['lost'] += 1
-        loser['points'] += loss_points
+        loser['points'] += loser_points
 
 
 def _finalise(table: dict[int, dict]) -> None:
@@ -109,7 +120,8 @@ def _default_key(row: dict) -> tuple:
 
 
 def _head_to_head(rows: list[dict], matches: list[dict], win_points: int,
-                  draw_points: int, loss_points: int) -> list[dict]:
+                  draw_points: int, loss_points: int,
+                  rules: dict | None = None) -> list[dict]:
     """Rank equal-points groups by a mini-table of their mutual matches."""
     ordered = sorted(rows, key=_default_key)
     result: list[dict] = []
@@ -131,7 +143,7 @@ def _head_to_head(rows: list[dict], matches: list[dict], win_points: int,
             for match in matches:
                 if match['home_team_id'] in ids and match['away_team_id'] in ids:
                     _apply_match(mini[match['home_team_id']], mini[match['away_team_id']],
-                                 match, win_points, draw_points, loss_points)
+                                 match, win_points, draw_points, loss_points, rules)
             _finalise(mini)
             overall = {row['team_id']: row for row in group}
             ordered_mini = sorted(mini.values(), key=lambda row: (
@@ -146,17 +158,18 @@ def _head_to_head(rows: list[dict], matches: list[dict], win_points: int,
 
 def build_standings(teams: list[dict], matches: list[dict], win_points: int = 3,
                     draw_points: int = 1, loss_points: int = 0,
-                    tie_breaker: str = 'goal_difference') -> list[dict]:
+                    tie_breaker: str = 'goal_difference',
+                    rules: dict | None = None) -> list[dict]:
     table = {t['id']: _empty_row(t) for t in teams}
     for m in matches:
         if m['home_team_id'] in table and m['away_team_id'] in table:
             _apply_match(table[m['home_team_id']], table[m['away_team_id']], m,
-                         win_points, draw_points, loss_points)
+                         win_points, draw_points, loss_points, rules)
     _finalise(table)
 
     if tie_breaker == 'head_to_head':
         return _head_to_head(list(table.values()), matches, win_points,
-                             draw_points, loss_points)
+                             draw_points, loss_points, rules)
     keys = {
         'goals_for': lambda x: (-x['points'], -x['goals_for'], -x['goal_difference'],
                                 x['name'].casefold(), x['team_id']),

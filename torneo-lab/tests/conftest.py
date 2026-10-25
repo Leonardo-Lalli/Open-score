@@ -11,7 +11,8 @@ def client(tmp_path):
 
 def make(client, fmt='round_robin', n=4, **options):
     payload=dict(name='Torneo di prova',sport='Calcio',format=fmt,
-                 team_names=[f'Squadra {i+1:02}' for i in range(n)],**options)
+                 team_names=[f'Squadra {i+1:02}' for i in range(n)])
+    payload.update(options)
     response=client.post('/api/tournaments',json=payload)
     assert response.status_code==201,response.text
     tid=response.json()['id']

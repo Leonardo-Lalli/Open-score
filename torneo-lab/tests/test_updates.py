@@ -30,7 +30,8 @@ def test_name_and_description_editable_after_generation(client):
 
 def test_structural_change_rejected_after_generation(client):
     tid = make(client)
-    for change in ({'format': 'groups'}, {'sport': 'Pallavolo'}, {'legs': 2}, {'qualifiers': 1}):
+    for change in ({'format': 'groups'}, {'sport': 'Pallavolo'},
+                   {'variant': 'calcio-a-5'}, {'legs': 2}, {'qualifiers': 1}):
         response = client.patch(f'/api/tournaments/{tid}', json=change)
         assert response.status_code == 409, (change, response.text)
     detail = client.get(f'/api/tournaments/{tid}').json()
@@ -48,12 +49,16 @@ def test_draft_accepts_format_sport_and_rules(client):
         'win_points': 2,
     })
     assert response.status_code == 200, response.text
-    tournament = client.get(f'/api/tournaments/{tid}').json()['tournament']
+    detail = client.get(f'/api/tournaments/{tid}').json()
+    tournament = detail['tournament']
     assert tournament['format'] == 'groups'
     assert tournament['sport'] == 'Pallavolo'
     assert tournament['sport_id'] == 7
+    assert tournament['variant'] == 'pallavolo-6v6'
     assert tournament['qualifiers'] == 1
     assert tournament['win_points'] == 2
+    assert detail['variant_config']['scoring_mode'] == 'sets'
+    assert detail['regulation']
 
     assert client.patch(f'/api/tournaments/{tid}', json={'format': 'knockout', 'legs': 2}).status_code == 422
     assert client.patch(f'/api/tournaments/{tid}', json={'sport': 'Calcio', 'sport_id': 7}).status_code == 422
@@ -120,6 +125,6 @@ def test_documented_online_backup_copies_every_tournament(tmp_path):
         db.execute('VACUUM INTO ?', (str(backup),))
 
     with sqlite3.connect(backup) as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0] == 5
+        assert db.execute('PRAGMA user_version').fetchone()[0] == 6
         assert db.execute('SELECT count(*) FROM tournaments').fetchone()[0] == 4
         assert db.execute('PRAGMA foreign_key_check').fetchall() == []

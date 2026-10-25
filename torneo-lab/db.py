@@ -4,12 +4,13 @@ from contextlib import contextmanager
 from pathlib import Path
 
 BASE = Path(__file__).resolve().parent
-LATEST_SCHEMA = 5
+LATEST_SCHEMA = 6
 MIGRATIONS = (
     (2, '002_stable_match_ids.sql'),
     (3, '003_sports_expansion.sql'),
     (4, '004_archive_and_updates.sql'),
     (5, '005_tie_breaker.sql'),
+    (6, '006_sport_variants.sql'),
 )
 
 

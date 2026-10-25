@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_vali
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=60)]
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=120)]
 Score = Annotated[int, Field(strict=True, ge=0, le=999)]
-Sport = Literal['Calcio', 'Calcio a 5', 'Basket', 'Pallamano', 'Badminton', 'Tennis', 'Pallavolo']
+Sport = Literal['Calcio', 'Basket', 'Pallavolo', 'Badminton', 'Ping pong', 'Biliardino']
 Format = Literal['round_robin', 'knockout', 'groups']
 ParticipantKind = Literal['team', 'individual']
 TournamentType = Literal['general', 'championship', 'cup']
@@ -23,6 +23,7 @@ class TournamentInput(Input):
     name: Title
     sport: Sport = 'Calcio'
     sport_id: Optional[int] = None
+    variant: Optional[str] = Field(default=None, max_length=80)
     format: Format = 'round_robin'
     description: str = Field(default='', max_length=1000)
     participant_kind: ParticipantKind = 'team'
@@ -53,6 +54,7 @@ class TournamentUpdate(Input):
     name: Optional[Title] = None
     sport: Optional[Sport] = None
     sport_id: Optional[int] = None
+    variant: Optional[str] = Field(default=None, max_length=80)
     format: Optional[Format] = None
     description: Optional[str] = Field(default=None, max_length=1000)
     participant_kind: Optional[ParticipantKind] = None
@@ -82,15 +84,38 @@ class TeamInput(Input):
     name: Name
 
 
+class PlayerInput(Input):
+    name: Name
+    shirt_number: Optional[int] = Field(default=None, strict=True, ge=0, le=99)
+
+
 class LoginInput(Input):
     password: Annotated[str, StringConstraints(min_length=1, max_length=200)]
 
 
+class SetPoints(Input):
+    home: Score
+    away: Score
+
+
 class ResultInput(Input):
-    home_score: Score
-    away_score: Score
+    home_score: Optional[Score] = None
+    away_score: Optional[Score] = None
+    sets: Optional[list[SetPoints]] = Field(default=None, max_length=7)
     version: int = Field(strict=True, ge=1)
     invalidate: bool = False
+
+    @model_validator(mode='after')
+    def score_or_sets(self):
+        has_scores = self.home_score is not None or self.away_score is not None
+        if self.sets is not None:
+            if not self.sets:
+                raise ValueError('Inserisci almeno un set')
+            if has_scores:
+                raise ValueError('Inserisci i set oppure il punteggio finale, non entrambi')
+        elif self.home_score is None or self.away_score is None:
+            raise ValueError('Inserisci entrambi i punteggi')
+        return self
 
 
 class ClearInput(Input):
@@ -101,7 +126,7 @@ class ClearInput(Input):
 class ScheduleInput(Input):
     scheduled_at: datetime | None = None
     location: str = Field(default='', max_length=80)
-    duration: int = Field(default=20, strict=True, ge=1, le=240)
+    duration: Optional[int] = Field(default=None, strict=True, ge=1, le=240)
     version: int = Field(strict=True, ge=1)
 
     @model_validator(mode='after')
