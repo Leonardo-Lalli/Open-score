@@ -1258,6 +1258,41 @@ td .avatar {
   width: 15px;
   height: 15px;
 }
+.roster-info {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  border: 0;
+  background: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+}
+.roster-info:hover strong {
+  text-decoration: underline;
+}
+.team-summary {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.team-summary strong {
+  font-size: 18px;
+  display: block;
+}
+.team-summary small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.team-summary .avatar {
+  width: 52px;
+  height: 52px;
+  font-size: 16px;
+}
 .inline-form {
   display: flex;
   gap: 10px;

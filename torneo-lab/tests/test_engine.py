@@ -60,3 +60,25 @@ def test_custom_points_and_correction():
     assert build_standings(teams,games,2,1,0)[0]['points']==2
     games[0]['away_score']=4
     assert build_standings(teams,games)[0]['team_id']==2
+
+
+def test_head_to_head_ranks_tied_teams_by_mutual_matches():
+    teams = [dict(id=i, name=name) for i, name in
+             enumerate(['Alfa', 'Beta', 'Gamma', 'Delta'], start=1)]
+    games = [
+        dict(home_team_id=1, away_team_id=2, home_score=2, away_score=0),
+        dict(home_team_id=2, away_team_id=3, home_score=2, away_score=0),
+        dict(home_team_id=3, away_team_id=1, home_score=1, away_score=0),
+        dict(home_team_id=1, away_team_id=4, home_score=5, away_score=0),
+        dict(home_team_id=2, away_team_id=4, home_score=1, away_score=0),
+        dict(home_team_id=3, away_team_id=4, home_score=6, away_score=0),
+    ]
+
+    # Overall goal difference puts Gamma ahead of Beta even though Beta beat Gamma.
+    default = build_standings(teams, games)
+    assert [row['name'] for row in default] == ['Alfa', 'Gamma', 'Beta', 'Delta']
+
+    # Head-to-head compares only the matches among the teams level on points.
+    h2h = build_standings(teams, games, tie_breaker='head_to_head')
+    assert [row['name'] for row in h2h] == ['Alfa', 'Beta', 'Gamma', 'Delta']
+    assert [row['points'] for row in h2h[:3]] == [6, 6, 6]

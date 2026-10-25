@@ -85,6 +85,11 @@ def create_app(db_path: str | Path | None = None, seed: bool = True) -> FastAPI:
         with database(path) as db:
             return svc.detail(db,tid)
 
+    @api.get('/api/tournaments/{tid}/teams/{team_id}')
+    def get_team(tid: int, team_id: int):
+        with database(path) as db:
+            return svc.team_detail(db,tid,team_id)
+
     @api.get('/api/public/{token}')
     def public_tournament(token: str):
         with database(path) as db:

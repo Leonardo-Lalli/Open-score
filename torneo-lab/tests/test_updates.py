@@ -120,6 +120,6 @@ def test_documented_online_backup_copies_every_tournament(tmp_path):
         db.execute('VACUUM INTO ?', (str(backup),))
 
     with sqlite3.connect(backup) as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0] == 4
+        assert db.execute('PRAGMA user_version').fetchone()[0] == 5
         assert db.execute('SELECT count(*) FROM tournaments').fetchone()[0] == 4
         assert db.execute('PRAGMA foreign_key_check').fetchall() == []

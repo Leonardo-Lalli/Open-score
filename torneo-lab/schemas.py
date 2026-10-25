@@ -11,6 +11,7 @@ Format = Literal['round_robin', 'knockout', 'groups']
 ParticipantKind = Literal['team', 'individual']
 TournamentType = Literal['general', 'championship', 'cup']
 ScoringSystem = Literal['points', 'sets', 'time']
+TieBreaker = Literal['goal_difference', 'head_to_head', 'goals_for', 'wins']
 Seed = Annotated[int, Field(strict=True, ge=0, le=2147483647)]
 
 
@@ -35,6 +36,7 @@ class TournamentInput(Input):
     team_names: list[Name] = Field(default_factory=list, max_length=32)
     tournament_type: TournamentType = 'general'
     scoring_system: ScoringSystem = 'points'
+    tie_breaker: TieBreaker = 'goal_difference'
 
     @model_validator(mode='after')
     def names_unique(self):
@@ -63,6 +65,7 @@ class TournamentUpdate(Input):
     random_seed: Optional[Seed] = None
     tournament_type: Optional[TournamentType] = None
     scoring_system: Optional[ScoringSystem] = None
+    tie_breaker: Optional[TieBreaker] = None
 
     @model_validator(mode='after')
     def updatable(self):

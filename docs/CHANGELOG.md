@@ -1,13 +1,16 @@
 # Changelog
 
-## Non rilasciato — fondamenta e catalogo
+## Non rilasciato — viste, criteri e persistenza
 
-- Migrazioni applicate fino alla versione 4: `sport_id`, catalogo sport canonico, `archived_at` e `updated_at`.
+- Migrazioni applicate fino alla versione 5: `sport_id`, catalogo sport canonico, `archived_at`, `updated_at` e `tie_breaker`.
 - SQLite in WAL con `busy_timeout`; sport risolto lato server e coerente con il nome.
 - Catalogo sport unico letto da `sport_configs` tramite `/api/sports`; il wizard carica gli sport dal server.
 - Il dettaglio torneo espone `sport_config`; le pagine di design restano mockup statici e mostrano un avviso.
 - Modifica parziale del torneo con blocco dei campi strutturali dopo la generazione.
 - Archiviazione e ripristino al posto della cancellazione; i tornei archiviati sono di sola lettura.
+- Criterio a parità di punti configurabile (`goal_difference`, `head_to_head`, `goals_for`, `wins`) nel wizard e nella modifica in bozza.
+- Scheda partecipante con girone, posizione, classifica e incontri tramite `/api/tournaments/{id}/teams/{team_id}` e modale dedicata.
+- Vista pubblica in sola lettura con aggiornamento automatico ogni 30 secondi, sospeso a scheda nascosta o modale aperta.
 - UI per modifica, archiviazione, ripristino, risultati e orari; verificata con ricarica e riavvio del server.
 
 ## 0.2.0 — 24 ottobre 2026

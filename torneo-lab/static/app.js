@@ -47,6 +47,13 @@ const label = (f) =>
   })[f];
 const stateLabel = (s) =>
   ({ draft: "Da preparare", active: "In corso", completed: "Concluso" })[s];
+const tieLabel = (v) =>
+  ({
+    goal_difference: "differenza reti",
+    head_to_head: "scontri diretti",
+    goals_for: "reti fatte",
+    wins: "vittorie",
+  })[v] || "differenza reti";
 const publicToken = location.pathname.startsWith("/public/")
   ? location.pathname.split("/")[2]
   : null;
@@ -320,14 +327,14 @@ function matchesView() {
 }
 function participants() {
   const generated = data.matches.length > 0;
-  return `<div class="section-header"><div><h2>Le persone fanno il torneo.</h2><p class="section-sub">${data.teams.length} ${data.tournament.participant_kind === "team" ? "squadre" : "giocatori"} · I nomi si possono modificare anche a torneo iniziato.</p></div>${!generated && !publicToken ? button("Genera incontri", "generate", "primary", "spark") : ""}</div>${!generated && !publicToken ? '<form id="team-form" class="inline-form"><input name="name" required maxlength="60" aria-label="Nome del partecipante" placeholder="Nome del partecipante"><button class="button primary">Aggiungi</button></form>' : ""}<div class="roster">${data.teams.map((p, i) => `<div class="roster-item">${avatar(p.name, i)}<div><strong>${h(p.name)}</strong><small>${h(data.groups.find((g) => g.id === p.group_id)?.name || "Partecipante " + (i + 1).toString().padStart(2, "0"))}</small></div>${!publicToken ? `<button class="icon-button" data-rename="${p.id}" aria-label="Rinomina ${h(p.name)}">${icon("edit")}</button>${!generated ? `<button class="icon-button" data-remove="${p.id}" aria-label="Elimina ${h(p.name)}">${icon("close")}</button>` : ""}` : ""}</div>`).join("") || '<p class="muted">Aggiungi almeno due partecipanti per cominciare.</p>'}</div>`;
+  return `<div class="section-header"><div><h2>Le persone fanno il torneo.</h2><p class="section-sub">${data.teams.length} ${data.tournament.participant_kind === "team" ? "squadre" : "giocatori"} · I nomi si possono modificare anche a torneo iniziato.</p></div>${!generated && !publicToken ? button("Genera incontri", "generate", "primary", "spark") : ""}</div>${!generated && !publicToken ? '<form id="team-form" class="inline-form"><input name="name" required maxlength="60" aria-label="Nome del partecipante" placeholder="Nome del partecipante"><button class="button primary">Aggiungi</button></form>' : ""}<div class="roster">${data.teams.map((p, i) => `<div class="roster-item"><button type="button" class="roster-info" data-team="${p.id}" aria-label="Apri la scheda di ${h(p.name)}">${avatar(p.name, i)}<span><strong>${h(p.name)}</strong><small>${h(data.groups.find((g) => g.id === p.group_id)?.name || "Partecipante " + (i + 1).toString().padStart(2, "0"))}</small></span></button>${!publicToken ? `<button class="icon-button" data-rename="${p.id}" aria-label="Rinomina ${h(p.name)}">${icon("edit")}</button>${!generated ? `<button class="icon-button" data-remove="${p.id}" aria-label="Elimina ${h(p.name)}">${icon("close")}</button>` : ""}` : ""}</div>`).join("") || '<p class="muted">Aggiungi almeno due partecipanti per cominciare.</p>'}</div>`;
 }
 function standingsTable(rows, qualifiers = 0) {
   return `<div class="table-wrap"><table><thead><tr><th>#</th><th>Partecipante</th><th>G</th><th>V</th><th>N</th><th>P</th><th>F</th><th>S</th><th>DR</th><th>PT</th></tr></thead><tbody>${rows.map((r, i) => `<tr class="${i < qualifiers ? "qualifier" : ""}"><td>${i + 1}</td><td>${avatar(r.name, r.team_id)}${h(r.name)}</td><td>${r.played}</td><td>${r.won}</td><td>${r.drawn}</td><td>${r.lost}</td><td>${r.goals_for}</td><td>${r.goals_against}</td><td>${r.goal_difference}</td><td>${r.points}</td></tr>`).join("")}</tbody></table></div>`;
 }
 function standingsView() {
   const t = data.tournament;
-  return `<div class="section-header"><div><h2>La classifica si scrive in campo.</h2><p class="section-sub">Si aggiorna a ogni risultato confermato.</p></div></div>${data.groups.length ? `<div class="groups-grid">${data.groups.map((g) => `<section class="panel"><div class="group-heading"><h2>${h(g.name)}</h2><span>Passano le prime ${t.qualifiers}</span></div>${standingsTable(g.standings, t.qualifiers)}<p class="table-note"><span class="legend-dot"></span>Posizioni di qualificazione · definitive a gironi completati</p></section>`).join("")}</div>` : `<div class="panel">${standingsTable(data.standings)}</div>`}<p class="table-note">G: giocate · V/N/P: vittorie, pareggi, sconfitte · F/S: punti fatti e subiti · DR: differenza · PT: punti in classifica.<br>Ordine: punti → differenza → punti fatti → nome → ID. Punteggio: ${t.win_points}/${t.draw_points}/${t.loss_points}. I criteri sono quelli di questa demo.</p>`;
+  return `<div class="section-header"><div><h2>La classifica si scrive in campo.</h2><p class="section-sub">Si aggiorna a ogni risultato confermato.</p></div></div>${data.groups.length ? `<div class="groups-grid">${data.groups.map((g) => `<section class="panel"><div class="group-heading"><h2>${h(g.name)}</h2><span>Passano le prime ${t.qualifiers}</span></div>${standingsTable(g.standings, t.qualifiers)}<p class="table-note"><span class="legend-dot"></span>Posizioni di qualificazione · definitive a gironi completati</p></section>`).join("")}</div>` : `<div class="panel">${standingsTable(data.standings)}</div>`}<p class="table-note">G: giocate · V/N/P: vittorie, pareggi, sconfitte · F/S: punti fatti e subiti · DR: differenza · PT: punti in classifica.<br>A parità di punti: ${tieLabel(t.tie_breaker)}; poi nome e ID. Punteggio: ${t.win_points}/${t.draw_points}/${t.loss_points}. I criteri sono quelli di questa demo.</p>`;
 }
 function bracket() {
   const fixtures = data.matches.filter((m) => m.kind === "knockout");
@@ -367,6 +374,40 @@ function bracket() {
       "",
     )}</div></div><p class="tree-help">${icon("link")} I vincitori avanzano automaticamente. ${publicToken ? "Aggiorna la pagina per seguire i risultati." : "Le correzioni che cambiano il percorso richiedono una conferma."}</p>`;
 }
+async function teamModal(id) {
+  const info = await api(`/tournaments/${selectedId}/teams/${id}`);
+  const standing = info.standing;
+  const stats = standing
+    ? `<div class="stat-grid">${stat("Posizione", info.position ?? "–", "Nel girone o in classifica", "chart")}${stat("Giocate", standing.played, "Incontri disputati", "calendar")}${stat("Punti", standing.points, `V ${standing.won} · N ${standing.drawn} · P ${standing.lost}`, "check")}${stat("Differenza", (standing.goal_difference > 0 ? "+" : "") + standing.goal_difference, `${standing.goals_for} fatti · ${standing.goals_against} subiti`, "ball")}</div>`
+    : "";
+  const rows = info.matches
+    .map((m) => {
+      const own = m.home_team_id === info.team.id;
+      const scored = own ? m.home_score : m.away_score;
+      const conceded = own ? m.away_score : m.home_score;
+      const label =
+        m.status === "bye"
+          ? "Riposo"
+          : m.status === "waiting"
+            ? "In attesa"
+            : m.status === "ready"
+              ? "Da giocare"
+              : scored > conceded
+                ? "Vittoria"
+                : scored < conceded
+                  ? "Sconfitta"
+                  : "Pareggio";
+      const group = data.groups.find((g) => g.id === m.group_id);
+      return `<div class="match-row"><div class="match-round">${group ? h(group.name) + "<br>" : ""}${h(roundName(m))}</div><div class="match-players"><div class="match-player"><span>${h(m.opponent_name || "Da definire")}</span></div><span class="score">${scored ?? "–"} : ${conceded ?? "–"}</span></div><div class="match-actions"><span class="tag ${m.status}">${label}</span></div></div>${m.scheduled_at || m.location ? `<p class="match-note">${icon("clock")}${m.scheduled_at ? h(dateText(m.scheduled_at)) : "Orario da definire"}${m.location ? " · " + h(m.location) : ""}</p>` : ""}`;
+    })
+    .join("");
+  modal(
+    h(info.team.name),
+    `<div class="team-summary">${avatar(info.team.name, info.team.id)}<div><strong>${h(info.team.name)}</strong><small>${info.team.group_name ? h(info.team.group_name) : "Partecipante"}${standing ? " · " + info.position + "° posto" : ""}</small></div></div>${stats}<h3 class="subsection-title" style="margin-top:24px">Partite</h3><div class="panel" style="margin:0">${rows || '<div class="empty">Nessun incontro generato.</div>'}</div>`,
+    `${button("Chiudi", "close", "primary")}`,
+    "SCHEDA SQUADRA",
+  );
+}
 function resultModal(id) {
   const m = data.matches.find((x) => x.id === Number(id));
   if (!m || publicToken) return;
@@ -401,6 +442,7 @@ function startWizard() {
     win_points: 3,
     draw_points: 1,
     loss_points: 0,
+    tie_breaker: "goal_difference",
   };
   wizardStep = 0;
   renderWizard();
@@ -486,7 +528,17 @@ function editTournament() {
           ([n, l, v]) =>
             `<label>${l}<input name="${n}" type="number" min="0" max="10" value="${v}" required></label>`,
         )
-        .join("")}</div></fieldset>`;
+        .join("")}<label class="full">Criterio a parità di punti<select name="tie_breaker">${[
+        ["goal_difference", "Differenza reti"],
+        ["head_to_head", "Scontri diretti"],
+        ["goals_for", "Reti fatte"],
+        ["wins", "Vittorie"],
+      ]
+        .map(
+          ([v, l]) =>
+            `<option value="${v}" ${t.tie_breaker === v ? "selected" : ""}>${l}</option>`,
+        )
+        .join("")}</select></label></div></fieldset>`;
   modal(
     "Ritocca il torneo.",
     `<form id="tournament-form"><div class="form-grid"><label class="full">Nome del torneo<input name="name" value="${h(t.name)}" minlength="2" maxlength="120" required autofocus></label><label class="full">Descrizione<textarea name="description" maxlength="1000" rows="3">${h(t.description)}</textarea></label></div>${structure}</form>`,
@@ -521,7 +573,17 @@ function renderWizard() {
               ([n, l]) =>
                 `<label>${l}<input name="${n}" type="number" min="0" max="10" value="${wizard[n]}" required></label>`,
             )
-            .join("")}</div></details>`
+            .join("")}<label class="full">Criterio a parità di punti<select name="tie_breaker">${[
+              ["goal_difference", "Differenza reti"],
+              ["head_to_head", "Scontri diretti"],
+              ["goals_for", "Reti fatte"],
+              ["wins", "Vittorie"],
+            ]
+              .map(
+                ([v, l]) =>
+                  `<option value="${v}" ${wizard.tie_breaker === v ? "selected" : ""}>${l}</option>`,
+              )
+              .join("")}</select></label></div></details>`
         : ""
     }`;
   if (wizardStep === 2)
@@ -723,6 +785,8 @@ document.addEventListener("click", (e) => {
     matchFilter = mf.dataset.matchFilter;
     renderTournament();
   }
+  const team = e.target.closest("[data-team]");
+  if (team) safely(() => teamModal(team.dataset.team));
   const r = e.target.closest("[data-result]");
   if (r) resultModal(r.dataset.result);
   const rename = e.target.closest("[data-rename]");
@@ -833,6 +897,7 @@ document.addEventListener("submit", (e) => {
           payload.win_points = Number(fd.get("win_points"));
           payload.draw_points = Number(fd.get("draw_points"));
           payload.loss_points = Number(fd.get("loss_points"));
+          payload.tie_breaker = fd.get("tie_breaker");
         }
         await api(`/tournaments/${selectedId}`, {
           method: "PATCH",
@@ -904,6 +969,10 @@ async function init() {
         '<span class="demo-label">VISTA SPETTATORE · SOLA LETTURA</span>';
       $("#mobile-menu").classList.add("hidden");
       await openTournament(null);
+      setInterval(() => {
+        if (!document.hidden && !$("#modal").open)
+          safely(() => openTournament(null, true));
+      }, 30000);
     } else {
       await loadSports();
       await dashboard();

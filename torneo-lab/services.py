@@ -12,7 +12,7 @@ import sport_rules
 STRUCTURAL_FIELDS = {
     'sport', 'sport_id', 'format', 'participant_kind', 'win_points', 'draw_points',
     'loss_points', 'legs', 'group_count', 'qualifiers', 'random_seed',
-    'tournament_type', 'scoring_system',
+    'tournament_type', 'scoring_system', 'tie_breaker',
 }
 
 
@@ -122,7 +122,14 @@ def table(db, t, group_id=None):
     if group_id is not None:
         roster = [p for p in roster if p['group_id'] == group_id]
         fixtures = [m for m in fixtures if m['group_id'] == group_id]
-    return build_standings(roster, fixtures, t['win_points'], t['draw_points'], t['loss_points'])
+    return build_standings(roster, fixtures, t['win_points'], t['draw_points'],
+                           t['loss_points'], t['tie_breaker'])
+
+
+def match_status(m):
+    return ('bye' if m['is_bye'] else
+            ('completed' if m['home_score'] is not None else
+             ('ready' if m['home_team_id'] and m['away_team_id'] else 'waiting')))
 
 
 def detail(db, tid, public=False):
@@ -134,8 +141,7 @@ def detail(db, tid, public=False):
     for g in groups:
         g['standings'] = table(db, t, g['id'])
     for m in fixtures:
-        m['status'] = 'bye' if m['is_bye'] else ('completed' if m['home_score'] is not None
-                       else ('ready' if m['home_team_id'] and m['away_team_id'] else 'waiting'))
+        m['status'] = match_status(m)
     knockout = [m for m in fixtures if m['kind'] == 'knockout']
     champion = knockout[-1]['winner_team_id'] if knockout else None
     playable = [m for m in fixtures if not m['is_bye']]
@@ -157,6 +163,43 @@ def detail(db, tid, public=False):
     else:
         result['audit'] = rows(db, 'SELECT id,action,created_at FROM audit_logs WHERE tournament_id=? ORDER BY id DESC LIMIT 30', (tid,))
     return result
+
+
+def team_detail(db, tid, team_id):
+    """Single-participant view: group, standing position, fixtures and results."""
+    t = required(db, tid)
+    row = db.execute('SELECT * FROM teams WHERE id=? AND tournament_id=?', (team_id, tid)).fetchone()
+    if row is None:
+        raise HTTPException(404, 'Partecipante non trovato')
+    team = dict(row)
+    group = db.execute('SELECT name FROM groups WHERE id=?', (team['group_id'],)).fetchone() \
+        if team['group_id'] else None
+    team['group_name'] = group['name'] if group else None
+
+    roster = {p['id']: p['name'] for p in teams(db, tid)}
+    fixtures = []
+    for match in games(db, tid):
+        if team_id not in (match['home_team_id'], match['away_team_id']):
+            continue
+        match['status'] = match_status(match)
+        match['home_name'] = roster.get(match['home_team_id'])
+        match['away_name'] = roster.get(match['away_team_id'])
+        match['opponent_name'] = roster.get(
+            match['away_team_id'] if match['home_team_id'] == team_id else match['home_team_id'])
+        fixtures.append(match)
+
+    standing_rows = []
+    if t['format'] == 'groups' and team['group_id']:
+        standing_rows = table(db, t, team['group_id'])
+    elif t['format'] == 'round_robin':
+        standing_rows = table(db, t)
+    standing = next((r for r in standing_rows if r['team_id'] == team_id), None)
+    position = standing_rows.index(standing) + 1 if standing else None
+    public_tournament = {k: t[k] for k in (
+        'id', 'name', 'sport', 'format', 'participant_kind', 'win_points',
+        'draw_points', 'loss_points', 'qualifiers', 'tie_breaker')}
+    return {'team': team, 'standing': standing, 'position': position,
+            'matches': fixtures, 'tournament': public_tournament}
 
 
 def insert_bracket(db, tid, sid, ids, seed=None):
