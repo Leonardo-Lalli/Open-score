@@ -49,9 +49,9 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
         # Block cross-origin browser writes, then require an admin session for
         # every mutation when a password or API token is configured.
         origin = request.headers.get('origin')
-        if request.method not in ('GET','HEAD','OPTIONS') and origin:
-            if origin != str(request.base_url).rstrip('/'):
-                return Response('Origine non consentita',status_code=403)
+        if (request.method not in ('GET','HEAD','OPTIONS') and origin
+                and origin != str(request.base_url).rstrip('/')):
+            return Response('Origine non consentita',status_code=403)
         if (auth.required and request.method not in ('GET','HEAD','OPTIONS')
                 and request.url.path.startswith('/api')
                 and request.url.path not in ('/api/auth/login','/api/auth/logout')

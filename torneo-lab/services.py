@@ -2,6 +2,7 @@
 import json
 import secrets
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from fastapi import HTTPException
 
@@ -17,11 +18,11 @@ STRUCTURAL_FIELDS = {
 }
 
 
-def rows(db, sql, params=()):
+def rows(db, sql: str, params: tuple = ()) -> list[dict[str, Any]]:
     return [dict(r) for r in db.execute(sql, params)]
 
 
-def required(db, tid):
+def required(db, tid) -> dict[str, Any]:
     result = db.execute('SELECT * FROM tournaments WHERE id=?', (tid,)).fetchone()
     if result is None:
         raise HTTPException(404, 'Torneo non trovato')
@@ -99,7 +100,7 @@ def resolve_selection(db, sport_name: str, sport_id: int | None,
                     if v.participant_kind == participant_kind]
         if kind_explicit and not matching:
             raise HTTPException(422, 'Nessuna variante disponibile per questo tipo di partecipanti')
-        variant = (sorted(matching, key=lambda v: (v.sort_order, v.id))[0]
+        variant = (min(matching, key=lambda v: (v.sort_order, v.id))
                    if matching else sport.default_variant())
         if variant is None:
             raise HTTPException(422, 'Nessuna variante disponibile per questo sport')
@@ -218,11 +219,11 @@ def set_archived(db, tid, archived: bool):
     return {'ok': True, 'archived': archived}
 
 
-def teams(db, tid):
+def teams(db, tid) -> list[dict[str, Any]]:
     return rows(db, 'SELECT * FROM teams WHERE tournament_id=? ORDER BY id', (tid,))
 
 
-def players(db, tid, team_id):
+def players(db, tid, team_id) -> list[dict[str, Any]]:
     team = db.execute('SELECT id FROM teams WHERE id=? AND tournament_id=?',
                       (team_id, tid)).fetchone()
     if team is None:
@@ -260,7 +261,7 @@ def remove_player(db, tid, team_id, player_id):
     return {'ok': True}
 
 
-def games(db, tid):
+def games(db, tid) -> list[dict[str, Any]]:
     return rows(db, 'SELECT m.*,s.kind FROM matches m JOIN stages s ON s.id=m.stage_id '
                     'WHERE m.tournament_id=? ORDER BY s.ordinal,m.round_no,m.position,m.id',
                 (tid,))
@@ -294,7 +295,7 @@ def match_status(m):
              ('ready' if m['home_team_id'] and m['away_team_id'] else 'waiting')))
 
 
-def detail(db, tid, public=False):
+def detail(db, tid, public=False) -> dict[str, Any]:
     t = required(db, tid)
     fixtures = games(db, tid)
     roster = teams(db, tid)
@@ -322,16 +323,18 @@ def detail(db, tid, public=False):
     variant = _variant_for_tournament(db, t)
     rules = _rules(t) or (variant.rules if variant else {})
     regulation = t.get('regulation_snapshot') or (variant.regulation if variant else '')
-    result = dict(tournament=t, teams=roster, matches=fixtures, groups=groups,
-                  stages=rows(db, 'SELECT * FROM stages WHERE tournament_id=? ORDER BY ordinal', (tid,)),
-                  standings=table(db, t) if t['format'] == 'round_robin' else [],
-                  champion_team_id=champion, status=status,
-                  progress=dict(completed=completed, total=len(playable)),
-                  sport_config=sport_rules.summary(sport) if sport else None,
-                  variant_config=sport_rules.variant_detail(variant) if variant else None,
-                  rules=rules, regulation=regulation,
-                  legacy_sport=bool(t['sport'] and (t['sport_id'] is None or variant is None)),
-                  public=public)
+    result: dict[str, Any] = {
+        'tournament': t, 'teams': roster, 'matches': fixtures, 'groups': groups,
+        'stages': rows(db, 'SELECT * FROM stages WHERE tournament_id=? ORDER BY ordinal', (tid,)),
+        'standings': table(db, t) if t['format'] == 'round_robin' else [],
+        'champion_team_id': champion, 'status': status,
+        'progress': {'completed': completed, 'total': len(playable)},
+        'sport_config': sport_rules.summary(sport) if sport else None,
+        'variant_config': sport_rules.variant_detail(variant) if variant else None,
+        'rules': rules, 'regulation': regulation,
+        'legacy_sport': bool(t['sport'] and (t['sport_id'] is None or variant is None)),
+        'public': public,
+    }
     if public:
         result['tournament'] = {k: v for k, v in t.items()
                                 if k not in ('public_token', 'demo_key')}
@@ -341,7 +344,7 @@ def detail(db, tid, public=False):
     return result
 
 
-def team_detail(db, tid, team_id):
+def team_detail(db, tid, team_id) -> dict[str, Any]:
     """Single-participant view: group, standing position, fixtures and results."""
     t = required(db, tid)
     row = db.execute('SELECT * FROM teams WHERE id=? AND tournament_id=?', (team_id, tid)).fetchone()
@@ -507,9 +510,9 @@ def validate_sets(sets, rules: dict) -> list[dict]:
             raise HTTPException(422, f'Il set {index} deve arrivare almeno a {target} punti')
         if max_points is not None and winner > int(max_points):
             raise HTTPException(422, f'Il set {index} supera il limite di {max_points} punti')
-        if not (max_points is not None and winner == int(max_points)):
-            if win_by_two and winner - loser < 2:
-                raise HTTPException(422, f'Il set {index} richiede almeno 2 punti di scarto')
+        if (not (max_points is not None and winner == int(max_points))
+                and win_by_two and winner - loser < 2):
+            raise HTTPException(422, f'Il set {index} richiede almeno 2 punti di scarto')
         won_by = 0 if home > away else 1
         wins[won_by] += 1
         if wins[won_by] == sets_to_win and index < len(sets):
@@ -575,7 +578,9 @@ def save_result(db, tid, mid, version, home=None, away=None, invalidate=False, s
 
     if not clearing and m['kind'] == 'knockout' and home == away:
         raise HTTPException(422, 'Serve un vincitore. Inserisci un punteggio decisivo')
-    winner = None if home is None or home == away else (m['home_team_id'] if home > away else m['away_team_id'])
+    winner = None
+    if home is not None and away is not None and home != away:
+        winner = m['home_team_id'] if home > away else m['away_team_id']
     fixtures = games(db, tid)
     affected = []
     if m['kind'] == 'round_robin':
