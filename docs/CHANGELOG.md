@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.1 — 25 ottobre 2026
+
+- Corretto il salvataggio della modifica di una bozza: il form SPA inviava `format: null` e il server rispondeva 500 per il vincolo `NOT NULL`. Ora il formato viene omesso quando non è modificato e i `null` espliciti sui campi non annullabili ricevono 422.
+- Corretto il cambio sport nella modale di modifica: l'id `edit-sport` non era collegato al listener, quindi l'elenco delle varianti restava fermo sullo sport precedente.
+- Cambiando variante in modifica, i punti di vittoria/pareggio/sconfitta vengono riallineati ai valori della variante (prima la mappatura usava chiavi inesistenti).
+- La modale di modifica espone ora il formato (eliminazione, girone unico, gironi + finali), mostra o nasconde le opzioni dei gironi e blocca le gare di ritorno nell'eliminazione. Il salvataggio valida i gruppi prima della richiesta.
+- La scheda squadra espone `players_on_field`, `min_lineup` e il nome della variante; la pagina partecipanti riepiloga le rose pronte sul minimo e, per ogni squadra, i giocatori presenti e mancanti.
+- Test di regressione per payload della modale, `null` espliciti, cambio formato, limiti della lineup e integrità di tutte le sedici varianti (slug, durata, punteggio, rosa e regolamento). Versione applicativa 0.4.1, suite a **147 test**.
+
 ## 0.4.0 — 25 ottobre 2026
 
 - Migrazione 006: catalogo di sei sport padre e sedici varianti in `sport_variants`, snapshot `rules_snapshot`/`regulation_snapshot`, rose `team_players`, dettaglio set `match_sets`.
@@ -12,7 +21,7 @@
 - SPA: voce **Sport e regole**, catalogo con deep link `#/sport/...`, wizard gerarchico sport → variante con anteprima regole, tab **Regolamento**, inserimento risultati set per set e gestione rose nella scheda squadra.
 - CSS dedicato a catalogo, regolamento, pillole delle regole, set e rose; stampa del regolamento.
 - Export CSV arricchito con il dettaglio dei set.
-- Versione applicativa 0.4.0, schema 6 e 142 test automatici; flusso SPA verificato con browser headless.
+- Versione applicativa 0.4.0, schema 6 e 142 test automatici; flusso SPA verificato con browser headless. La correzione 0.4.1 porta la suite a 144 test.
 - Restano da implementare account individuali, ruoli per torneo, statistiche individuali, import CSV e scheduler automatico.
 
 ## 0.3.0 — 25 ottobre 2026

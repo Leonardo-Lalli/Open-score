@@ -16,7 +16,24 @@ Obiettivo: portare la demo da un unico modello numerico a sei sport con varianti
 | 7 — Interfaccia demo | Implementata | Dashboard, catalogo sport, wizard gerarchico sport → variante, riepilogo, partecipanti, rose, scheda squadra, incontri, classifica, bracket, regolamento, diario, CSV e vista spettatore |
 | 8 — Sicurezza e multiutenza | Implementata per un solo organizzatore | Password o token, sessione firmata, blocco scritture, host ammessi, limite ai tentativi e test 401/429; mancano account individuali e ruoli per torneo |
 | 9 — Produzione LAN | Implementata e documentata | Avvio come attività pianificata o servizio systemd, backup `VACUUM INTO` con conservazione, ripristino, HTTPS tramite proxy esterno e lista di controllo |
-| 10 — Sport, varianti e regole | Implementata e testata | Sei sport, sedici varianti, schermate dedicate con deep link, rose con minimo/massimo, durata e classifica derivate dalle regole, set per set, snapshot del regolamento |
+| 10 — Sport, varianti e regole | Implementata e testata | Sei sport, sedici varianti, schermate dedicate con deep link, rose con minimo/massimo e lineup visibile, durata e classifica derivate dalle regole, set per set, snapshot del regolamento |
+
+## Incremento 0.4.1 — affidabilità del flusso di modifica
+
+Obiettivo: chiudere i difetti emersi durante la verifica del percorso sport → variante → modifica, senza cambiare catalogo, schema o dati già salvati.
+
+| Milestone | Stato in questa consegna | Criterio di completamento |
+| --- | --- | --- |
+| Modifica di una bozza | Corretta e testata | Il payload della modale non invia più `format: null`; la struttura corrente resta invariata e il salvataggio risponde 200 |
+| `null` espliciti | Corretta e testata | I campi non annullabili rifiutano `null` con 422 invece di provocare un errore 500 del database |
+| Cambio sport in modifica | Corretta | La select `edit-sport` aggiorna varianti, rosa, durata e regolamento prima del salvataggio |
+| Punti della variante | Corretta | Vittoria, pareggio e sconfitta usano i valori `win`/`draw`/`loss` della variante selezionata |
+| Composizione della squadra | Corretta e testata | La scheda squadra mostra giocatori in campo, minimo per iniziare, rosa massima e giocatori mancanti; la pagina partecipanti riepiloga le rose pronte |
+| Formato in bozza | Implementata e testata | La modale permette di scegliere eliminazione, girone unico o gironi + finali, con opzioni dei gironi dinamiche e controllo client sui gruppi |
+| Integrità del catalogo | Testata | Un test verifica tutte le sedici varianti: slug univoci, lineup coerente, durata, modalità di punteggio, parametri set e regolamento |
+| Regressioni | Testata | Cinque test nuovi o estesi; suite a **147 passed** |
+
+Residuo noto: la lineup minima è mostrata ma non bloccante; la generazione resta possibile anche con rose incomplete, scelta utile per la demo scolastica. Il formato è modificabile solo finché il torneo è in bozza, coerentemente con il blocco dei campi strutturali dopo la generazione.
 
 ## Sport e varianti della 0.4
 

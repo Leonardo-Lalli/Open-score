@@ -477,7 +477,22 @@ function matchesView() {
 }
 function participants() {
   const generated = data.matches.length > 0;
-  return `<div class="section-header"><div><h2>Le persone fanno il torneo.</h2><p class="section-sub">${data.teams.length} ${data.tournament.participant_kind === "team" ? "squadre" : "giocatori"} · I nomi si possono modificare anche a torneo iniziato.</p></div>${!generated && !publicToken && canEdit() ? button("Genera incontri", "generate", "primary", "spark") : ""}</div>${!generated && !publicToken && canEdit() ? '<form id="team-form" class="inline-form"><input name="name" required maxlength="60" aria-label="Nome del partecipante" placeholder="Nome del partecipante"><button class="button primary">Aggiungi</button></form>' : ""}<div class="roster">${data.teams.map((p, i) => `<div class="roster-item"><button type="button" class="roster-info" data-team="${p.id}" aria-label="Apri la scheda di ${h(p.name)}">${avatar(p.name, i)}<span><strong>${h(p.name)}</strong><small>${h(data.groups.find((g) => g.id === p.group_id)?.name || "Partecipante " + (i + 1).toString().padStart(2, "0"))}</small></span></button>${!publicToken && canEdit() ? `<button class="icon-button" data-rename="${p.id}" aria-label="Rinomina ${h(p.name)}">${icon("edit")}</button>${!generated ? `<button class="icon-button" data-remove="${p.id}" aria-label="Elimina ${h(p.name)}">${icon("close")}</button>` : ""}` : ""}</div>`).join("") || '<p class="muted">Aggiungi almeno due partecipanti per cominciare.</p>'}</div>`;
+  const variant = currentVariant();
+  const teamMode = data.tournament.participant_kind === "team";
+  const minimum = variant?.min_lineup || 1;
+  const ready = teamMode && variant
+    ? data.teams.filter((p) => (p.player_count || 0) >= minimum).length
+    : 0;
+  const rosterNote = teamMode && variant
+    ? ` · Rose pronte ${ready}/${data.teams.length} (minimo ${minimum})`
+    : "";
+  return `<div class="section-header"><div><h2>Le persone fanno il torneo.</h2><p class="section-sub">${data.teams.length} ${teamMode ? "squadre" : "giocatori"} · I nomi si possono modificare anche a torneo iniziato.${rosterNote}</p></div>${!generated && !publicToken && canEdit() ? button("Genera incontri", "generate", "primary", "spark") : ""}</div>${!generated && !publicToken && canEdit() ? '<form id="team-form" class="inline-form"><input name="name" required maxlength="60" aria-label="Nome del partecipante" placeholder="Nome del partecipante"><button class="button primary">Aggiungi</button></form>' : ""}<div class="roster">${data.teams.map((p, i) => {
+    const group = data.groups.find((g) => g.id === p.group_id)?.name;
+    const roster = teamMode && variant
+      ? ` · ${p.player_count || 0}/${variant.max_roster} in rosa${(p.player_count || 0) < minimum ? ` · mancano ${minimum - (p.player_count || 0)}` : ""}`
+      : "";
+    return `<div class="roster-item"><button type="button" class="roster-info" data-team="${p.id}" aria-label="Apri la scheda di ${h(p.name)}">${avatar(p.name, i)}<span><strong>${h(p.name)}</strong><small>${h(group || "Partecipante " + (i + 1).toString().padStart(2, "0"))}${roster}</small></span></button>${!publicToken && canEdit() ? `<button class="icon-button" data-rename="${p.id}" aria-label="Rinomina ${h(p.name)}">${icon("edit")}</button>${!generated ? `<button class="icon-button" data-remove="${p.id}" aria-label="Elimina ${h(p.name)}">${icon("close")}</button>` : ""}` : ""}</div>`;
+  }).join("") || '<p class="muted">Aggiungi almeno due partecipanti per cominciare.</p>'}</div>`;
 }
 function standingsTable(rows, qualifiers = 0) {
   return `<div class="table-wrap"><table><thead><tr><th>#</th><th>Partecipante</th><th>G</th><th>V</th><th>N</th><th>P</th><th>F</th><th>S</th><th>DR</th><th>PT</th></tr></thead><tbody>${rows.map((r, i) => `<tr class="${i < qualifiers ? "qualifier" : ""}"><td>${i + 1}</td><td>${avatar(r.name, r.team_id)}${h(r.name)}</td><td>${r.played}</td><td>${r.won}</td><td>${r.drawn}</td><td>${r.lost}</td><td>${r.goals_for}</td><td>${r.goals_against}</td><td>${r.goal_difference}</td><td>${r.points}</td></tr>`).join("")}</tbody></table></div>`;
@@ -557,9 +572,13 @@ async function teamModal(id) {
   const stats = standing
     ? `<div class="stat-grid">${stat("Posizione", info.position ?? "–", "Nel girone o in classifica", "chart")}${stat("Giocate", standing.played, "Incontri disputati", "calendar")}${stat("Punti", standing.points, `V ${standing.won} · N ${standing.drawn} · P ${standing.lost}`, "check")}${stat("Differenza", (standing.goal_difference > 0 ? "+" : "") + standing.goal_difference, `${standing.goals_for} fatti · ${standing.goals_against} subiti`, "ball")}</div>`
     : "";
+  const lineup =
+    info.participant_kind === "team"
+      ? `<p class="field-help" style="margin:4px 0 12px">${info.variant_name ? h(info.variant_name) + " · " : ""}${info.players_on_field} in campo · minimo ${info.min_lineup} per iniziare${info.players.length < info.min_lineup ? ` · mancano ${info.min_lineup - info.players.length} giocatori` : ""}</p>`
+      : "";
   const roster =
     info.participant_kind === "team"
-      ? `<h3 class="subsection-title" style="margin-top:24px">Rosa <span class="muted">${info.players.length}/${info.max_roster}</span></h3><div class="panel" style="margin:0">${!publicToken && canEdit() ? `<form id="player-form" data-team="${info.team.id}" class="inline-form"><input name="name" required maxlength="60" aria-label="Nome del giocatore" placeholder="Nome del giocatore"><input name="shirt_number" type="number" min="0" max="99" aria-label="Numero di maglia" placeholder="N." style="max-width:80px"><button class="button primary">Aggiungi</button></form>` : ""}${info.players.map((p) => `<div class="roster-item"><div class="roster-info">${avatar(p.name, p.id)}<span><strong>${h(p.name)}</strong><small>${p.shirt_number !== null ? "Maglia " + p.shirt_number : "Giocatore"}</small></span></div>${!publicToken && canEdit() ? `<button class="icon-button" data-remove-player="${p.id}" data-player-team="${info.team.id}" aria-label="Rimuovi ${h(p.name)}">${icon("close")}</button>` : ""}</div>`).join("") || '<p class="muted" style="padding:16px">Nessun giocatore in rosa. Aggiungi i nomi per completare la squadra.</p>'}</div>`
+      ? `<h3 class="subsection-title" style="margin-top:24px">Rosa <span class="muted">${info.players.length}/${info.max_roster}</span></h3>${lineup}<div class="panel" style="margin:0">${!publicToken && canEdit() ? `<form id="player-form" data-team="${info.team.id}" class="inline-form"><input name="name" required maxlength="60" aria-label="Nome del giocatore" placeholder="Nome del giocatore"><input name="shirt_number" type="number" min="0" max="99" aria-label="Numero di maglia" placeholder="N." style="max-width:80px"><button class="button primary">Aggiungi</button></form>` : ""}${info.players.map((p) => `<div class="roster-item"><div class="roster-info">${avatar(p.name, p.id)}<span><strong>${h(p.name)}</strong><small>${p.shirt_number !== null ? "Maglia " + p.shirt_number : "Giocatore"}</small></span></div>${!publicToken && canEdit() ? `<button class="icon-button" data-remove-player="${p.id}" data-player-team="${info.team.id}" aria-label="Rimuovi ${h(p.name)}">${icon("close")}</button>` : ""}</div>`).join("") || '<p class="muted" style="padding:16px">Nessun giocatore in rosa. Aggiungi i nomi per completare la squadra.</p>'}</div>`
       : "";
   const rows = info.matches
     .map((m) => {
@@ -664,9 +683,14 @@ function syncEditVariant(variant) {
           : "Giocatori individuali";
   }
   const points = variant.standings || {};
-  for (const key of ["win_points", "draw_points", "loss_points"]) {
+  const pointValues = {
+    win_points: points.win,
+    draw_points: points.draw,
+    loss_points: points.loss,
+  };
+  for (const [key, value] of Object.entries(pointValues)) {
     const input = $(`#tournament-form [name=${key}]`);
-    if (input && points[key] !== undefined) input.value = points[key];
+    if (input && value !== undefined && value !== null) input.value = value;
   }
   const tie = $("#tournament-form [name=tie_breaker]");
   if (tie && variant.default_tie_breaker) tie.value = variant.default_tie_breaker;
@@ -754,7 +778,7 @@ function editTournament() {
   const kind = variant?.participant_kind || t.participant_kind;
   const structure = generated
     ? '<p class="field-help">Sport, variante, formato e regole sono bloccati perché gli incontri sono già stati generati. Nome e descrizione restano modificabili.</p>'
-    : `<fieldset class="format-fieldset" style="margin-top:18px"><legend>Formato e regole</legend><div class="form-grid"><label>Sport<select name="sport" id="edit-sport">${sportOptionsFor(t.sport)}</select></label><label>Variante<select name="variant" id="edit-variant">${variantOptionsFor(t.sport, t.variant)}</select></label><label>Partecipanti<input value="${kind === "team" ? "Squadre" : "Giocatori individuali"}" disabled><input type="hidden" name="participant_kind" value="${kind}"></label><label>Gare del girone<select name="legs"><option value="1" ${t.legs === 1 ? "selected" : ""}>Sola andata</option><option value="2" ${t.legs === 2 ? "selected" : ""}>Andata e ritorno</option></select></label><label>Numero gironi<select name="group_count">${[2, 4, 8].map((n) => `<option value="${n}" ${t.group_count === n ? "selected" : ""}>${n} gironi</option>`).join("")}</select></label><label>Qualificate per girone<select name="qualifiers"><option value="1" ${t.qualifiers === 1 ? "selected" : ""}>La prima</option><option value="2" ${t.qualifiers === 2 ? "selected" : ""}>Le prime due</option></select></label></div><div class="form-grid">${[
+    : `<fieldset class="format-fieldset" style="margin-top:18px"><legend>Formato e regole</legend><div class="form-grid"><label>Formato<select name="format" id="edit-format">${[["knockout", "Eliminazione"], ["round_robin", "Girone unico"], ["groups", "Gironi + finali"]].map(([v, l]) => `<option value="${v}" ${t.format === v ? "selected" : ""}>${l}</option>`).join("")}</select></label><label>Sport<select name="sport" id="edit-sport">${sportOptionsFor(t.sport)}</select></label><label>Variante<select name="variant" id="edit-variant">${variantOptionsFor(t.sport, t.variant)}</select></label><label>Partecipanti<input value="${kind === "team" ? "Squadre" : "Giocatori individuali"}" disabled><input type="hidden" name="participant_kind" value="${kind}"></label><label>Gare del girone<select name="legs" id="edit-legs"><option value="1" ${t.legs === 1 ? "selected" : ""}>Sola andata</option><option value="2" ${t.legs === 2 ? "selected" : ""}>Andata e ritorno</option></select></label></div><div class="form-grid groups-options ${t.format === "groups" ? "" : "hidden"}" id="edit-group-options"><label>Numero gironi<select name="group_count">${[2, 4, 8].map((n) => `<option value="${n}" ${t.group_count === n ? "selected" : ""}>${n} gironi</option>`).join("")}</select></label><label>Qualificate per girone<select name="qualifiers"><option value="1" ${t.qualifiers === 1 ? "selected" : ""}>La prima</option><option value="2" ${t.qualifiers === 2 ? "selected" : ""}>Le prime due</option></select></label></div><div class="form-grid">${[
         ["win_points", "Punti vittoria", t.win_points],
         ["draw_points", "Punti pareggio", t.draw_points],
         ["loss_points", "Punti sconfitta", t.loss_points],
@@ -780,6 +804,19 @@ function editTournament() {
     `${button("Annulla", "close", "ghost")}<button class="button primary" form="tournament-form">${icon("check")}Salva modifiche</button>`,
     "MODIFICA TORNEO",
   );
+  updateEditFormat();
+}
+function updateEditFormat() {
+  const form = $("#tournament-form");
+  if (!form) return;
+  const format = form.querySelector('[name="format"]')?.value;
+  const groups = $("#edit-group-options");
+  if (groups) groups.classList.toggle("hidden", format !== "groups");
+  const legs = $("#edit-legs");
+  if (legs) {
+    legs.disabled = format === "knockout";
+    if (legs.disabled) legs.value = "1";
+  }
 }
 function renderWizard() {
   let body = "";
@@ -1150,7 +1187,7 @@ document.addEventListener("change", (e) => {
     applyVariantToWizard(variant);
     $("#wizard-variant-preview").innerHTML = variantRulesPanel(variant);
   }
-  if (e.target.id === "sport-edit") {
+  if (e.target.id === "edit-sport") {
     const sport = sportFor(e.target.value);
     const variant =
       sport?.variants?.find((v) => v.slug === sport.default_variant) ||
@@ -1164,7 +1201,10 @@ document.addEventListener("change", (e) => {
     applyVariantToWizard(variantFor(e.target.value));
     syncEditVariant(variantFor(e.target.value));
   }
-  if (e.target.name === "format" && $("#wizard-form")) updateWizardFormat();
+  if (e.target.name === "format") {
+    if ($("#wizard-form")) updateWizardFormat();
+    if ($("#tournament-form")) updateEditFormat();
+  }
 });
 document.addEventListener("submit", (e) => {
   e.preventDefault();
@@ -1217,7 +1257,9 @@ document.addEventListener("submit", (e) => {
         if (fd.has("sport")) {
           payload.sport = fd.get("sport");
           payload.variant = fd.get("variant");
-          payload.format = fd.get("format");
+          // The edit modal has no format control: omit it so PATCH preserves
+          // the current structure instead of sending an explicit null.
+          if (fd.has("format")) payload.format = fd.get("format");
           payload.participant_kind = fd.get("participant_kind");
           payload.legs =
             fd.get("format") === "knockout" ? 1 : Number(fd.get("legs"));
@@ -1227,6 +1269,16 @@ document.addEventListener("submit", (e) => {
           payload.draw_points = Number(fd.get("draw_points"));
           payload.loss_points = Number(fd.get("loss_points"));
           payload.tie_breaker = fd.get("tie_breaker");
+          if (payload.format === "groups") {
+            const count = data.teams.length;
+            if (
+              count % payload.group_count ||
+              count / payload.group_count < Math.max(2, payload.qualifiers)
+            )
+              throw new Error(
+                "Con i gironi servono gruppi uguali con almeno due partecipanti e abbastanza qualificate.",
+              );
+          }
         }
         await api(`/tournaments/${selectedId}`, {
           method: "PATCH",

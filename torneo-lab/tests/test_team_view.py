@@ -40,6 +40,26 @@ def test_team_view_in_groups_uses_group_standing(client):
     assert data['standing']['team_id'] == team['id']
 
 
+def test_team_view_exposes_lineup_rules_from_the_variant(client):
+    created = client.post('/api/tournaments', json={
+        'name': 'Calcio a 5',
+        'sport': 'Calcio',
+        'variant': 'calcio-a-5',
+        'format': 'round_robin',
+        'team_names': ['Alfa', 'Beta', 'Gamma', 'Delta'],
+    })
+    assert created.status_code == 201, created.text
+    tid = created.json()['id']
+    team = state(client, tid)['teams'][0]
+
+    body = client.get(f'/api/tournaments/{tid}/teams/{team["id"]}').json()
+    assert body['variant_name'] == 'Calcio a 5'
+    assert body['players_on_field'] == 5
+    assert body['min_lineup'] == 5
+    assert body['max_roster'] == 12
+    assert body['players'] == []
+
+
 def test_team_view_rejects_wrong_tournament(client):
     first = make(client, 'round_robin', 4)
     second = make(client, 'round_robin', 4)

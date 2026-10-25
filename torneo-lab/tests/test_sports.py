@@ -45,6 +45,30 @@ def test_sports_endpoint_reads_the_database_catalog(client):
         assert [variant['slug'] for variant in sport['variants']] == VARIANTS[sport['name']]
 
 
+def test_catalog_variants_have_coherent_roster_duration_and_scoring(client):
+    sports = client.get('/api/sports').json()['sports']
+    slugs = set()
+    for sport in sports:
+        assert sport['variants'], sport['name']
+        for variant in sport['variants']:
+            assert variant['slug'] not in slugs
+            slugs.add(variant['slug'])
+            assert variant['participant_kind'] in ('team', 'individual')
+            assert 1 <= variant['min_lineup'] <= variant['players_on_field']
+            assert variant['players_on_field'] <= variant['max_roster']
+            assert variant['match_duration'] >= 10
+            assert variant['scoring_mode'] in ('goals', 'points', 'sets')
+            assert variant['standings']
+            detail = client.get(f"/api/variants/{variant['slug']}").json()
+            assert detail['regulation']
+            if variant['supports_sets']:
+                assert variant['sets_to_win'] >= 1
+                assert variant['max_sets'] >= variant['sets_to_win']
+                assert variant['points_per_set'] >= 1
+                assert variant['tiebreak_points'] >= 1
+    assert len(slugs) == 16
+
+
 def test_single_sport_endpoint_lists_variants(client):
     response = client.get('/api/sports/Pallavolo')
     assert response.status_code == 200
@@ -53,6 +77,8 @@ def test_single_sport_endpoint_lists_variants(client):
     assert body['supports_sets'] is True
     assert len(body['variants']) == 3
     assert body['variants'][0]['players_on_field'] == 6
+    assert body['variants'][0]['min_lineup'] == 6
+    assert body['variants'][0]['max_roster'] == 14
     assert client.get('/api/sports/Curling').status_code == 404
 
 

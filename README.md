@@ -42,11 +42,12 @@ Su macOS/Linux: `python3 -m venv .venv`, `source .venv/bin/activate`, poi gli st
 
 I quattro esempi vengono salvati al primo avvio. I nomi, gli incontri e i risultati si possono cambiare; i dati persistono dopo il riavvio. Non c'è una scadenza di 24 ore. Gli esempi aggiuntivi sono sintetici; il campione JSON fornito è conservato come fixture con i relativi ID di provenienza.
 
-## Funzioni della versione 0.4
+## Funzioni della versione 0.4.1
 
 - Dashboard e interfaccia italiana responsive, procedura guidata, partecipanti rinominabili.
 - Sei sport con sedici varianti: Calcio, Basket, Pallavolo, Badminton, Ping pong e Biliardino. Catalogo navigabile con schermate dedicate e link diretti alle regole.
 - La variante determina composizione della squadra, durata, punteggio, classifica e regolamento; il torneo conserva uno snapshot delle regole scelte.
+- La scheda squadra mostra giocatori in campo, lineup minima, rosa massima e giocatori mancanti; la pagina partecipanti riepiloga le rose pronte rispetto al minimo della variante.
 - Rose dei giocatori con nome, numero di maglia e limite massimo della variante.
 - Girone di sola andata o andata/ritorno, anche con numero dispari di partecipanti.
 - Knockout da 2 a 32 partecipanti, seeding, BYE, tabellone effettivo e campione.
@@ -55,7 +56,8 @@ I quattro esempi vengono salvati al primo avvio. I nomi, gli incontri e i risult
 - Risultati e correzioni con controllo della versione, conferma per invalidare gli incontri dipendenti e storico delle modifiche.
 - Data, ora, campo e durata inseriti manualmente, con durata predefinita dalla variante e controlli sui conflitti conosciuti.
 - Esportazione CSV con dettaglio dei set e link alla vista spettatore di sola lettura, aggiornata ogni 30 secondi.
-- Modifica del torneo, archiviazione e ripristino senza cancellare i dati; i tornei di sport rimossi restano consultabili in sola lettura.
+- Modifica del torneo, archiviazione e ripristino senza cancellare i dati; formato, sport e variante sono modificabili in bozza e si bloccano dopo la generazione degli incontri.
+- I tornei di sport rimossi restano consultabili in sola lettura.
 - Criterio a parità di punti configurabile: differenza reti, scontri diretti, reti fatte o vittorie.
 - Scheda partecipante con girone, posizione, classifica, rosa e incontri.
 - Accesso dell'organizzatore con password singola o token, scritture protette, host della LAN ammessi e limite ai tentativi di accesso.
@@ -152,7 +154,7 @@ Sono verificati algoritmi, avanzamenti, multifase, correzioni, concorrenza, pers
 | [Architettura](docs/ARCHITECTURE.md) · [Database](docs/DATABASE.md) · [API](docs/API.md) | Struttura effettiva dell'applicazione |
 | [Deploy in LAN](docs/DEPLOY.md) · [Sicurezza](docs/SECURITY.md) | Installazione, firewall, backup, ripristino, credenziali e limiti |
 | [Piano di sviluppo](docs/DEVELOPMENT_PLAN.md) · [Decisioni](docs/DECISIONS.md) | Passi successivi e ipotesi da discutere |
-| [Changelog](docs/CHANGELOG.md) | Incremento 0.4 |
+| [Changelog](docs/CHANGELOG.md) | Incrementi 0.4 e 0.4.1 |
 
 Il codice è originale e non dipende dai server di Score7. La licenza per il rilascio open source stabile va concordata tra gli autori; non è ancora stata assegnata. Database, credenziali e ambienti locali non sono inclusi nella repository.
 

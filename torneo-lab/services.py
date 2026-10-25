@@ -381,6 +381,9 @@ def team_detail(db, tid, team_id):
             'matches': fixtures, 'tournament': public_tournament,
             'players': players(db, tid, team_id) if t['participant_kind'] == 'team' else [],
             'max_roster': variant.max_roster if variant else 30,
+            'players_on_field': variant.players_on_field if variant else 1,
+            'min_lineup': variant.min_lineup if variant else 1,
+            'variant_name': variant.name if variant else None,
             'participant_kind': t['participant_kind']}
 
 

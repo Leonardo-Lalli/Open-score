@@ -66,6 +66,71 @@ def test_draft_accepts_format_sport_and_rules(client):
     assert client.patch(f'/api/tournaments/{tid}', json={'unknown': 1}).status_code == 422
 
 
+def test_draft_update_without_format_preserves_current_structure(client):
+    """The edit modal omits `format`, exactly like the SPA payload."""
+    tid = draft(client)
+    response = client.patch(f'/api/tournaments/{tid}', json={
+        'name': 'Coppa aggiornata',
+        'description': '',
+        'sport': 'Pallavolo',
+        'variant': 'pallavolo-6v6',
+        'participant_kind': 'team',
+        'legs': 1,
+        'group_count': 2,
+        'qualifiers': 2,
+        'win_points': 3,
+        'draw_points': 0,
+        'loss_points': 0,
+        'tie_breaker': 'goal_difference',
+    })
+    assert response.status_code == 200, response.text
+    tournament = client.get(f'/api/tournaments/{tid}').json()['tournament']
+    assert tournament['name'] == 'Coppa aggiornata'
+    assert tournament['sport'] == 'Pallavolo'
+    assert tournament['variant'] == 'pallavolo-6v6'
+    assert tournament['format'] == 'knockout'
+
+
+def test_draft_ui_payload_can_switch_format_before_generation(client):
+    tid = draft(client)
+    payload = {
+        'name': 'Coppa in gironi',
+        'description': '',
+        'format': 'groups',
+        'sport': 'Calcio',
+        'variant': 'calcio-a-11',
+        'participant_kind': 'team',
+        'legs': 2,
+        'group_count': 2,
+        'qualifiers': 2,
+        'win_points': 3,
+        'draw_points': 1,
+        'loss_points': 0,
+        'tie_breaker': 'goal_difference',
+    }
+    response = client.patch(f'/api/tournaments/{tid}', json=payload)
+    assert response.status_code == 200, response.text
+    tournament = client.get(f'/api/tournaments/{tid}').json()['tournament']
+    assert tournament['format'] == 'groups'
+    assert tournament['legs'] == 2
+    assert tournament['group_count'] == 2
+
+    payload.update(format='knockout', legs=1)
+    response = client.patch(f'/api/tournaments/{tid}', json=payload)
+    assert response.status_code == 200, response.text
+    assert client.get(f'/api/tournaments/{tid}').json()['tournament']['format'] == 'knockout'
+
+
+def test_explicit_null_is_rejected_without_touching_the_draft(client):
+    tid = draft(client)
+    for change in ({'format': None}, {'name': None}, {'description': None}):
+        response = client.patch(f'/api/tournaments/{tid}', json=change)
+        assert response.status_code == 422, (change, response.text)
+    tournament = client.get(f'/api/tournaments/{tid}').json()['tournament']
+    assert tournament['format'] == 'knockout'
+    assert tournament['name'] == 'Coppa in bozza'
+
+
 def test_archive_hides_tournament_and_blocks_writes(client):
     tid = make(client)
     detail = client.get(f'/api/tournaments/{tid}').json()

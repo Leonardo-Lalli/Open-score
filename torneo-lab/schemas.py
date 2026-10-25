@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated, Literal, Optional
+from typing import Annotated, ClassVar, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
@@ -51,6 +51,11 @@ class TournamentInput(Input):
 class TournamentUpdate(Input):
     """Partial update. Structural fields are accepted only while the tournament is a draft."""
 
+    # PATCH distinguishes "not sent" from "explicitly null": the latter is only
+    # meaningful for nullable columns, otherwise it would reach SQL as NULL.
+    NULLABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {'sport_id', 'variant', 'random_seed'})
+
     name: Optional[Title] = None
     sport: Optional[Sport] = None
     sport_id: Optional[int] = None
@@ -73,6 +78,9 @@ class TournamentUpdate(Input):
     def updatable(self):
         if not self.model_fields_set:
             raise ValueError('Nessun campo da aggiornare')
+        for field in self.model_fields_set:
+            if field not in self.NULLABLE_FIELDS and getattr(self, field) is None:
+                raise ValueError(f'Il campo "{field}" non può essere nullo')
         if self.name is not None and len(self.name) < 2:
             raise ValueError('Il nome del torneo è troppo corto')
         if self.format == 'knockout' and self.legs not in (None, 1):
