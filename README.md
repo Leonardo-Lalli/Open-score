@@ -23,7 +23,7 @@
 </p>
 
 <p align="center">
-  <a href="https://leonardo-lalli.github.io/Open-score/">Sito del progetto</a> ·
+  <a href="https://leonardo-lalli.github.io/Open-score/">Sito del progetto (in preparazione)</a> ·
   <a href="torneo-lab/README.md">Guida all'app</a> ·
   <a href="docs/">Documentazione</a> ·
   <a href="https://github.com/Leonardo-Lalli/Open-score/issues">Segnalazioni</a>
@@ -140,7 +140,7 @@ mostreranno nomi reali di studenti.
 | **Frontend** | HTML, CSS e JavaScript vanilla; SPA senza build step; DM Sans locale (OFL); qrcode-generator 1.4.4 (MIT) |
 | **Test e qualità** | pytest, httpx TestClient, ruff |
 | **Deploy** | Uvicorn in LAN, systemd/Windows Task Scheduler, Docker Compose, backup |
-| **CI/CD** | GitHub Actions per i test; GitHub Pages per il sito statico |
+| **CI/CD** | GitHub Actions per i test; workflow GitHub Pages pronto per il sito statico |
 
 Nessun framework frontend, nessun bundler, nessuna CDN a runtime. Il QR e
 l'infografica sono generati nel browser.

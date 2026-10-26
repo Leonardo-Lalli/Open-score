@@ -214,3 +214,20 @@ parte del foglio squadra della scheda partecipante e non esiste ancora
 un'identità studente a cui limitarne la visibilità. Se il professore vuole
 nascondere i nomi ai pari, serve un modello iscrizione studente→squadra (API
 del Team A). Fino a quella decisione la UI espone solo nome e numero di maglia.
+
+## 9. Pubblicazione GitHub Pages (stato al 26 ottobre 2026)
+
+- Workflow: `.github/workflows/pages.yml`. Il job `verify` esegue `pip check`,
+  `node --check website/script.js` e i test statici con `--noconftest`; il job
+  `deploy` usa `configure-pages`, `upload-pages-artifact` con `path: website` e
+  `deploy-pages`.
+- Trigger: push su `main` limitato a `website/**` e al workflow stesso;
+  `workflow_dispatch` esegue solo `verify` se il run non parte da `main`.
+- Permessi: workflow `contents: read`; deploy `contents: read`, `pages: write`,
+  `id-token: write`. Nessun secret e nessuna variabile d'ambiente.
+- Verificato localmente: 18 test del sito, YAML del workflow valido,
+  `node --check` pulito.
+- **Non pubblicato**: manca l'attivazione manuale in **Settings → Pages →
+  Source: GitHub Actions**. Non dichiarare il sito online finché non è attivo.
+- Verifica in un browser reale (console, font, responsive, temi) non eseguita:
+  in questo ambiente non c'è un browser automatizzato.

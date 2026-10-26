@@ -259,10 +259,47 @@ def test_pages_workflow_deploys_the_website_directory():
     workflow = (ROOT / '.github' / 'workflows' / 'pages.yml')
     assert workflow.exists()
     text = workflow.read_text(encoding='utf-8')
-    for marker in ('branches: [main]', 'workflow_dispatch', 'pages: write',
-                   'id-token: write', 'upload-pages-artifact@v3',
-                   'path: website', 'deploy-pages@v4'):
+    for marker in ('branches: [main]', 'workflow_dispatch', 'needs: verify',
+                   "if: github.ref == 'refs/heads/main'", 'pages: write',
+                   'id-token: write', 'contents: read',
+                   'cancel-in-progress: false', 'upload-pages-artifact@v3',
+                   'path: website', 'deploy-pages@v4',
+                   'node --check website/script.js',
+                   'python -m pytest --noconftest', 'python -m pip check'):
         assert marker in text, f'{marker!r} mancante nel workflow Pages'
+    assert 'secrets.' not in text
+    assert 'pull_request' not in text
+
+
+def test_site_has_no_secret_material():
+    patterns = re.compile(
+        r'ghp_[A-Za-z0-9]{20,}|github_pat_|AKIA[0-9A-Z]{16}|'
+        r'-----BEGIN [A-Z ]*PRIVATE KEY-----|client_secret\s*[:=]|'
+        r'api_key\s*[:=]', re.I)
+    for path in (INDEX, SITE / '404.html', SITE / 'styles.css',
+                 SITE / 'script.js'):
+        text = path.read_text(encoding='utf-8')
+        assert not patterns.search(text), f'possibile segreto in {path.name}'
+
+
+def test_site_uses_the_project_pages_base_path():
+    error = (SITE / '404.html').read_text(encoding='utf-8')
+    assert '<base href="/Open-score/" />' in error
+    assert 'https://leonardo-lalli.github.io/Open-score/' in HTML
+    absolute = re.findall(r'(?:src|href)="(/[^/][^"]*)"', HTML)
+    assert absolute == [], f'percorsi assoluti non portabili: {absolute}'
+
+
+def test_images_have_alt_text():
+    pages = (HTML, (SITE / '404.html').read_text(encoding='utf-8'))
+    for page in pages:
+        for tag in re.findall(r'<img\b[^>]*>', page, re.I):
+            assert 'alt=' in tag, f'immagine senza alt: {tag}'
+
+
+def test_site_declares_italian():
+    assert '<html lang="it">' in HTML
+    assert '<html lang="it">' in (SITE / '404.html').read_text(encoding='utf-8')
 
 
 def test_site_readme_and_root_link():

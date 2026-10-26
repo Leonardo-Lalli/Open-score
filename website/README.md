@@ -1,6 +1,6 @@
 # Sito di presentazione — Open Score
 
-Questa cartella contiene **solo** il sito statico pubblico pubblicato con GitHub Pages. Non è una seconda applicazione e non contiene backend, database o API: la piattaforma operativa vive in `torneo-lab/` e va pubblicata separatamente.
+Questa cartella contiene **solo** il sito statico pubblico predisposto per GitHub Pages. Non è una seconda applicazione e non contiene backend, database o API: la piattaforma operativa vive in `torneo-lab/` e va pubblicata separatamente.
 
 - URL previsto: <https://leonardo-lalli.github.io/Open-score/>
 - Repository: <https://github.com/Leonardo-Lalli/Open-score>
@@ -26,10 +26,23 @@ Nessun framework, nessun build step, nessuna CDN: si apre direttamente con un se
 
 ## Pubblicazione su GitHub Pages
 
-1. Unisci le modifiche su `main`.
+**Stato: workflow pronto e verificato staticamente; la pubblicazione non è
+ancora stata attivata né verificata.** Finché i passaggi manuali qui sotto non
+sono eseguiti, il sito non è online: non dichiararlo pubblicato.
+
+1. Unisci le modifiche su `main` (il workflow non pubblica altri branch).
 2. Nel repository: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-3. Il workflow `Open Score website` parte a ogni push su `main` (o manualmente da **Actions → Open Score website → Run workflow**).
-4. Attendi la fine del job `deploy` e apri l'URL indicato nell'ambiente `github-pages`.
+3. Il workflow `Open Score website` parte a ogni push su `main` che tocca
+   `website/` o il workflow stesso, oppure manualmente da **Actions → Open
+   Score website → Run workflow**. Il job `verify` esegue `node --check`,
+   `pip check` e i test statici del sito; il job `deploy` pubblica solo se il
+   run parte da `main`.
+4. Attendi la fine del job `deploy` e apri l'URL indicato nell'ambiente
+   `github-pages`.
+
+Un `workflow_dispatch` da un branch feature esegue soltanto `verify`: serve come
+anteprima di validazione e non sovrascrive il sito pubblico. Il workflow non usa
+secret e non ha bisogno di variabili d'ambiente.
 
 Il workflow carica la cartella `website/` come artifact, quindi tutto ciò che deve essere pubblico va messo qui dentro. Non pubblicare `torneo-lab/`, database, `.env` o screenshot con nomi reali.
 
@@ -95,7 +108,7 @@ Dalla cartella `torneo-lab/`:
 python -m pytest -q tests/test_website.py
 ```
 
-I test controllano sezioni e link, assenza di demo/licenze inventate, asset locali esistenti, font, workflow Pages, tema chiaro/scuro (selettore, persistenza, contrasto AA) e validità di base di CSS/JS.
+I test controllano sezioni e link, assenza di demo/licenze inventate, asset locali esistenti, font, workflow Pages, tema chiaro/scuro (selettore, persistenza, contrasto AA) e validità di base di CSS/JS. Lo stesso comando viene eseguito dal job `verify` del workflow Pages con `--noconftest`, perché il sito non dipende dal backend.
 
 ## Design
 
