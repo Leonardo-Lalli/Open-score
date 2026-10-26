@@ -11,10 +11,10 @@
 
 ## Stato corrente
 
-- Branch: `max-develop` (HEAD `1856497`), working tree pulito.
+- Branch: `max-develop` (HEAD `0b19581`), working tree pulito.
 - Base: `f0eedf9` (`main` / `origin/main`).
 - Backend, migrazioni, modelli e contratti API: **non modificati**.
-- Suite: **195 passed** (warning Starlette/httpx del TestClient, innocuo).
+- Suite: **196 passed** (warning Starlette/httpx del TestClient, innocuo).
 - Lint: `ruff check --select I,C4,UP,F .` pulito; `node --check static/app.js` OK.
 - Push: nessuno; il branch resta locale finché il team non lo richiede.
 
@@ -29,13 +29,14 @@
 | `46acdd4` | 26/10 11:53 | Riordino partecipanti drag & drop | `static/app.js`, `static/styles.css`, `tests/test_static_ui.py` | Usa `team_names` esistente; futuro `PATCH /teams/order` | 193 passed |
 | `6142b31` | 26/10 11:57 | Prossime partite in dashboard | `static/app.js`, `static/styles.css`, `docs/PROFESSOR_DASHBOARD.md`, `docs/handoffs/*` | Usa `GET /tournaments/{id}`; richiesta aggregato | 194 passed |
 | `1856497` | 26/10 12:04 | Dashboard studenti in sola lettura | `static/app.js`, `tests/test_static_ui.py`, `docs/STUDENT_DASHBOARD.md`, `docs/handoffs/*` | Nessuna nuova API; visibilità studenti da concordare | 195 passed |
+| `0b19581` | 26/10 12:12 | Gestione studenti nelle squadre | `static/app.js`, `static/styles.css`, `tests/test_static_ui.py`, `docs/STUDENT_MANAGEMENT.md`, `docs/handoffs/*` | Usa le rose esistenti; bulk sequenziale; unassigned/move in attesa API | 196 passed |
 
 ## File toccati da `f0eedf9`
 
 - SPA: `torneo-lab/static/app.js`, `index.html`, `styles.css`.
 - Vendor: `torneo-lab/static/vendor/qrcode.js` (+ `README.md` di provenienza e licenza MIT).
 - Test UI: `torneo-lab/tests/test_static_ui.py`.
-- Documentazione: `docs/design-system.md`, `docs/PROFESSOR_DASHBOARD.md`, `docs/STUDENT_DASHBOARD.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md`, questo registro.
+- Documentazione: `docs/design-system.md`, `docs/PROFESSOR_DASHBOARD.md`, `docs/STUDENT_DASHBOARD.md`, `docs/STUDENT_MANAGEMENT.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md`, questo registro.
 
 Nessuna modifica a `app.py`, `services.py`, `schemas.py`, `db.py`, `migrations/`, `deploy/` o workflow CI.
 
@@ -77,6 +78,7 @@ Dettaglio e stati in [`FRONTEND_TO_BACKEND.md`](FRONTEND_TO_BACKEND.md), sezione
 - Gli asset sono a `?v=0.8.0` con `no-cache`; se si cambia la versione app, allineare `index.html` e i test.
 - Il riordino nel wizard è end-to-end; il riordino di un torneo esistente resta in attesa dell'API.
 - Le "prossime partite" fanno una chiamata per torneo gestito: accettabile in LAN, da sostituire con l'aggregato quando disponibile.
+- L'import studenti in blocco è **sequenziale** e non atomico: usa l'API di aggiunta singola e lo dichiara nella UI. Studenti non assegnati, spostamento tra squadre e import Excel attendono il Team A.
 
 ## Aggiornare il registro
 
