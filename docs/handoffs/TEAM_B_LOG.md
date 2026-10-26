@@ -11,10 +11,10 @@
 
 ## Stato corrente
 
-- Branch: `max-develop` (HEAD `48c2c14`), working tree pulito.
+- Branch: `max-develop` (HEAD `a6d270e`), working tree pulito.
 - Base: `f0eedf9` (`main` / `origin/main`).
 - Backend, migrazioni, modelli e contratti API: **non modificati**.
-- Suite: **232 passed** (warning Starlette/httpx del TestClient, innocuo).
+- Suite: **236 passed** (warning Starlette/httpx del TestClient, innocuo).
 - Lint: `ruff check --select I,C4,UP,F .` pulito; `node --check static/app.js` OK.
 - Push: nessuno; il branch resta locale finché il team non lo richiede.
 
@@ -38,6 +38,7 @@
 | `5939873` | 26/10 14:45 | Tabellone a eliminazione completo e testato | `static/app.js`, `static/styles.css`, `static/index.html`, `static/bracket-layout.js`, `tests/test_bracket_layout.py`, `tests/bracket_layout_probe.js`, `tests/test_static_ui.py`, `docs/BRACKET.md`, `docs/design-system.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | Nessuna nuova API; usa `source_home`/`source_away`, `winner_team_id`, `champion_team_id` | 214 passed |
 | `85ab216` | 26/10 15:20 | Statistiche e infografica condivisibile | `static/app.js`, `static/styles.css`, `static/index.html`, `static/infographic.js`, `tests/test_infographic.py`, `tests/infographic_probe.js`, `tests/test_static_ui.py`, `docs/INFOGRAPHICS.md`, `docs/design-system.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | Nessuna nuova API; legge il dettaglio torneo. Export SVG/PNG reali; PDF solo via stampa browser | 222 passed |
 | `48c2c14` | 26/10 16:10 | Sito pubblico su GitHub Pages | `website/`, `.github/workflows/pages.yml`, `torneo-lab/tests/test_website.py`, `README.md` | Nessuna API; sito statico separato dall'app | 232 passed |
+| `a6d270e` | 26/10 16:45 | Tema chiaro e scuro del sito | `website/index.html`, `website/404.html`, `website/styles.css`, `website/script.js`, `website/README.md`, `torneo-lab/tests/test_website.py` | Nessuna API; preferenza in `localStorage`, default sistema | 236 passed |
 
 ## File toccati da `f0eedf9`
 
@@ -112,6 +113,8 @@ Il sito pubblico è statico e non chiama alcuna API: è separato dalla piattafor
 - Test tabellone: `test_bracket_layout.py` copre 4/8/16 squadre, BYE (6 e 5 squadre), incontri incompleti e invarianza all’ordine dell’array; skip automatico se Node non è installato.
 - Infografica: `static/infographic.js` è puro (UMD) e produce un SVG 1080×1350 da dati reali. L'anteprima è lo stesso SVG dell'export. **SVG** e **PNG** sono file reali (PNG via canvas 2×); il **PDF** non è generato: il pulsante Stampa usa la stampa del browser. Qualificati e podio compaiono solo quando i dati sono ufficiali (gironi completati / torneo concluso). Nessun nome di studente, nessun dato hardcoded. Test in `test_infographic.py` verificano XML valido, escaping, QR, stati vuoti e assenza di dati fissi.
 - Sito: `website/` è indipendente dall'app e si pubblica con `.github/workflows/pages.yml` solo da `main` (o manualmente). Per attivarlo: Settings → Pages → Source: GitHub Actions. La cartella `website/assets/screenshots/` è pronta ma vuota: i tre riquadri sono segnaposto dichiarati, non screenshot finti. Nessun pulsante Demo (la demo pubblica non esiste), nessuna licenza inventata («Licenza da definire»), solo i nomi già presenti nella repository. Test in `test_website.py`.
+- Tema del sito: selettore Chiaro/Scuro/Sistema nel header, preferenza in `localStorage` (`openScoreSiteTheme`), default sistema. Lo script inline nel `<head>` applica il tema prima del CSS per evitare il flash; `script.js` sincronizza radio, icona, `aria-label`, meta `theme-color` e ascolta i cambi di `prefers-color-scheme`. Token chiari in `:root`, scuri in `[data-theme="dark"]`, fallback CSS senza JS. Il tema scuro non è un'inversione. `test_website.py` verifica selettore, ordine anti-flash, mobile e contrasto AA dei token.
+- Tema del sito: selettore Chiaro/Scuro/Sistema nel header, preferenza in `localStorage` (`openScoreSiteTheme`), default sistema. Lo script inline nel `<head>` applica il tema prima del CSS per evitare il flash; `script.js` sincronizza radio, icona, `aria-label`, meta `theme-color` e ascolta i cambi di `prefers-color-scheme`. Token chiari in `:root`, scuri in `[data-theme="dark"]`, fallback CSS senza JS. Il tema scuro non è un'inversione. `test_website.py` verifica selettore, ordine anti-flash, mobile e contrasto AA dei token.
 
 ## Aggiornare il registro
 
