@@ -116,6 +116,17 @@ def test_mobile_dashboard_and_bracket_have_dedicated_rules(client):
     assert 'tabindex="0"' in script
 
 
+def test_wizard_reorder_is_accessible_and_uses_existing_contract(client):
+    script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
+    for marker in ('function enableReorder', 'function moveItem',
+                   'data-drag-handle', 'aria-live="polite"', 'wizard.order'):
+        assert marker in script
+    css = (BASE / 'static' / 'styles.css').read_text(encoding='utf-8')
+    assert '.reorder-list' in css
+    assert '.reorder-handle' in css
+    assert 'touch-action: none' in css
+
+
 def test_share_modal_has_client_side_qr(client):
     html = client.get('/').text
     assert '/static/vendor/qrcode.js?v=0.8.0' in html

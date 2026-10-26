@@ -107,6 +107,7 @@ Regole: una sola `.primary` per vista; `.danger` solo per azioni distruttive; te
 | Opzioni formato | `.format-options`, `.format-option`, `.format-fieldset` | selezione con `:has(input:checked)` |
 | Errore modale | `.modal-error` | `role="alert"` |
 | Ricerca/filtri | `.filters`, `.filter`, `.filter.active` | filtri dashboard |
+| Riordino | `.reorder-block`, `.reorder-list`, `.reorder-item`, `.reorder-position`, `.reorder-handle`, `.reorder-name` | drag & drop pointer e tastiera; handle 44px e live region `.sr-only` |
 
 Input su mobile: `font-size: 16px` per evitare lo zoom iOS; touch target ≥44px.
 
@@ -211,7 +212,8 @@ Già presente:
 - gate, tab e dialog con `aria-*` e ruoli;
 - toast con `role="status"` e `aria-live="polite"`;
 - `aria-busy` su `<main>`;
-- touch target ≥44px e input 16px su mobile.
+- touch target ≥44px e input 16px su mobile;
+- riordino accessibile: handle con `aria-label`, `aria-keyshortcuts`, istruzioni `aria-describedby` e annunci `aria-live`; il drag usa Pointer Events con `touch-action: none` solo sull'handle.
 
 Da verificare o completare:
 
@@ -241,5 +243,5 @@ Da verificare o completare:
 - Sezione legacy non usata dalla SPA: candidata alla rimozione dopo verifica dei redirect e delle pagine statiche.
 - Molte dimensioni tipografiche piccole (8–10px) e valori hardcoded fuori dai token di spaziatura.
 - Nessun dark mode / `prefers-color-scheme`.
-- Bracket senza zoom/pan e senza drag & drop (previsto nel piano Team B); il navigatore dei turni su mobile è già presente.
+- Bracket senza zoom/pan e senza drag & drop del tabellone; il navigatore dei turni su mobile e il riordino dei partecipanti nel wizard sono già presenti.
 - Statistiche individuali non ancora presenti; il QR spettatore è implementato lato client.

@@ -184,6 +184,99 @@ async function safely(fn) {
     } else notify(e.message, true);
   }
 }
+function moveItem(items, from, to) {
+  const next = [...items];
+  if (
+    from < 0 ||
+    from >= next.length ||
+    to < 0 ||
+    to >= next.length ||
+    from === to
+  )
+    return next;
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+}
+function enableReorder(list, onReorder) {
+  if (!list) return;
+  const live = $("#reorder-live");
+  const items = () => [...list.querySelectorAll("[data-reorder-item]")];
+  const order = () => items().map((item) => item.dataset.id);
+  const announce = (text) => {
+    if (live) live.textContent = text;
+  };
+  const positions = () => {
+    items().forEach((item, index) => {
+      const slot = item.querySelector(".reorder-position");
+      if (slot) slot.textContent = String(index + 1);
+    });
+  };
+  let dragging = null;
+  let pointerId = null;
+  const finish = () => {
+    if (!dragging) return;
+    const moved = dragging;
+    dragging.classList.remove("dragging");
+    const index = items().indexOf(moved);
+    dragging = null;
+    pointerId = null;
+    document.body.classList.remove("reorder-active");
+    positions();
+    onReorder(order());
+    announce(
+      `${moved.dataset.id} spostato in posizione ${index + 1} di ${items().length}.`,
+    );
+  };
+  list.addEventListener("pointerdown", (event) => {
+    const handle = event.target.closest("[data-drag-handle]");
+    if (!handle) return;
+    const item = handle.closest("[data-reorder-item]");
+    if (!item) return;
+    event.preventDefault();
+    dragging = item;
+    pointerId = event.pointerId;
+    item.classList.add("dragging");
+    document.body.classList.add("reorder-active");
+    handle.setPointerCapture(pointerId);
+  });
+  list.addEventListener("pointermove", (event) => {
+    if (!dragging || event.pointerId !== pointerId) return;
+    event.preventDefault();
+    const target = document
+      .elementFromPoint(event.clientX, event.clientY)
+      ?.closest("[data-reorder-item]");
+    if (!target || target === dragging || target.parentElement !== list) return;
+    const rect = target.getBoundingClientRect();
+    const before = event.clientY < rect.top + rect.height / 2;
+    list.insertBefore(dragging, before ? target : target.nextSibling);
+    positions();
+  });
+  list.addEventListener("pointerup", finish);
+  list.addEventListener("pointercancel", finish);
+  list.addEventListener("keydown", (event) => {
+    const handle = event.target.closest("[data-drag-handle]");
+    if (!handle) return;
+    if (!["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+    const item = handle.closest("[data-reorder-item]");
+    const current = items();
+    const from = current.indexOf(item);
+    let to = from;
+    if (event.key === "ArrowUp") to = Math.max(0, from - 1);
+    if (event.key === "ArrowDown") to = Math.min(current.length - 1, from + 1);
+    if (event.key === "Home") to = 0;
+    if (event.key === "End") to = current.length - 1;
+    if (to === from) return;
+    event.preventDefault();
+    const next = moveItem(current, from, to);
+    next.forEach((item) => list.appendChild(item));
+    positions();
+    onReorder(next.map((item) => item.dataset.id));
+    announce(
+      `${item.dataset.id} spostato in posizione ${to + 1} di ${current.length}.`,
+    );
+  });
+}
 function modal(title, body, footer = "", eyebrow = "OPEN SCORE") {
   $("#modal-content").innerHTML =
     `<div class="modal-header"><div><p class="eyebrow">${eyebrow}</p><h2 id="modal-title">${title}</h2></div><button class="icon-button" data-action="close" aria-label="Chiudi finestra">${icon("close")}</button></div><div class="modal-body"><div id="form-error" class="modal-error hidden" role="alert"></div>${body}</div>${footer ? `<div class="modal-footer">${footer}</div>` : ""}`;
@@ -807,6 +900,7 @@ function startWizard(sportName = null, variantSlug = null) {
     draw_points: selected?.standings?.draw ?? 1,
     loss_points: selected?.standings?.loss ?? 0,
     tie_breaker: selected?.default_tie_breaker || "goal_difference",
+    order: null,
   };
   wizardStep = 0;
   renderWizard();
@@ -826,6 +920,20 @@ function readWizard() {
     ].includes(k)
       ? Number(v)
       : v;
+}
+function wizardParticipantNames() {
+  const entered = wizard.names
+    .split("\n")
+    .map((name) => name.trim())
+    .filter(Boolean);
+  if (entered.length) return entered;
+  return Array.from(
+    { length: wizard.count },
+    (_, i) =>
+      (wizard.participant_kind === "team" ? "Team" : "Giocatore") +
+      " #" +
+      (i + 1),
+  );
 }
 function sportOptions() {
   const names = sports.length
@@ -944,7 +1052,15 @@ function renderWizard() {
     }`;
   if (wizardStep === 2) {
     const v = variantFor(wizard.variant);
-    body = `<div class="panel" style="margin:0;background:#f7f9f0"><p class="eyebrow">TUTTO PRONTO PER GIOCARE</p><h2>${h(wizard.name)}</h2><dl class="details-list"><div><dt>Sport</dt><dd>${h(wizard.sport)}</dd></div><div><dt>Variante</dt><dd>${h(v?.name || wizard.variant || "Standard")}</dd></div><div><dt>Formato</dt><dd>${label(wizard.format)}</dd></div><div><dt>Partecipanti</dt><dd>${wizard.count}</dd></div>${wizard.format === "groups" ? `<div><dt>Qualificazione</dt><dd>${wizard.group_count} gironi · prime ${wizard.qualifiers}</dd></div>` : ""}<div><dt>Gare</dt><dd>${wizard.legs === 2 ? "Andata e ritorno" : "Sola andata"}</dd></div>${v ? `<div><dt>Durata partita</dt><dd>${durationText(v.match_duration)}</dd></div><div><dt>Punteggio</dt><dd>${h(scoringText(v))}</dd></div>` : ""}<div><dt>Classifica</dt><dd>${wizard.win_points}/${wizard.draw_points}/${wizard.loss_points}</dd></div></dl></div><p class="field-help">Creeremo il torneo e genereremo gli incontri. La variante porta con sé rose, durata e regolamento: da quel momento potrai modificare i nomi e inserire i risultati.</p>`;
+    const order =
+      wizard.order && wizard.order.length === wizard.count
+        ? wizard.order
+        : wizardParticipantNames();
+    const orderBlock =
+      order.length > 1
+        ? `<div class="reorder-block"><div class="section-header"><div><h3 class="reorder-title">Ordine di seeding</h3><p class="section-sub">Trascina o usa le frecce per decidere l'ordine di partenza.</p></div><span class="panel-label">${order.length} partecipanti</span></div><ol class="reorder-list" id="wizard-order" aria-label="Ordine dei partecipanti">${order.map((name, i) => `<li class="reorder-item" data-reorder-item data-id="${h(name)}"><span class="reorder-position">${i + 1}</span><button type="button" class="reorder-handle" data-drag-handle aria-label="Sposta ${h(name)}" aria-describedby="reorder-help" aria-keyshortcuts="ArrowUp ArrowDown Home End">${icon("menu")}</button><span class="reorder-name">${h(name)}</span></li>`).join("")}</ol><p class="field-help" id="reorder-help">Trascina con il mouse o il dito. Da tastiera: frecce su/giù per spostare, Home/End per gli estremi.</p><p class="sr-only" id="reorder-live" aria-live="polite"></p></div>`
+        : "";
+    body = `<div class="panel" style="margin:0;background:#f7f9f0"><p class="eyebrow">TUTTO PRONTO PER GIOCARE</p><h2>${h(wizard.name)}</h2><dl class="details-list"><div><dt>Sport</dt><dd>${h(wizard.sport)}</dd></div><div><dt>Variante</dt><dd>${h(v?.name || wizard.variant || "Standard")}</dd></div><div><dt>Formato</dt><dd>${label(wizard.format)}</dd></div><div><dt>Partecipanti</dt><dd>${wizard.count}</dd></div>${wizard.format === "groups" ? `<div><dt>Qualificazione</dt><dd>${wizard.group_count} gironi · prime ${wizard.qualifiers}</dd></div>` : ""}<div><dt>Gare</dt><dd>${wizard.legs === 2 ? "Andata e ritorno" : "Sola andata"}</dd></div>${v ? `<div><dt>Durata partita</dt><dd>${durationText(v.match_duration)}</dd></div><div><dt>Punteggio</dt><dd>${h(scoringText(v))}</dd></div>` : ""}<div><dt>Classifica</dt><dd>${wizard.win_points}/${wizard.draw_points}/${wizard.loss_points}</dd></div></dl></div>${orderBlock}<p class="field-help">Creeremo il torneo e genereremo gli incontri. La variante porta con sé rose, durata e regolamento: da quel momento potrai modificare i nomi e inserire i risultati.</p>`;
   }
   modal(
     "Il prossimo torneo è il tuo.",
@@ -952,6 +1068,11 @@ function renderWizard() {
     `${button(wizardStep ? "Indietro" : "Annulla", wizardStep ? "wizard-back" : "close", "ghost")}<button class="button primary" form="wizard-form" type="submit">${wizardStep === 2 ? "Crea e genera incontri" : "Continua"}${icon("arrow")}</button>`,
     "NUOVA COMPETIZIONE",
   );
+  if (wizardStep === 2) {
+    enableReorder($("#wizard-order"), (order) => {
+      wizard.order = order;
+    });
+  }
   updateWizardFormat();
 }
 function updateWizardFormat() {
@@ -978,11 +1099,8 @@ async function wizardSubmit() {
       );
   }
   if (wizardStep === 1) {
-    const names = wizard.names
-      .split("\n")
-      .map((n) => n.trim())
-      .filter(Boolean);
-    if (names.length && names.length !== wizard.count)
+    const names = wizardParticipantNames();
+    if (wizard.names.trim() && names.length !== wizard.count)
       throw new Error(
         "Inserisci esattamente " + wizard.count + " nomi, oppure lascia vuoto.",
       );
@@ -990,25 +1108,20 @@ async function wizardSubmit() {
       new Set(names.map((n) => n.toLocaleLowerCase("it"))).size !== names.length
     )
       throw new Error("Ogni partecipante deve avere un nome diverso.");
+    const current = wizard.order || [];
+    const same =
+      current.length === names.length &&
+      names.every((name) => current.includes(name));
+    wizard.order = same ? current : names;
   }
   if (wizardStep < 2) {
     wizardStep++;
     renderWizard();
     return;
   }
-  const { count, names, ...payload } = wizard;
-  payload.team_names = names.trim()
-    ? names
-        .split("\n")
-        .map((n) => n.trim())
-        .filter(Boolean)
-    : Array.from(
-        { length: count },
-        (_, i) =>
-          (wizard.participant_kind === "team" ? "Team" : "Giocatore") +
-          " #" +
-          (i + 1),
-      );
+  const { count, names, order, ...payload } = wizard;
+  payload.team_names =
+    order && order.length === count ? order : wizardParticipantNames();
   const created = await api("/tournaments", {
     method: "POST",
     body: JSON.stringify(payload),

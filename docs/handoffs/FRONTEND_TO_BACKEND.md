@@ -60,11 +60,12 @@ Stato globale: `list`, `sports`, `auth {role, authenticated, teacher}`, `selecte
 - Dettaglio torneo con tab: panoramica, incontri, classifica, tabellone, regolamento, squadre/partecipanti.
 - Risultati numerici e set per set, correzioni, programmazione, archiviazione, condivisione e CSV.
 - QR del link spettatore, generato nel browser senza servizi esterni.
+- Riordino dei partecipanti nel wizard con drag & drop (mouse/touch) e tastiera; l'ordine viene inviato al backend in `team_names`.
 - Vista spettatore (`/public/{token}`) in sola lettura con auto-refresh.
 
 ### Da sviluppare (Team B)
 
-- **Bracket interattivo e drag & drop**: riordino/seeding dei partecipanti e (se il backend lo consente) editing visivo del tabellone.
+- **Bracket interattivo e drag & drop del tabellone**: editing visivo del tabellone e riordino dei partecipanti di un torneo già creato (serve l'endpoint dedicato). Il componente generico di riordino è già pronto in `app.js`.
 - **Infografiche/statistiche** più ricche (andamento, marcatori, distribuzione risultati).
 - **Dashboard responsive riprogettata** per telefono (card ridotte, non solo larghezza minore).
 - **GitHub Pages** come vetrina statica del progetto (separata dall'app reale).
@@ -79,7 +80,7 @@ Stato globale: `list`, `sports`, `auth {role, authenticated, teacher}`, `selecte
 Prima del contratto ufficiale, lavoro su attività indipendenti o con mock isolati. Le funzioni che richiedono backend sono:
 
 1. **Riordino/seeding partecipanti** (per drag & drop nel wizard e nel tabellone).
-   - *Serve*: riordinare le squadre prima della generazione e/o rigenerare con un ordine/seed esplicito.
+   - *Serve*: riordinare le squadre **di un torneo già creato** e/o rigenerare con un ordine/seed esplicito. Nel wizard l'ordine è già supportato da `team_names`; il componente frontend `enableReorder` è pronto e va collegato a un adapter quando il contratto sarà disponibile.
    - *Input proposto*: `PATCH /api/tournaments/{id}/teams/order` con `team_ids` ordinati, oppure estensione di `POST /generate` con `random_seed`/ordine.
    - *Output/stati*: lista aggiornata; 409 se la generazione è già avvenuta.
 

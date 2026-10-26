@@ -100,6 +100,17 @@ textarea:focus {
 .skip-link:focus {
   top: 8px;
 }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
 .icon {
   width: 20px;
   height: 20px;
@@ -1635,6 +1646,72 @@ textarea::placeholder {
   font-size: 11px;
   font-weight: 600;
   margin-bottom: 10px;
+}
+.reorder-block {
+  margin-top: 22px;
+}
+.reorder-title {
+  font-size: 17px;
+  margin: 0;
+}
+.reorder-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+.reorder-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #eef0e8;
+  background: #fff;
+}
+.reorder-item:last-child {
+  border-bottom: 0;
+}
+.reorder-item.dragging {
+  background: #f0f6e4;
+  box-shadow: inset 0 0 0 1px #98b76a;
+}
+.reorder-position {
+  width: 22px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 11px;
+  color: var(--muted);
+}
+.reorder-handle {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fbfcf8;
+  display: grid;
+  place-items: center;
+  touch-action: none;
+  cursor: grab;
+}
+.reorder-handle:active {
+  cursor: grabbing;
+}
+.reorder-handle .icon {
+  width: 17px;
+  height: 17px;
+}
+.reorder-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+body.reorder-active {
+  user-select: none;
 }
 .checkbox {
   display: flex;
