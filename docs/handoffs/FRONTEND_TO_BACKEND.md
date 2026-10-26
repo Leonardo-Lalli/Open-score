@@ -171,7 +171,7 @@ Per QR, infografiche lato client, tabellone e GitHub Pages **non serve** alcuna 
 ## 6. Test e commit di riferimento
 
 - Test esistenti del frontend: `torneo-lab/tests/test_static_ui.py` (gate, accessibilità statica, cache, assenza contenuti demo, redirect legacy).
-- Suite completa al baseline: **190 passed, 1 warning** (warning Starlette/httpx, innocuo).
+- Suite completa al baseline: **241 passed, 1 warning** (warning Starlette/httpx, innocuo).
 - Lint: `ruff check --select I,C4,UP,F .` pulito; `node --check static/app.js` OK.
 - Commit base: `f0eedf9` (`feat!: rimuovi i dati dimostrativi preinstallati`), uguale su `main`, `develop` e `max-develop`.
 

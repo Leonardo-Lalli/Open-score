@@ -11,11 +11,12 @@
 
 ## Stato corrente
 
-- Branch: `max-develop` (HEAD `a6d270e`), working tree pulito.
+- Branch: `max-develop` (HEAD `c8eab18`), working tree con questo aggiornamento del registro.
 - Base: `f0eedf9` (`main` / `origin/main`).
-- Backend, migrazioni, modelli e contratti API: **non modificati**.
-- Suite: **236 passed** (warning Starlette/httpx del TestClient, innocuo).
-- Lint: `ruff check --select I,C4,UP,F .` pulito; `node --check static/app.js` OK.
+- Frontend, sito e documentazione: modificati dal Team B.
+- Backend: **eccezione autorizzata** dal committente. Tre correzioni in `app.py` e `services.py` descritte nella sezione 8 di `FRONTEND_TO_BACKEND.md`; migrazioni, schemi e contratti invariati.
+- Suite: **241 passed** (warning Starlette/httpx del TestClient, innocuo).
+- Lint: `ruff check --select I,C4,UP,F,E9 .` pulito; `node --check static/app.js` OK.
 - Push: nessuno; il branch resta locale finché il team non lo richiede.
 
 ## Commit del Team B
@@ -39,16 +40,21 @@
 | `85ab216` | 26/10 15:20 | Statistiche e infografica condivisibile | `static/app.js`, `static/styles.css`, `static/index.html`, `static/infographic.js`, `tests/test_infographic.py`, `tests/infographic_probe.js`, `tests/test_static_ui.py`, `docs/INFOGRAPHICS.md`, `docs/design-system.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | Nessuna nuova API; legge il dettaglio torneo. Export SVG/PNG reali; PDF solo via stampa browser | 222 passed |
 | `48c2c14` | 26/10 16:10 | Sito pubblico su GitHub Pages | `website/`, `.github/workflows/pages.yml`, `torneo-lab/tests/test_website.py`, `README.md` | Nessuna API; sito statico separato dall'app | 232 passed |
 | `a6d270e` | 26/10 16:45 | Tema chiaro e scuro del sito | `website/index.html`, `website/404.html`, `website/styles.css`, `website/script.js`, `website/README.md`, `torneo-lab/tests/test_website.py` | Nessuna API; preferenza in `localStorage`, default sistema | 236 passed |
+| `a958bb0` | 26/10 14:00 | Nota sugli screenshot e i temi | `website/assets/screenshots/README.md` | — | — |
+| `bef4fe7` | 26/10 16:26 | README principale riscritto | `README.md` | — | Link locali verificati; 236 passed |
+| `312a913` | 26/10 16:26 | Immagine Docker 0.8.0 | `docker-compose.yml` | — | — |
+| `3fcf4a2` | 26/10 16:30 | API e sicurezza: metadati privati | `docs/API.md`, `docs/SECURITY.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | Documenta la visibilità di `public_token`, `teacher_id`, `demo_key` e `audit` | — |
+| `c8eab18` | 26/10 16:30 | Falla cross-torneo, campi privati, elenco senza N+1 | `app.py`, `services.py`, `static/app.js`, `tests/test_players.py`, `tests/test_privacy.py`, `tests/test_summary.py`, `tests/test_static_ui.py` | `remove_player` restituisce 404 su una squadra di un altro torneo; metadati e diario solo al proprietario; «Condividi» solo a chi gestisce | 241 passed |
 
 ## File toccati da `f0eedf9`
 
 - SPA: `torneo-lab/static/app.js`, `index.html`, `styles.css`, `bracket-layout.js`, `infographic.js`.
 - Vendor: `torneo-lab/static/vendor/qrcode.js` (+ `README.md` di provenienza e licenza MIT).
 - Sito: `website/` (HTML/CSS/JS, asset, font DM Sans con OFL, screenshot placeholder) e `.github/workflows/pages.yml`.
-- Test UI: `torneo-lab/tests/test_static_ui.py`, `test_bracket_layout.py`, `bracket_layout_probe.js`, `test_infographic.py`, `infographic_probe.js`, `test_website.py`.
+- Test UI: `torneo-lab/tests/test_static_ui.py`, `test_bracket_layout.py`, `bracket_layout_probe.js`, `test_infographic.py`, `infographic_probe.js`, `test_website.py`, `test_privacy.py`, `test_summary.py`.
 - Documentazione: `docs/design-system.md`, `docs/PROFESSOR_DASHBOARD.md`, `docs/STUDENT_DASHBOARD.md`, `docs/STUDENT_MANAGEMENT.md`, `docs/DRAG_DROP_ORDERING.md`, `docs/RESULT_APPROVALS.md`, `docs/QR_SHARING.md`, `docs/FIELDS_AND_CALENDAR.md`, `docs/SPORT_RULES_CONFIG.md`, `docs/BRACKET.md`, `docs/INFOGRAPHICS.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md`, `website/README.md`, questo registro.
 
-Nessuna modifica a `app.py`, `services.py`, `schemas.py`, `db.py`, `migrations/`, `deploy/` o workflow CI.
+Eccezione autorizzata dal committente: `torneo-lab/app.py` e `torneo-lab/services.py` contengono le tre correzioni descritte in [`FRONTEND_TO_BACKEND.md`](FRONTEND_TO_BACKEND.md), sezione 8. `schemas.py`, `db.py`, `migrations/`, `deploy/` e workflow CI restano invariati.
 
 ## API consumate (già esistenti)
 
