@@ -11,13 +11,14 @@
 
 ## Stato corrente
 
-- Branch: `max-develop` (HEAD `34d71c6`), working tree con questo aggiornamento del registro.
+- Branch: `max-develop` (HEAD `e0dfd26`), working tree con questo aggiornamento del registro.
 - Base: `f0eedf9` (`main` / `origin/main`).
 - Frontend, sito e documentazione: modificati dal Team B.
 - Backend: **eccezione autorizzata** dal committente. Tre correzioni in `app.py` e `services.py` descritte nella sezione 8 di `FRONTEND_TO_BACKEND.md`; migrazioni, schemi e contratti invariati.
 - GitHub Pages: workflow pronto con build in `_site/`, **non ancora pubblicato** (manca Settings → Pages → Source: GitHub Actions).
 - Dominio Aruba: sito predisposto con `site.config.json`; **nessun DNS modificato** e nessuna credenziale nel repository.
 - Suite: **252 passed** (warning Starlette/httpx del TestClient, innocuo).
+- Diagnostica editor: **0 errori, 0 warning** su tutto il progetto.
 - Lint: `ruff check --select I,C4,UP,F,E9 .` pulito; `node --check` su `static/app.js` e `website/script.js` OK.
 - Push: nessuno; il branch resta locale finché il team non lo richiede.
 
@@ -50,6 +51,7 @@
 | `abeb97a` | 26/10 16:35 | Workflow Pages con verifica e deploy da main | `.github/workflows/pages.yml`, `tests/test_website.py`, `website/README.md`, `README.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | Job `verify` (pip check, node --check, test statici) prima di `deploy`; `main` obbligatorio; permessi minimi; nessun secret | 245 passed |
 | `95255e3` | 26/10 16:39 | Sito portabile e dominio Aruba predisposto | `website/site.config.json`, `website/index.html`, `website/404.html`, `.github/scripts/build_site.py`, `.github/workflows/pages.yml`, `.gitignore`, `tests/test_website.py`, `docs/GITHUB_PAGES_DOMAIN.md`, `website/README.md`, `README.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | Segnaposto `__SITE_BASE__`/`__SITE_URL__` risolti in `_site`; deploy di `_site`; DNS, verifica dominio e rollback documentati; nessun DNS reale toccato | 246 passed |
 | `34d71c6` | 26/10 16:47 | Un solo design system e un solo client HTTP | `static/styles.css`, `static/app.js`, `tests/test_static_ui.py`, `tests/test_quality.py`, `docs/design-system.md`, `docs/QUALITY.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | CSS da 5.225 a 3.732 righe; `fetch(` una sola volta; adapter su `apiWithMessages`; guardie su azioni, classifiche, QR e dati demo | 252 passed |
+| `e0dfd26` | 26/10 16:51 | Zero errori e warning di diagnostica | `tests/test_quality.py`, `tests/test_website.py` | Nomi estesi `re.DOTALL`/`IGNORECASE`/`MULTILINE`; controllo `None` prima di `group()` | 252 passed |
 
 ## File toccati da `f0eedf9`
 
