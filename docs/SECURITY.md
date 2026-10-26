@@ -63,6 +63,12 @@ sola lettura: non esiste più una modalità locale con scritture aperte.
 - **Isolamento fra docenti**: ogni scrittura verifica che il torneo appartenga
   al docente autenticato. Un torneo altrui o storico riceve 403; la UI nasconde
   comunque i comandi non consentiti.
+- **Metadati riservati al proprietario**: `public_token`, `teacher_id`, la
+  colonna legacy `demo_key` e il diario `audit` sono restituiti solo nella
+  sessione del docente che possiede il torneo. Studenti e link pubblico
+  ricevono gli altri dati, già leggibili in sola lettura.
+- **Rose legate al torneo**: rimuovere un giocatore richiede che la squadra
+  appartenga al torneo indicato; un `team_id` di un altro torneo riceve 404.
 - **Controllo dell'host**: solo gli host in `TORNEO_ALLOWED_HOSTS` più
   `127.0.0.1`, `localhost` e `testserver` sono accettati. Questo limita il DNS
   rebinding verso il server locale.
@@ -106,8 +112,9 @@ delle sessioni, protezione da abusi su larga scala e monitoraggio.
 
 `/public/{token}` è una capacità, non un permesso verificabile: chiunque abbia
 l'URL può leggere il torneo. Non contiene il diario delle modifiche né i
-metadati privati, e non accetta scritture. Non pubblicare il link su canali
-aperti se il torneo contiene nomi che non devono uscire dalla scuola.
+metadati privati, e non accetta scritture. Le rose fanno parte del foglio
+squadra e sono leggibili: non inserire nomi o dati che non devono uscire dalla
+scuola, e non pubblicare il link su canali aperti.
 
 ## Password e segreti
 

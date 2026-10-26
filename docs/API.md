@@ -12,8 +12,8 @@ Server di sviluppo: `http://127.0.0.1:8000`. Sulla LAN l'indirizzo è quello del
 | GET | /api/sports/{sport_name} | Sport, varianti e regole della variante predefinita; 404 se assente |
 | GET | /api/sports/{sport_name}/variants/{variant_slug} | Regole e regolamento di una variante; 404 se assente o di un altro sport |
 | GET | /api/variants/{variant_slug} | Scorciatoia per leggere una variante senza indicare lo sport |
-| GET, POST | /api/tournaments | Elenco con stato, contatori e `can_manage` (`?archived=exclude\|include\|only`, `?mine=1` per i propri tornei); creazione docente (201) |
-| GET | /api/tournaments/{id} | Torneo con sport/variante, regole e regolamento, squadre, fasi, gironi, incontri con set, classifiche, campione, diario e `can_manage` |
+| GET, POST | /api/tournaments | Elenco con stato, contatori e `can_manage` (`?archived=exclude\|include\|only`, `?mine=1` per i propri tornei); creazione docente (201). `public_token` e `teacher_id` solo nella sessione del proprietario |
+| GET | /api/tournaments/{id} | Torneo con sport/variante, regole e regolamento, squadre, fasi, gironi, incontri con set, classifiche, campione, `can_manage` e diario `audit` (solo per il proprietario) |
 | GET | /api/tournaments/{id}/teams/{team_id} | Scheda partecipante: girone, posizione, classifica, incontri, rosa e massimo della variante |
 | PATCH | /api/tournaments/{id} | Modifica nome/descrizione sempre; sport, variante, formato e regole solo in bozza |
 | POST | /api/tournaments/{id}/archive | Archivia senza cancellare; nasconde dall'elenco predefinito |
@@ -32,6 +32,11 @@ Server di sviluppo: `http://127.0.0.1:8000`. Sulla LAN l'indirizzo è quello del
 Non esiste un endpoint di seed o di caricamento di dati dimostrativi: il database parte vuoto e i tornei nascono solo dalle richieste dei docenti.
 
 `/public/{token}` serve l'interfaccia spettatore. Non esistono endpoint di scrittura sotto `/api/public`. Ogni metodo diverso da `GET`/`HEAD`/`OPTIONS` sotto `/api` richiede una sessione docente, tranne `login` e `logout`: studenti e anonimi ricevono `401`. Ogni scrittura su un torneo richiede inoltre che il torneo appartenga al docente autenticato, altrimenti `403`. Le letture restano pubbliche. Dettagli e limiti in [SECURITY.md](SECURITY.md).
+
+Le letture pubbliche non espongono i metadati interni del torneo: `public_token`,
+`teacher_id` e la colonna legacy `demo_key` sono restituiti solo al docente
+proprietario, mentre il diario `audit` compare solo nel dettaglio letto dal
+proprietario. La scheda partecipante include `can_manage` ma non `teacher_id`.
 
 ## Accesso e sessioni
 
@@ -62,7 +67,7 @@ POST /api/tournaments
 
 Dopo la risposta `{"id": ...}`, chiamare `/generate` e leggere il dettaglio. Ogni incontro contiene `version`, `status` e riferimenti ai suoi avversari/sorgenti. `sport_id` e `variant` sono facoltativi: se omessi il server sceglie la variante predefinita compatibile con `participant_kind`; se inviati devono appartenere allo sport. La variante determina `participant_kind`, punti di classifica, durata degli incontri e regolamento; i valori espliciti di `win_points`, `draw_points`, `loss_points` e `tie_breaker` hanno precedenza. `tie_breaker` accetta `goal_difference` (predefinito), `head_to_head`, `goals_for` o `wins`.
 
-La scheda partecipante restituisce `team` (con `group_name`), `standing`, `position`, gli `matches` del solo partecipante con `opponent_name` e lo stato, la `players` della rosa, `max_roster` e `participant_kind`, più una copia ridotta del torneo. Un `team_id` di un altro torneo restituisce 404.
+La scheda partecipante restituisce `team` (con `group_name`), `standing`, `position`, gli `matches` del solo partecipante con `opponent_name` e lo stato, la `players` della rosa, `max_roster`, `participant_kind` e `can_manage`, più una copia ridotta del torneo senza `teacher_id`. Un `team_id` di un altro torneo restituisce 404.
 
 ```json
 POST /api/tournaments/{id}/teams/{team_id}/players

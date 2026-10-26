@@ -182,3 +182,35 @@ Per QR, infografiche lato client, tabellone e GitHub Pages **non serve** alcuna 
 3. Componente QR (client-only) per il link spettatore.
 4. Sito GitHub Pages di presentazione + README in inglese.
 5. Test visivi/frontend aggiuntivi senza introdurre dipendenze pesanti.
+
+## 8. Correzioni applicate al backend (autorizzate dal committente)
+
+Su richiesta esplicita del committente, il Team B è intervenuto in via
+eccezionale su `app.py` e `services.py` per chiudere tre difetti trovati
+durante la verifica di sport e varianti. Il Team A deve rivederle prima del
+merge su `main`.
+
+1. **Rimozione di un giocatore limitata al torneo** (`services.remove_player`).
+   La squadra deve appartenere al torneo indicato, altrimenti 404. Prima un
+docente proprietario del torneo A poteva cancellare un giocatore del torneo B
+conoscendo i due id. Regressione:
+   `test_players.py::test_players_cannot_be_removed_through_another_tournament`.
+2. **Metadati privati solo al proprietario** (`services.visible_tournament`,
+   `detail(viewer_id=...)`, `team_detail(viewer_id=...)`, `GET /api/tournaments`).
+   `public_token`, `teacher_id`, la colonna legacy `demo_key` e il diario
+   `audit` non escono più dalla sessione del docente proprietario. La vista
+   spettatore è invariata e la UI mostra «Condividi» solo a chi gestisce il
+   torneo. Regressione: `test_privacy.py`.
+3. **Elenco tornei senza N+1** (`services.summary_states`, `list_tournaments`).
+   Stato, avanzamento e campione sono calcolati con due query invece di un
+   `detail()` completo per ogni torneo. Regressione: `test_summary.py`.
+
+Verifica: suite **241 passed**; `ruff` pulito; `node --check static/app.js` OK.
+
+### Decisione aperta: rose visibili in lettura
+
+Le rose (`team_players`) restano leggibili da studenti e link pubblico: fanno
+parte del foglio squadra della scheda partecipante e non esiste ancora
+un'identità studente a cui limitarne la visibilità. Se il professore vuole
+nascondere i nomi ai pari, serve un modello iscrizione studente→squadra (API
+del Team A). Fino a quella decisione la UI espone solo nome e numero di maglia.
