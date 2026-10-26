@@ -151,6 +151,110 @@ def test_html_is_balanced_and_ids_are_unique():
         assert anchor in ids, f'ancora senza destinazione: #{anchor}'
 
 
+def test_theme_selector_is_present_and_accessible():
+    assert 'id="theme-toggle"' in HTML
+    assert 'id="theme-menu"' in HTML
+    assert 'aria-controls="theme-menu"' in HTML
+    assert 'aria-expanded="false"' in HTML
+    for value in ('light', 'dark', 'system'):
+        assert f'name="site-theme" value="{value}"' in HTML
+    for icon in ('theme-icon-light', 'theme-icon-dark', 'theme-icon-system'):
+        assert icon in HTML
+    assert 'html[data-theme-choice="light"] .theme-icon-light' in CSS
+    assert 'html[data-theme-choice="dark"] .theme-icon-dark' in CSS
+    assert 'html[data-theme-choice="system"] .theme-icon-system' in CSS
+    assert '.theme-menu' in CSS
+    assert '.header-actions' in CSS
+
+
+def test_theme_is_applied_before_the_stylesheet():
+    theme_script = HTML.index('document.documentElement.dataset.theme')
+    stylesheet = HTML.index('<link rel="stylesheet" href="styles.css"')
+    assert theme_script < stylesheet
+    assert 'openScoreSiteTheme' in HTML
+    assert 'prefers-color-scheme: dark' in HTML
+    assert 'openScoreSiteTheme' in (SITE / 'script.js').read_text(encoding='utf-8')
+    script = (SITE / 'script.js').read_text(encoding='utf-8')
+    for marker in ('matchMedia', 'dataset.theme', 'dataset.themeChoice',
+                   'localStorage.setItem', 'addEventListener("change"',
+                   'aria-expanded'):
+        assert marker in script, f'{marker!r} mancante in script.js'
+    assert '[data-theme="dark"]' in CSS
+    assert '@media (prefers-color-scheme: dark)' in CSS
+    assert 'color-scheme: dark' in CSS
+
+
+def _tokens(selector):
+    match = re.search(rf'{selector}\s*\{{(.*?)\}}', CSS, re.S)
+    assert match, f'blocco {selector!r} mancante'
+    return dict(re.findall(r'(--[a-z-]+):\s*([^;]+);', match.group(1)))
+
+
+def _resolve(tokens, value, depth=0):
+    value = value.strip()
+    match = re.fullmatch(r'var\((--[a-z-]+)\)', value)
+    if match and depth < 6:
+        return _resolve(tokens, tokens[match.group(1)], depth + 1)
+    return value
+
+
+def _luminance(hex_color):
+    value = hex_color.lstrip('#')
+    channels = [int(value[index:index + 2], 16) / 255 for index in (0, 2, 4)]
+    linear = [
+        channel / 12.92 if channel <= 0.04045
+        else ((channel + 0.055) / 1.055) ** 2.4
+        for channel in channels
+    ]
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+
+def _contrast(foreground, background):
+    a, b = _luminance(foreground), _luminance(background)
+    high, low = max(a, b), min(a, b)
+    return (high + 0.05) / (low + 0.05)
+
+
+def test_theme_tokens_have_sufficient_contrast():
+    pairs = (
+        ('--ink', '--bg', 7.0),
+        ('--ink', '--paper', 7.0),
+        ('--muted', '--bg', 4.5),
+        ('--muted', '--bg-alt', 4.5),
+        ('--muted', '--paper', 4.5),
+        ('--green', '--bg', 4.5),
+        ('--btn-primary-ink', '--btn-primary-bg', 4.5),
+        ('--status-done-ink', '--status-done-bg', 4.5),
+        ('--status-wip-ink', '--status-wip-bg', 4.5),
+        ('--status-next-ink', '--status-next-bg', 4.5),
+        ('--chip-ink', '--chip-bg', 4.5),
+        ('--badge-ink', '--badge-bg', 4.5),
+        ('--on-dark', '--cta-bg', 4.5),
+        ('--on-dark-muted', '--cta-bg', 4.5),
+    )
+    for selector in (r':root', r'\[data-theme="dark"\]'):
+        tokens = _tokens(selector)
+        for foreground, background, minimum in pairs:
+            assert foreground in tokens, f'{foreground} mancante in {selector}'
+            assert background in tokens, f'{background} mancante in {selector}'
+            ratio = _contrast(
+                _resolve(tokens, tokens[foreground]),
+                _resolve(tokens, tokens[background]),
+            )
+            assert ratio >= minimum, (
+                f'contrasto insufficiente in {selector}: {foreground} su '
+                f'{background} = {ratio:.2f} (minimo {minimum})'
+            )
+
+
+def test_theme_works_on_mobile():
+    mobile = CSS[CSS.index('@media (max-width: 560px)'):]
+    assert '.theme-toggle' in mobile
+    assert 'width: 44px' in mobile
+    assert '.theme-toggle-label' in mobile
+    assert 'display: none' in mobile
+
+
 def test_pages_workflow_deploys_the_website_directory():
     workflow = (ROOT / '.github' / 'workflows' / 'pages.yml')
     assert workflow.exists()

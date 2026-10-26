@@ -5,8 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Pagina non trovata · Open Score</title>
     <meta name="robots" content="noindex" />
-    <meta name="theme-color" content="#182923" />
+    <meta name="theme-color" content="#f6f7f2" />
+        <meta name="color-scheme" content="light dark" />
         <base href="/Open-score/" />
+        <script>
+          (function () {
+            var theme;
+            try {
+              var stored = localStorage.getItem("openScoreSiteTheme");
+              var choice =
+                stored === "light" || stored === "dark" ? stored : "system";
+              theme =
+                choice === "system"
+                  ? window.matchMedia("(prefers-color-scheme: dark)").matches
+                    ? "dark"
+                    : "light"
+                  : choice;
+            } catch (error) {
+              theme =
+                window.matchMedia &&
+                window.matchMedia("(prefers-color-scheme: dark)").matches
+                  ? "dark"
+                  : "light";
+            }
+            document.documentElement.dataset.theme = theme;
+            document.documentElement.style.colorScheme = theme;
+            document.documentElement.style.backgroundColor =
+              theme === "dark" ? "#0f1a16" : "#f6f7f2";
+          })();
+        </script>
     <link rel="icon" type="image/svg+xml" href="assets/mark.svg" />
     <link rel="stylesheet" href="styles.css" />
   </head>

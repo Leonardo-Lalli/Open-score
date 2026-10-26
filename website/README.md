@@ -55,6 +55,18 @@ Poi apri <http://localhost:8080>. In alternativa, apri `index.html` con un brows
 - **Nomi**: usare solo i nomi già presenti nella repository (Leonardo Lalli e Maximiliam Cichello). Non inventare ruoli personali, contatti o account.
 - **Privacy**: nessun nome reale di studente, nessun dato personale, nessun token.
 
+## Tema chiaro e scuro
+
+Il sito supporta tre scelte: **Chiaro**, **Scuro** e **Sistema**. Il selettore è nel header (`#theme-toggle` + `#theme-menu`) ed è utilizzabile anche su telefono.
+
+- Preferenza salvata in `localStorage` con chiave `openScoreSiteTheme` (`light`, `dark` o `system`).
+- Default: `system`, che segue `prefers-color-scheme` e si aggiorna se il dispositivo cambia tema.
+- Lo script inline nel `<head>` applica il tema **prima** del foglio di stile per evitare il flash della palette sbagliata; imposta anche `color-scheme` e il colore di sfondo iniziale.
+- I token vivono in `:root` (chiaro) e `[data-theme="dark"]` (scuro). Il tema scuro non è un'inversione: superfici, bordi, lime, verde e stati hanno valori propri.
+- Senza JavaScript il sito segue comunque il tema di sistema tramite `@media (prefers-color-scheme: dark)`; il selettore viene nascosto con `<noscript>`.
+- Il pulsante del tema è 44×44 px su mobile; le etichette e i controlli restano leggibili.
+- I test calcolano il contrasto dei token principali e richiedono almeno 4.5:1 per il testo normale e 7:1 per il testo primario.
+
 ## Screenshot
 
 La sezione `#screenshot` contiene tre segnaposto. Per inserire le immagini reali:
@@ -83,7 +95,7 @@ Dalla cartella `torneo-lab/`:
 python -m pytest -q tests/test_website.py
 ```
 
-I test controllano sezioni e link, assenza di demo/licenze inventate, asset locali esistenti, font, workflow Pages e validità di base di CSS/JS.
+I test controllano sezioni e link, assenza di demo/licenze inventate, asset locali esistenti, font, workflow Pages, tema chiaro/scuro (selettore, persistenza, contrasto AA) e validità di base di CSS/JS.
 
 ## Design
 
