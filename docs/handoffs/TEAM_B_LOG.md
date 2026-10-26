@@ -11,10 +11,10 @@
 
 ## Stato corrente
 
-- Branch: `max-develop` (HEAD `0f086ee`), working tree pulito.
+- Branch: `max-develop` (HEAD `c73d519`), working tree pulito.
 - Base: `f0eedf9` (`main` / `origin/main`).
 - Backend, migrazioni, modelli e contratti API: **non modificati**.
-- Suite: **202 passed** (warning Starlette/httpx del TestClient, innocuo).
+- Suite: **204 passed** (warning Starlette/httpx del TestClient, innocuo).
 - Lint: `ruff check --select I,C4,UP,F .` pulito; `node --check static/app.js` OK.
 - Push: nessuno; il branch resta locale finché il team non lo richiede.
 
@@ -34,13 +34,14 @@
 | `3937ee3` | 26/10 12:30 | Interfacce proposte e approvazioni | `static/app.js`, `static/styles.css`, `tests/test_static_ui.py`, `docs/RESULT_APPROVALS.md`, `docs/design-system.md`, `docs/handoffs/*` | `resultProposalsAdapter` con `ready: false`; scheda Da verificare in attesa API; nessun dato finto | 198 passed |
 | `1ef0152` | 26/10 13:10 | Condivisione QR completa e pagina inviti | `static/app.js`, `static/styles.css`, `tests/test_static_ui.py`, `docs/QR_SHARING.md`, `docs/design-system.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | Azioni download/stampa/condividi; `inviteAdapter` con `ready: false`; anteprima invito via `GET /api/public/{token}` | 200 passed |
 | `0f086ee` | 26/10 13:40 | Pagine campi e calendario | `static/app.js`, `static/styles.css`, `static/index.html`, `tests/test_static_ui.py`, `docs/FIELDS_AND_CALENDAR.md`, `docs/design-system.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | `fieldsAdapter` e `calendarAdapter` con `ready: false`; conflitti client dichiarati; aggregazione dai tornei reali | 202 passed |
+| `c73d519` | 26/10 14:15 | Form sport e regole guidati dai metadati | `static/app.js`, `static/styles.css`, `tests/test_static_ui.py`, `docs/SPORT_RULES_CONFIG.md`, `docs/design-system.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | `config_schema`/`tie_breakers` proposti; fallback su `TournamentInput`; regole della variante in sola lettura | 204 passed |
 
 ## File toccati da `f0eedf9`
 
 - SPA: `torneo-lab/static/app.js`, `index.html`, `styles.css`.
 - Vendor: `torneo-lab/static/vendor/qrcode.js` (+ `README.md` di provenienza e licenza MIT).
 - Test UI: `torneo-lab/tests/test_static_ui.py`.
-- Documentazione: `docs/design-system.md`, `docs/PROFESSOR_DASHBOARD.md`, `docs/STUDENT_DASHBOARD.md`, `docs/STUDENT_MANAGEMENT.md`, `docs/DRAG_DROP_ORDERING.md`, `docs/RESULT_APPROVALS.md`, `docs/QR_SHARING.md`, `docs/FIELDS_AND_CALENDAR.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md`, questo registro.
+- Documentazione: `docs/design-system.md`, `docs/PROFESSOR_DASHBOARD.md`, `docs/STUDENT_DASHBOARD.md`, `docs/STUDENT_MANAGEMENT.md`, `docs/DRAG_DROP_ORDERING.md`, `docs/RESULT_APPROVALS.md`, `docs/QR_SHARING.md`, `docs/FIELDS_AND_CALENDAR.md`, `docs/SPORT_RULES_CONFIG.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md`, questo registro.
 
 Nessuna modifica a `app.py`, `services.py`, `schemas.py`, `db.py`, `migrations/`, `deploy/` o workflow CI.
 
@@ -67,6 +68,7 @@ Dettaglio e stati in [`FRONTEND_TO_BACKEND.md`](FRONTEND_TO_BACKEND.md), sezione
 8. Eventuale stato `pending` per l'approvazione dei risultati (da concordare).
 9. `GET /api/invites/{token}` e `POST /api/invites/{token}/join` per la pagina inviti, con token opachi, stato invito e approvazione del docente. Dettaglio in [`../QR_SHARING.md`](../QR_SHARING.md).
 10. CRUD campi docente (`GET/POST /api/fields`, `PATCH/DELETE /api/fields/{id}`) e aggregato calendario `GET /api/calendar` con conflitti. Dettaglio in [`../FIELDS_AND_CALENDAR.md`](../FIELDS_AND_CALENDAR.md).
+11. Metadati delle regole per variante (`config_schema`, `tie_breakers`) per generare i form senza regole hardcoded. Dettaglio in [`../SPORT_RULES_CONFIG.md`](../SPORT_RULES_CONFIG.md).
 
 ## Integrazione con `main`
 
@@ -93,6 +95,8 @@ Dettaglio e stati in [`FRONTEND_TO_BACKEND.md`](FRONTEND_TO_BACKEND.md), sezione
 - Calendario: `calendarAdapter.ready: false` aggrega un dettaglio per torneo (N+1) e rileva solo conflitti campo/squadra visibili. Sono dichiarati come anteprima client; il server resta autorevole.
 - Campi: `fieldsAdapter.ready: false`. La modale si apre in anteprima e il submit blocca il salvataggio ("Nessun dato è stato inviato"). I “campi citati” derivano dai `location` reali degli incontri.
 - Programmazione partita: il conflitto `409` viene mostrato come “Conflitto di calendario: …” dentro la modale, senza forzare il salvataggio. Il campo resta un testo con suggerimenti (`datalist`), compatibile con il contratto attuale.
+- Regole sport: wizard e modifica usano lo stesso `ruleFieldsetHtml`. Senza `config_schema` i campi modificabili sono solo quelli di `TournamentInput`; durata, tempi, set e pareggio sono mostrati in sola lettura da `variant.rules`. Gli avvisi live non sostituiscono il backend: `409`/`422` restano visibili e bloccano il salvataggio.
+- Tornei già avviati: la modifica non invia campi strutturali (solo nome e descrizione) e mostra il banner «Torneo già iniziato». Non si cerca di aggirare il `409` del backend.
 
 ## Aggiornare il registro
 
