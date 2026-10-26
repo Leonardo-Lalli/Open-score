@@ -1,3 +1,5 @@
+from html.parser import HTMLParser
+
 from db import BASE
 
 LEGACY_PAGES = (
@@ -61,6 +63,38 @@ def test_static_shell_assets_are_revalidated(client):
         response = client.get(path)
         assert response.status_code == 200
         assert 'no-cache' in response.headers['cache-control']
+
+
+def test_role_login_form_wraps_its_fields_and_submit(client):
+    class FormParser(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.depth = 0
+            self.names = []
+            self.has_submit = False
+
+        def handle_starttag(self, tag, attrs):
+            attributes = dict(attrs)
+            if tag == 'form' and attributes.get('id') == 'role-login-form':
+                self.depth = 1
+                return
+            if not self.depth:
+                return
+            if tag == 'form':
+                self.depth += 1
+            elif tag == 'input':
+                self.names.append(attributes.get('name'))
+            elif tag == 'button' and attributes.get('type') == 'submit':
+                self.has_submit = True
+
+        def handle_endtag(self, tag):
+            if self.depth and tag == 'form':
+                self.depth -= 1
+
+    parser = FormParser()
+    parser.feed(client.get('/').text)
+    assert parser.names == ['email', 'password']
+    assert parser.has_submit
 
 
 def test_role_gate_offers_teacher_login_and_student_read_only(client):
