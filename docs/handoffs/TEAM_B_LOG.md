@@ -11,10 +11,10 @@
 
 ## Stato corrente
 
-- Branch: `max-develop` (HEAD `1ce99bd`), working tree pulito.
+- Branch: `max-develop` (HEAD `3937ee3`), working tree pulito.
 - Base: `f0eedf9` (`main` / `origin/main`).
 - Backend, migrazioni, modelli e contratti API: **non modificati**.
-- Suite: **197 passed** (warning Starlette/httpx del TestClient, innocuo).
+- Suite: **198 passed** (warning Starlette/httpx del TestClient, innocuo).
 - Lint: `ruff check --select I,C4,UP,F .` pulito; `node --check static/app.js` OK.
 - Push: nessuno; il branch resta locale finché il team non lo richiede.
 
@@ -31,13 +31,14 @@
 | `1856497` | 26/10 12:04 | Dashboard studenti in sola lettura | `static/app.js`, `tests/test_static_ui.py`, `docs/STUDENT_DASHBOARD.md`, `docs/handoffs/*` | Nessuna nuova API; visibilità studenti da concordare | 195 passed |
 | `0b19581` | 26/10 12:12 | Gestione studenti nelle squadre | `static/app.js`, `static/styles.css`, `tests/test_static_ui.py`, `docs/STUDENT_MANAGEMENT.md`, `docs/handoffs/*` | Usa le rose esistenti; bulk sequenziale; unassigned/move in attesa API | 196 passed |
 | `1ce99bd` | 26/10 12:20 | Tabella ordine squadre con drag and drop | `static/app.js`, `static/styles.css`, `tests/test_static_ui.py`, `docs/DRAG_DROP_ORDERING.md`, `docs/design-system.md`, `docs/handoffs/*` | Adapter `PATCH /teams/order` proposto, `ready: false`; anteprima locale con rollback su errore API | 197 passed |
+| `3937ee3` | 26/10 12:30 | Interfacce proposte e approvazioni | `static/app.js`, `static/styles.css`, `tests/test_static_ui.py`, `docs/RESULT_APPROVALS.md`, `docs/design-system.md`, `docs/handoffs/*` | `resultProposalsAdapter` con `ready: false`; scheda Da verificare in attesa API; nessun dato finto | 198 passed |
 
 ## File toccati da `f0eedf9`
 
 - SPA: `torneo-lab/static/app.js`, `index.html`, `styles.css`.
 - Vendor: `torneo-lab/static/vendor/qrcode.js` (+ `README.md` di provenienza e licenza MIT).
 - Test UI: `torneo-lab/tests/test_static_ui.py`.
-- Documentazione: `docs/design-system.md`, `docs/PROFESSOR_DASHBOARD.md`, `docs/STUDENT_DASHBOARD.md`, `docs/STUDENT_MANAGEMENT.md`, `docs/DRAG_DROP_ORDERING.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md`, questo registro.
+- Documentazione: `docs/design-system.md`, `docs/PROFESSOR_DASHBOARD.md`, `docs/STUDENT_DASHBOARD.md`, `docs/STUDENT_MANAGEMENT.md`, `docs/DRAG_DROP_ORDERING.md`, `docs/RESULT_APPROVALS.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md`, questo registro.
 
 Nessuna modifica a `app.py`, `services.py`, `schemas.py`, `db.py`, `migrations/`, `deploy/` o workflow CI.
 
@@ -81,6 +82,7 @@ Dettaglio e stati in [`FRONTEND_TO_BACKEND.md`](FRONTEND_TO_BACKEND.md), sezione
 - Le "prossime partite" fanno una chiamata per torneo gestito: accettabile in LAN, da sostituire con l'aggregato quando disponibile.
 - L'import studenti in blocco è **sequenziale** e non atomico: usa l'API di aggiunta singola e lo dichiara nella UI. Studenti non assegnati, spostamento tra squadre e import Excel attendono il Team A.
 - L'ordine delle squadre è **solo di visualizzazione**: non tocca classifica o seeding. `teamOrderAdapter.ready` è `false` finché il Team A non espone `PATCH /teams/order`; fino ad allora l'ordine resta in anteprima locale e al reload torna quello del server.
+- Le proposte di risultato hanno `resultProposalsAdapter.ready: false`: la scheda “Da verificare” è visibile ma in attesa API, il pulsante studente è nascosto e nessun salvataggio viene simulato. Le azioni approva/respingi/correggi ricaricano il torneo dal server.
 
 ## Aggiornare il registro
 
