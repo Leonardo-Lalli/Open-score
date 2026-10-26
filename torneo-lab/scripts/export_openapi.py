@@ -15,6 +15,21 @@ def render(schema):
     return json.dumps(schema, ensure_ascii=False, indent=2, sort_keys=True) + '\n'
 
 
+def normalize(schema):
+    """Make the contract independent of the Python HTTP reason phrase.
+
+    Python 3.11 writes "Unprocessable Entity" for 422 while 3.13+ writes
+    "Unprocessable Content". The snapshot must not depend on the interpreter.
+    """
+    if isinstance(schema, dict):
+        return {key: normalize(value) for key, value in schema.items()}
+    if isinstance(schema, list):
+        return [normalize(value) for value in schema]
+    if schema in ('Unprocessable Entity', 'Unprocessable Content'):
+        return 'Unprocessable Content'
+    return schema
+
+
 def generate():
     # app.py creates its default app on import. Redirect that initialization too.
     previous = os.environ.get('TORNEO_DB_PATH')
@@ -25,7 +40,7 @@ def generate():
         sys.path.insert(0, str(ROOT / 'torneo-lab'))
         try:
             from app import app
-            return render(app.openapi())
+            return render(normalize(app.openapi()))
         finally:
             sys.path.pop(0)
             if previous is None:
