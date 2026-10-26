@@ -11,13 +11,13 @@
 
 ## Stato corrente
 
-- Branch: `max-develop` (HEAD `95255e3`), working tree con questo aggiornamento del registro.
+- Branch: `max-develop` (HEAD `34d71c6`), working tree con questo aggiornamento del registro.
 - Base: `f0eedf9` (`main` / `origin/main`).
 - Frontend, sito e documentazione: modificati dal Team B.
 - Backend: **eccezione autorizzata** dal committente. Tre correzioni in `app.py` e `services.py` descritte nella sezione 8 di `FRONTEND_TO_BACKEND.md`; migrazioni, schemi e contratti invariati.
 - GitHub Pages: workflow pronto con build in `_site/`, **non ancora pubblicato** (manca Settings → Pages → Source: GitHub Actions).
 - Dominio Aruba: sito predisposto con `site.config.json`; **nessun DNS modificato** e nessuna credenziale nel repository.
-- Suite: **246 passed** (warning Starlette/httpx del TestClient, innocuo).
+- Suite: **252 passed** (warning Starlette/httpx del TestClient, innocuo).
 - Lint: `ruff check --select I,C4,UP,F,E9 .` pulito; `node --check` su `static/app.js` e `website/script.js` OK.
 - Push: nessuno; il branch resta locale finché il team non lo richiede.
 
@@ -49,14 +49,15 @@
 | `c8eab18` | 26/10 16:30 | Falla cross-torneo, campi privati, elenco senza N+1 | `app.py`, `services.py`, `static/app.js`, `tests/test_players.py`, `tests/test_privacy.py`, `tests/test_summary.py`, `tests/test_static_ui.py` | `remove_player` restituisce 404 su una squadra di un altro torneo; metadati e diario solo al proprietario; «Condividi» solo a chi gestisce | 241 passed |
 | `abeb97a` | 26/10 16:35 | Workflow Pages con verifica e deploy da main | `.github/workflows/pages.yml`, `tests/test_website.py`, `website/README.md`, `README.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | Job `verify` (pip check, node --check, test statici) prima di `deploy`; `main` obbligatorio; permessi minimi; nessun secret | 245 passed |
 | `95255e3` | 26/10 16:39 | Sito portabile e dominio Aruba predisposto | `website/site.config.json`, `website/index.html`, `website/404.html`, `.github/scripts/build_site.py`, `.github/workflows/pages.yml`, `.gitignore`, `tests/test_website.py`, `docs/GITHUB_PAGES_DOMAIN.md`, `website/README.md`, `README.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | Segnaposto `__SITE_BASE__`/`__SITE_URL__` risolti in `_site`; deploy di `_site`; DNS, verifica dominio e rollback documentati; nessun DNS reale toccato | 246 passed |
+| `34d71c6` | 26/10 16:47 | Un solo design system e un solo client HTTP | `static/styles.css`, `static/app.js`, `tests/test_static_ui.py`, `tests/test_quality.py`, `docs/design-system.md`, `docs/QUALITY.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | CSS da 5.225 a 3.732 righe; `fetch(` una sola volta; adapter su `apiWithMessages`; guardie su azioni, classifiche, QR e dati demo | 252 passed |
 
 ## File toccati da `f0eedf9`
 
 - SPA: `torneo-lab/static/app.js`, `index.html`, `styles.css`, `bracket-layout.js`, `infographic.js`.
 - Vendor: `torneo-lab/static/vendor/qrcode.js` (+ `README.md` di provenienza e licenza MIT).
 - Sito: `website/` (HTML/CSS/JS, asset, font DM Sans con OFL, screenshot placeholder, `site.config.json`), `.github/scripts/build_site.py` (genera `_site/`) e `.github/workflows/pages.yml`.
-- Test UI: `torneo-lab/tests/test_static_ui.py`, `test_bracket_layout.py`, `bracket_layout_probe.js`, `test_infographic.py`, `infographic_probe.js`, `test_website.py`, `test_privacy.py`, `test_summary.py`.
-- Documentazione: `docs/design-system.md`, `docs/PROFESSOR_DASHBOARD.md`, `docs/STUDENT_DASHBOARD.md`, `docs/STUDENT_MANAGEMENT.md`, `docs/DRAG_DROP_ORDERING.md`, `docs/RESULT_APPROVALS.md`, `docs/QR_SHARING.md`, `docs/FIELDS_AND_CALENDAR.md`, `docs/SPORT_RULES_CONFIG.md`, `docs/BRACKET.md`, `docs/INFOGRAPHICS.md`, `docs/GITHUB_PAGES_DOMAIN.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md`, `website/README.md`, questo registro.
+- Test UI: `torneo-lab/tests/test_static_ui.py`, `test_bracket_layout.py`, `bracket_layout_probe.js`, `test_infographic.py`, `infographic_probe.js`, `test_website.py`, `test_privacy.py`, `test_summary.py`, `test_quality.py`.
+- Documentazione: `docs/design-system.md`, `docs/QUALITY.md`, `docs/PROFESSOR_DASHBOARD.md`, `docs/STUDENT_DASHBOARD.md`, `docs/STUDENT_MANAGEMENT.md`, `docs/DRAG_DROP_ORDERING.md`, `docs/RESULT_APPROVALS.md`, `docs/QR_SHARING.md`, `docs/FIELDS_AND_CALENDAR.md`, `docs/SPORT_RULES_CONFIG.md`, `docs/BRACKET.md`, `docs/INFOGRAPHICS.md`, `docs/GITHUB_PAGES_DOMAIN.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md`, `website/README.md`, questo registro.
 
 Eccezione autorizzata dal committente: `torneo-lab/app.py` e `torneo-lab/services.py` contengono le tre correzioni descritte in [`FRONTEND_TO_BACKEND.md`](FRONTEND_TO_BACKEND.md), sezione 8. `schemas.py`, `db.py`, `migrations/`, `deploy/` e workflow CI restano invariati.
 
