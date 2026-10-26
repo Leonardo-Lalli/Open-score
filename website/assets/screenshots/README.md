@@ -13,6 +13,8 @@ Questa cartella è pronta per le immagini reali dell'applicazione. Finché è vu
 
 PNG o WebP, peso indicativo sotto 500 KB per immagine. Usa `loading="lazy"` e `width`/`height` espliciti nell'HTML.
 
+Se le immagini mostrano l'interfaccia dell'app, valuta una coppia chiaro/scuro oppure un'immagine neutra: il tema del sito non ricolora le fotografie. I grafici e i segnaposto costruiti in CSS usano già i token del tema.
+
 ## Privacy
 
 - Non inserire nomi, foto o dati reali di studenti.
