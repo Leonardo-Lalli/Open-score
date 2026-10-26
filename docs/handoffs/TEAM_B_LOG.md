@@ -11,10 +11,10 @@
 
 ## Stato corrente
 
-- Branch: `max-develop` (HEAD `85ab216`), working tree pulito.
+- Branch: `max-develop` (HEAD `48c2c14`), working tree pulito.
 - Base: `f0eedf9` (`main` / `origin/main`).
 - Backend, migrazioni, modelli e contratti API: **non modificati**.
-- Suite: **222 passed** (warning Starlette/httpx del TestClient, innocuo).
+- Suite: **232 passed** (warning Starlette/httpx del TestClient, innocuo).
 - Lint: `ruff check --select I,C4,UP,F .` pulito; `node --check static/app.js` OK.
 - Push: nessuno; il branch resta locale finché il team non lo richiede.
 
@@ -37,13 +37,15 @@
 | `c73d519` | 26/10 14:15 | Form sport e regole guidati dai metadati | `static/app.js`, `static/styles.css`, `tests/test_static_ui.py`, `docs/SPORT_RULES_CONFIG.md`, `docs/design-system.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | `config_schema`/`tie_breakers` proposti; fallback su `TournamentInput`; regole della variante in sola lettura | 204 passed |
 | `5939873` | 26/10 14:45 | Tabellone a eliminazione completo e testato | `static/app.js`, `static/styles.css`, `static/index.html`, `static/bracket-layout.js`, `tests/test_bracket_layout.py`, `tests/bracket_layout_probe.js`, `tests/test_static_ui.py`, `docs/BRACKET.md`, `docs/design-system.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | Nessuna nuova API; usa `source_home`/`source_away`, `winner_team_id`, `champion_team_id` | 214 passed |
 | `85ab216` | 26/10 15:20 | Statistiche e infografica condivisibile | `static/app.js`, `static/styles.css`, `static/index.html`, `static/infographic.js`, `tests/test_infographic.py`, `tests/infographic_probe.js`, `tests/test_static_ui.py`, `docs/INFOGRAPHICS.md`, `docs/design-system.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | Nessuna nuova API; legge il dettaglio torneo. Export SVG/PNG reali; PDF solo via stampa browser | 222 passed |
+| `48c2c14` | 26/10 16:10 | Sito pubblico su GitHub Pages | `website/`, `.github/workflows/pages.yml`, `torneo-lab/tests/test_website.py`, `README.md` | Nessuna API; sito statico separato dall'app | 232 passed |
 
 ## File toccati da `f0eedf9`
 
 - SPA: `torneo-lab/static/app.js`, `index.html`, `styles.css`, `bracket-layout.js`, `infographic.js`.
 - Vendor: `torneo-lab/static/vendor/qrcode.js` (+ `README.md` di provenienza e licenza MIT).
-- Test UI: `torneo-lab/tests/test_static_ui.py`, `test_bracket_layout.py`, `bracket_layout_probe.js`, `test_infographic.py`, `infographic_probe.js`.
-- Documentazione: `docs/design-system.md`, `docs/PROFESSOR_DASHBOARD.md`, `docs/STUDENT_DASHBOARD.md`, `docs/STUDENT_MANAGEMENT.md`, `docs/DRAG_DROP_ORDERING.md`, `docs/RESULT_APPROVALS.md`, `docs/QR_SHARING.md`, `docs/FIELDS_AND_CALENDAR.md`, `docs/SPORT_RULES_CONFIG.md`, `docs/BRACKET.md`, `docs/INFOGRAPHICS.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md`, questo registro.
+- Sito: `website/` (HTML/CSS/JS, asset, font DM Sans con OFL, screenshot placeholder) e `.github/workflows/pages.yml`.
+- Test UI: `torneo-lab/tests/test_static_ui.py`, `test_bracket_layout.py`, `bracket_layout_probe.js`, `test_infographic.py`, `infographic_probe.js`, `test_website.py`.
+- Documentazione: `docs/design-system.md`, `docs/PROFESSOR_DASHBOARD.md`, `docs/STUDENT_DASHBOARD.md`, `docs/STUDENT_MANAGEMENT.md`, `docs/DRAG_DROP_ORDERING.md`, `docs/RESULT_APPROVALS.md`, `docs/QR_SHARING.md`, `docs/FIELDS_AND_CALENDAR.md`, `docs/SPORT_RULES_CONFIG.md`, `docs/BRACKET.md`, `docs/INFOGRAPHICS.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md`, `website/README.md`, questo registro.
 
 Nessuna modifica a `app.py`, `services.py`, `schemas.py`, `db.py`, `migrations/`, `deploy/` o workflow CI.
 
@@ -76,6 +78,8 @@ Nessuna nuova API per il tabellone: usa `source_home`/`source_away`, `winner_tea
 
 Nessuna nuova API per statistiche e infografica: leggono `GET /api/tournaments/{id}` (`teams[].player_count`, `matches`, `standings`, `groups`, `champion_team_id`, `public_token`). Il conteggio «da verificare» dipende dall'API proposte (punto 11); finché manca viene mostrato `—`.
 
+Il sito pubblico è statico e non chiama alcuna API: è separato dalla piattaforma operativa.
+
 ## Integrazione con `main`
 
 1. `git fetch` e verifica che `main`/`leo-develop` non abbiano modificato gli stessi file.
@@ -84,6 +88,7 @@ Nessuna nuova API per statistiche e infografica: leggono `GET /api/tournaments/{
 4. Merge di `max-develop` in `main` (o cherry-pick dei commit) solo dopo la review.
 5. Conflitti attesi solo in `static/app.js` e `static/styles.css`; non toccare i file backend del Team A.
 6. Dopo il merge: verificare dashboard, QR da LAN, drag & drop con mouse/touch/tastiera, mobile.
+7. Dopo il merge del sito: Settings → Pages → Source **GitHub Actions**, eseguire il workflow `Open Score website`, verificare l'URL `https://leonardo-lalli.github.io/Open-score/` e aggiungere gli screenshot reali in `website/assets/screenshots/`.
 
 ## Cose da non perdere
 
@@ -106,6 +111,7 @@ Nessuna nuova API per statistiche e infografica: leggono `GET /api/tournaments/{
 - Tabellone: geometria e linee vivono in `static/bracket-layout.js` (UMD, testabile con Node). Le relazioni vengono da `source_home`/`source_away`; la colonna Campione usa `champion_team_id`. Le proposte non approvate non modificano `matches` e quindi non fanno avanzare nessuno.
 - Test tabellone: `test_bracket_layout.py` copre 4/8/16 squadre, BYE (6 e 5 squadre), incontri incompleti e invarianza all’ordine dell’array; skip automatico se Node non è installato.
 - Infografica: `static/infographic.js` è puro (UMD) e produce un SVG 1080×1350 da dati reali. L'anteprima è lo stesso SVG dell'export. **SVG** e **PNG** sono file reali (PNG via canvas 2×); il **PDF** non è generato: il pulsante Stampa usa la stampa del browser. Qualificati e podio compaiono solo quando i dati sono ufficiali (gironi completati / torneo concluso). Nessun nome di studente, nessun dato hardcoded. Test in `test_infographic.py` verificano XML valido, escaping, QR, stati vuoti e assenza di dati fissi.
+- Sito: `website/` è indipendente dall'app e si pubblica con `.github/workflows/pages.yml` solo da `main` (o manualmente). Per attivarlo: Settings → Pages → Source: GitHub Actions. La cartella `website/assets/screenshots/` è pronta ma vuota: i tre riquadri sono segnaposto dichiarati, non screenshot finti. Nessun pulsante Demo (la demo pubblica non esiste), nessuna licenza inventata («Licenza da definire»), solo i nomi già presenti nella repository. Test in `test_website.py`.
 
 ## Aggiornare il registro
 
