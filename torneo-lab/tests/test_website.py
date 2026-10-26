@@ -51,7 +51,7 @@ def test_site_has_all_required_sections():
 
 def test_site_does_not_promise_what_does_not_exist():
     # No demo button/link: the public demo does not exist yet.
-    assert not re.search(r'href="[^"]*demo[^"]*"', HTML, re.I)
+    assert not re.search(r'href="[^"]*demo[^"]*"', HTML, re.IGNORECASE)
     assert not re.search(r'>\s*Demo\s*<', HTML)
     assert 'La demo pubblica non è ancora disponibile' in HTML
     # The project license is not assigned yet.
@@ -95,9 +95,9 @@ def test_all_local_assets_and_links_exist():
 
 
 def test_no_external_runtime_dependencies():
-    assert not re.search(r'<script[^>]+src="https?://', HTML, re.I)
+    assert not re.search(r'<script[^>]+src="https?://', HTML, re.IGNORECASE)
     assert not re.search(
-        r'<link[^>]+rel="stylesheet"[^>]+href="https?://', HTML, re.I)
+        r'<link[^>]+rel="stylesheet"[^>]+href="https?://', HTML, re.IGNORECASE)
     assert '@import' not in CSS
     assert 'cdn.' not in HTML.lower()
     assert 'unpkg' not in HTML.lower()
@@ -189,7 +189,7 @@ def test_theme_is_applied_before_the_stylesheet():
 
 
 def _tokens(selector):
-    match = re.search(rf'{selector}\s*\{{(.*?)\}}', CSS, re.S)
+    match = re.search(rf'{selector}\s*\{{(.*?)\}}', CSS, re.DOTALL)
     assert match, f'blocco {selector!r} mancante'
     return dict(re.findall(r'(--[a-z-]+):\s*([^;]+);', match.group(1)))
 
@@ -280,7 +280,7 @@ def test_site_has_no_secret_material():
     patterns = re.compile(
         r'ghp_[A-Za-z0-9]{20,}|github_pat_|AKIA[0-9A-Z]{16}|'
         r'-----BEGIN [A-Z ]*PRIVATE KEY-----|client_secret\s*[:=]|'
-        r'api_key\s*[:=]', re.I)
+        r'api_key\s*[:=]', re.IGNORECASE)
     for path in (INDEX, SITE / '404.html', SITE / 'styles.css',
                  SITE / 'script.js', SITE / 'site.config.json'):
         text = path.read_text(encoding='utf-8')
@@ -329,7 +329,7 @@ def test_build_renders_the_site_without_placeholders(tmp_path):
 def test_images_have_alt_text():
     pages = (HTML, (SITE / '404.html').read_text(encoding='utf-8'))
     for page in pages:
-        for tag in re.findall(r'<img\b[^>]*>', page, re.I):
+        for tag in re.findall(r'<img\b[^>]*>', page, re.IGNORECASE):
             assert 'alt=' in tag, f'immagine senza alt: {tag}'
 
 

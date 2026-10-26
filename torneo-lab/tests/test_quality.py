@@ -25,8 +25,10 @@ def test_single_http_client():
 def test_every_literal_action_has_a_handler():
     used = set(re.findall(r'data-action="([^"$]+)"', SCRIPT))
     used |= set(re.findall(r'button\([^,]+,\s*"([a-z0-9-]+)"', SCRIPT))
-    block = re.search(r'const actions = \{(.*?)\n\};', SCRIPT, re.S).group(1)
-    registered = set(re.findall(r'^\s{2}"?([a-z0-9-]+)"?\s*[:,]', block, re.M))
+    block = re.search(r'const actions = \{(.*?)\n\};', SCRIPT, re.DOTALL)
+    assert block is not None, 'mappa actions non trovata'
+    registered = set(re.findall(
+        r'^\s{2}"?([a-z0-9-]+)"?\s*[:,]', block.group(1), re.MULTILINE))
     assert len(used) >= 30, 'parser delle azioni non sta trovando i pulsanti'
     assert used <= registered, f'azioni senza handler: {sorted(used - registered)}'
 
