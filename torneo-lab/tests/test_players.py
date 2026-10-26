@@ -43,3 +43,16 @@ def test_individual_tournament_has_no_roster(client):
         json={'name': 'Anna'},
     )
     assert response.status_code == 422
+
+
+def test_players_cannot_be_removed_through_another_tournament(client):
+    owner = make(client, 'round_robin', 2, sport='Calcio', variant='calcio-a-5')
+    other = make(client, 'round_robin', 2, sport='Calcio', variant='calcio-a-5')
+    team = state(client, other)['teams'][0]
+    url = f'/api/tournaments/{other}/teams/{team["id"]}/players'
+    player = client.post(url, json={'name': 'Mario Rossi'}).json()['id']
+
+    crossed = client.delete(
+        f'/api/tournaments/{owner}/teams/{team["id"]}/players/{player}')
+    assert crossed.status_code == 404
+    assert client.get(url).json()['players'][0]['name'] == 'Mario Rossi'

@@ -95,11 +95,6 @@ def create_app(db_path: str | Path | None = None, *,
             raise HTTPException(401, 'Accesso richiesto')
         return session
 
-    def managed(detail: dict, session: dict | None) -> dict:
-        detail['can_manage'] = bool(session and
-            detail['tournament'].get('teacher_id') == session['teacher_id'])
-        return detail
-
     @api.get('/',include_in_schema=False)
     @api.get('/public/{token}',include_in_schema=False)
     def homepage(token: str = ''):
@@ -181,20 +176,25 @@ def create_app(db_path: str | Path | None = None, *,
             params.append(session['teacher_id'])
         where = (' WHERE ' + ' AND '.join(clauses)) if clauses else ''
         with database(path) as db:
+            states = svc.summary_states(db)
+            counts = {row['tournament_id']: row['total'] for row in svc.rows(
+                db, 'SELECT tournament_id,count(*) AS total FROM teams '
+                    'GROUP BY tournament_id')}
             result = []
             for tournament in svc.rows(
                     db, f'SELECT * FROM tournaments{where} ORDER BY id DESC', tuple(params)):
-                state = svc.detail(db, tournament['id'])
+                owner = bool(session and
+                             tournament['teacher_id'] == session['teacher_id'])
+                state = states.get(tournament['id'], {
+                    'status': 'draft', 'progress': {'completed': 0, 'total': 0},
+                    'champion_team_id': None})
                 result.append(dict(
-                    tournament,
-                    **{key: state[key] for key in
-                       ('status','progress','champion_team_id')},
+                    svc.visible_tournament(tournament, owner),
+                    status=state['status'], progress=state['progress'],
+                    champion_team_id=state['champion_team_id'],
                     archived=bool(tournament['archived_at']),
-                    team_count=db.execute(
-                        'SELECT count(*) FROM teams WHERE tournament_id=?',
-                        (tournament['id'],)).fetchone()[0],
-                    can_manage=bool(session and
-                        tournament['teacher_id'] == session['teacher_id']),
+                    team_count=counts.get(tournament['id'], 0),
+                    can_manage=owner,
                 ))
             return result
 
@@ -227,15 +227,16 @@ def create_app(db_path: str | Path | None = None, *,
 
     @api.get('/api/tournaments/{tid}')
     def get_tournament(tid: int, request: Request):
+        session = getattr(request.state, 'teacher', None)
         with database(path) as db:
-            return managed(svc.detail(db,tid),
-                           getattr(request.state, 'teacher', None))
+            return svc.detail(db, tid, viewer_id=(session or {}).get('teacher_id'))
 
     @api.get('/api/tournaments/{tid}/teams/{team_id}')
     def get_team(tid: int, team_id: int, request: Request):
+        session = getattr(request.state, 'teacher', None)
         with database(path) as db:
-            return managed(svc.team_detail(db,tid,team_id),
-                           getattr(request.state, 'teacher', None))
+            return svc.team_detail(db, tid, team_id,
+                                   viewer_id=(session or {}).get('teacher_id'))
 
     @api.get('/api/public/{token}')
     def public_tournament(token: str):

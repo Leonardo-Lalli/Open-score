@@ -17,6 +17,20 @@ STRUCTURAL_FIELDS = {
     'tie_breaker',
 }
 
+OWNER_ONLY_FIELDS = frozenset({'public_token', 'teacher_id'})
+LEGACY_FIELDS = frozenset({'demo_key'})
+
+
+def visible_tournament(tournament: dict[str, Any], owner: bool) -> dict[str, Any]:
+    """Strip internal columns unless the caller owns the tournament.
+
+    `public_token` is the bearer key of the spectator link and `teacher_id`
+    identifies another account, so they never leave the owner's session.
+    `demo_key` is a legacy column that is no longer read anywhere.
+    """
+    hidden = LEGACY_FIELDS if owner else LEGACY_FIELDS | OWNER_ONLY_FIELDS
+    return {key: value for key, value in tournament.items() if key not in hidden}
+
 
 def rows(db, sql: str, params: tuple = ()) -> list[dict[str, Any]]:
     return [dict(r) for r in db.execute(sql, params)]
@@ -274,6 +288,11 @@ def add_player(db, tid, team_id, data: PlayerInput):
 
 def remove_player(db, tid, team_id, player_id):
     active(db, tid)
+    # The team must belong to this tournament: without this check an owner
+    # could delete a player of another teacher's team by guessing two ids.
+    if db.execute('SELECT 1 FROM teams WHERE id=? AND tournament_id=?',
+                  (team_id, tid)).fetchone() is None:
+        raise HTTPException(404, 'Partecipante non trovato')
     cur = db.execute('DELETE FROM team_players WHERE id=? AND team_id=?',
                      (player_id, team_id))
     if not cur.rowcount:
@@ -316,8 +335,52 @@ def match_status(m):
              ('ready' if m['home_team_id'] and m['away_team_id'] else 'waiting')))
 
 
-def detail(db, tid, public=False) -> dict[str, Any]:
+def _summary_fields(fixture_count: int, playable: int, completed: int,
+                    champion, fmt: str) -> dict[str, Any]:
+    """Single source of truth for status, progress and champion."""
+    if not fixture_count:
+        status = 'draft'
+    elif champion or (fmt == 'round_robin' and completed == playable):
+        status = 'completed'
+    else:
+        status = 'active'
+    return {'status': status,
+            'progress': {'completed': completed, 'total': playable},
+            'champion_team_id': champion}
+
+
+def summary_states(db) -> dict[int, dict[str, Any]]:
+    """Status, progress and champion for every tournament in two queries.
+
+    The list endpoint used to call `detail()` once per row, which loaded
+    teams, matches, sets and standings only to keep three values.
+    """
+    entries = {row['id']: {'format': row['format'], 'fixtures': 0,
+                           'playable': 0, 'completed': 0, 'champion': None}
+               for row in rows(db, 'SELECT id,format FROM tournaments')}
+    for row in rows(db,
+                    'SELECT m.tournament_id,s.kind,m.is_bye,m.home_score,m.winner_team_id '
+                    'FROM matches m JOIN stages s ON s.id=m.stage_id '
+                    'ORDER BY m.tournament_id,s.ordinal,m.round_no,m.position,m.id'):
+        entry = entries.get(row['tournament_id'])
+        if entry is None:
+            continue
+        entry['fixtures'] += 1
+        if row['kind'] == 'knockout':
+            entry['champion'] = row['winner_team_id']
+        if row['is_bye']:
+            continue
+        entry['playable'] += 1
+        if row['home_score'] is not None:
+            entry['completed'] += 1
+    return {tid: _summary_fields(entry['fixtures'], entry['playable'],
+                                entry['completed'], entry['champion'], entry['format'])
+            for tid, entry in entries.items()}
+
+
+def detail(db, tid, public=False, viewer_id: int | None = None) -> dict[str, Any]:
     t = required(db, tid)
+    owner = viewer_id is not None and t['teacher_id'] == viewer_id and not public
     fixtures = games(db, tid)
     roster = teams(db, tid)
     sets = _sets_by_match(db, tid)
@@ -338,8 +401,8 @@ def detail(db, tid, public=False) -> dict[str, Any]:
     champion = knockout[-1]['winner_team_id'] if knockout else None
     playable = [m for m in fixtures if not m['is_bye']]
     completed = sum(m['home_score'] is not None for m in playable)
-    status = 'draft' if not fixtures else ('completed' if (champion or
-             (t['format'] == 'round_robin' and completed == len(playable))) else 'active')
+    summary = _summary_fields(len(fixtures), len(playable), completed, champion,
+                             t['format'])
     sport = sport_rules.get_sport_by_id(db, t['sport_id']) if t['sport_id'] else None
     variant = _variant_for_tournament(db, t)
     rules = _rules(t) or (variant.rules if variant else {})
@@ -348,24 +411,23 @@ def detail(db, tid, public=False) -> dict[str, Any]:
         'tournament': t, 'teams': roster, 'matches': fixtures, 'groups': groups,
         'stages': rows(db, 'SELECT * FROM stages WHERE tournament_id=? ORDER BY ordinal', (tid,)),
         'standings': table(db, t) if t['format'] == 'round_robin' else [],
-        'champion_team_id': champion, 'status': status,
-        'progress': {'completed': completed, 'total': len(playable)},
+        'champion_team_id': summary['champion_team_id'], 'status': summary['status'],
+        'progress': summary['progress'],
         'sport_config': sport_rules.summary(sport) if sport else None,
         'variant_config': sport_rules.variant_detail(variant) if variant else None,
         'rules': rules, 'regulation': regulation,
         'legacy_sport': bool(t['sport'] and (t['sport_id'] is None or variant is None)),
         'public': public,
+        'can_manage': owner,
     }
-    if public:
-        result['tournament'] = {k: v for k, v in t.items()
-                                if k not in ('public_token', 'demo_key', 'teacher_id')}
-    else:
+    result['tournament'] = visible_tournament(t, owner)
+    if owner:
         result['audit'] = rows(db, 'SELECT id,action,created_at FROM audit_logs '
                                     'WHERE tournament_id=? ORDER BY id DESC LIMIT 30', (tid,))
     return result
 
 
-def team_detail(db, tid, team_id) -> dict[str, Any]:
+def team_detail(db, tid, team_id, viewer_id: int | None = None) -> dict[str, Any]:
     """Single-participant view: group, standing position, fixtures and results."""
     t = required(db, tid)
     row = db.execute('SELECT * FROM teams WHERE id=? AND tournament_id=?', (team_id, tid)).fetchone()
@@ -399,11 +461,11 @@ def team_detail(db, tid, team_id) -> dict[str, Any]:
     position = standing_rows.index(standing) + 1 if standing else None
     public_tournament = {k: t[k] for k in (
         'id', 'name', 'sport', 'variant', 'format', 'participant_kind',
-        'win_points', 'draw_points', 'loss_points', 'qualifiers', 'tie_breaker',
-        'teacher_id')}
+        'win_points', 'draw_points', 'loss_points', 'qualifiers', 'tie_breaker')}
     variant = _variant_for_tournament(db, t)
     return {'team': team, 'standing': standing, 'position': position,
             'matches': fixtures, 'tournament': public_tournament,
+            'can_manage': viewer_id is not None and t['teacher_id'] == viewer_id,
             'players': players(db, tid, team_id) if t['participant_kind'] == 'team' else [],
             'max_roster': variant.max_roster if variant else 30,
             'players_on_field': variant.players_on_field if variant else 1,

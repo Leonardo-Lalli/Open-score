@@ -192,6 +192,8 @@ def test_share_modal_has_client_side_qr(client):
     assert 'createSvgTag' in script
     assert 'share-qr' in script
     assert 'Stai usando localhost' in script
+    assert 'canManage() ? button("Condividi", "share"' in script
+    assert 'Solo chi organizza il torneo può condividerlo.' in script
 
     vendor = (BASE / 'static' / 'vendor' / 'qrcode.js').read_text(encoding='utf-8')
     assert 'MIT license' in vendor

@@ -1877,7 +1877,7 @@ function renderTournament() {
                 : overview();
   const legacy = data.legacy_sport;
   $("#content").innerHTML =
-    `${!publicToken ? `<button class="back-link" data-action="dashboard">${icon("back")} Tutti i tornei</button>` : '<p class="eyebrow">SEGUI IL TORNEO · SOLA LETTURA</p>'}<div class="tournament-heading"><div><p class="eyebrow">${h(t.sport)} <span>/</span> ${h(variant?.name || "Sport storico")} <span>/</span> ${label(t.format)} ${t.archived_at ? '<span class="tag archived"><i></i>Archiviato</span>' : legacy ? '<span class="tag archived"><i></i>Solo lettura</span>' : `<span class="tag ${data.status}">${stateLabel(data.status)}</span>${!canManage() ? '<span class="tag archived"><i></i>Solo lettura</span>' : ''}`}</p><h1>${h(t.name)}</h1><p>${h(t.description || "Ogni partita, un passo verso una nuova sfida.")}</p></div><div class="toolbar">${publicToken ? button("Aggiorna", "refresh", "", "check") : `${t.archived_at && canManage() ? button("Ripristina", "restore", "primary", "refresh") : ""}${!t.archived_at && !legacy && canManage() ? button("Modifica", "edit", "", "edit") : ""}${button("Condividi", "share", "", "share")}<a class="button" href="/api/tournaments/${t.id}/export.csv" download>${icon("download")}Esporta</a>${!t.archived_at && !legacy && canManage() ? button("Archivia", "archive", "danger") : ""}`}</div></div><div class="tabs" role="tablist" aria-label="Sezioni torneo">${tabs.map(([v, l]) => `<button class="tab ${tab === v ? "active" : ""}" role="tab" id="tab-${v}" aria-controls="tournament-panel" tabindex="${tab === v ? 0 : -1}" aria-selected="${tab === v}" data-tab="${v}">${l}</button>`).join("")}</div><div id="tournament-panel" role="tabpanel" aria-labelledby="tab-${tab}">${champion()}${body}</div>`;
+    `${!publicToken ? `<button class="back-link" data-action="dashboard">${icon("back")} Tutti i tornei</button>` : '<p class="eyebrow">SEGUI IL TORNEO · SOLA LETTURA</p>'}<div class="tournament-heading"><div><p class="eyebrow">${h(t.sport)} <span>/</span> ${h(variant?.name || "Sport storico")} <span>/</span> ${label(t.format)} ${t.archived_at ? '<span class="tag archived"><i></i>Archiviato</span>' : legacy ? '<span class="tag archived"><i></i>Solo lettura</span>' : `<span class="tag ${data.status}">${stateLabel(data.status)}</span>${!canManage() ? '<span class="tag archived"><i></i>Solo lettura</span>' : ''}`}</p><h1>${h(t.name)}</h1><p>${h(t.description || "Ogni partita, un passo verso una nuova sfida.")}</p></div><div class="toolbar">${publicToken ? button("Aggiorna", "refresh", "", "check") : `${t.archived_at && canManage() ? button("Ripristina", "restore", "primary", "refresh") : ""}${!t.archived_at && !legacy && canManage() ? button("Modifica", "edit", "", "edit") : ""}${canManage() ? button("Condividi", "share", "", "share") : ""}<a class="button" href="/api/tournaments/${t.id}/export.csv" download>${icon("download")}Esporta</a>${!t.archived_at && !legacy && canManage() ? button("Archivia", "archive", "danger") : ""}`}</div></div><div class="tabs" role="tablist" aria-label="Sezioni torneo">${tabs.map(([v, l]) => `<button class="tab ${tab === v ? "active" : ""}" role="tab" id="tab-${v}" aria-controls="tournament-panel" tabindex="${tab === v ? 0 : -1}" aria-selected="${tab === v}" data-tab="${v}">${l}</button>`).join("")}</div><div id="tournament-panel" role="tabpanel" aria-labelledby="tab-${tab}">${champion()}${body}</div>`;
   $("#content").setAttribute("aria-busy", "false");
   if (tab === "students") safely(() => loadStudentsDetail());
   if (tab === "approvals") safely(() => loadApprovals());
@@ -3049,7 +3049,12 @@ function qrSvg(url) {
   }
 }
 async function share() {
-  const url = location.origin + "/public/" + data.tournament.public_token;
+  const token = data?.tournament?.public_token;
+  if (!token) {
+    notify("Solo chi organizza il torneo può condividerlo.", true);
+    return;
+  }
+  const url = location.origin + "/public/" + token;
   const qr = qrSvg(url);
   const localOnly = ["localhost", "127.0.0.1", "::1"].includes(
     location.hostname,
