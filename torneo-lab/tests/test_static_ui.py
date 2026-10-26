@@ -328,6 +328,36 @@ def test_sport_rule_forms_do_not_override_backend_metadata(client):
     assert 'name="periods"' not in script
 
 
+def test_statistics_and_infographic_are_wired(client):
+    html = client.get('/').text
+    assert '/static/infographic.js?v=0.8.0' in html
+    assert html.index('infographic.js') < html.index('/static/app.js')
+
+    script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
+    for marker in ('statsView', 'buildInfographicPayload', 'infographicPodium',
+                   'infographicQualifiers', 'infographicChampion', 'qrMatrix',
+                   'periodLabel', 'exportInfographicSvg', 'exportInfographicPng',
+                   'printInfographic', 'Infographic.buildSvg', 'export-svg',
+                   'export-png', 'print-infographic', 'Statistiche',
+                   'Infografica condivisibile', 'Nessun nome di studente'):
+        assert marker in script, f'{marker!r} mancante in app.js'
+
+    css = (BASE / 'static' / 'styles.css').read_text(encoding='utf-8')
+    for selector in ('.stats-layout', '.podium', '.podium-card',
+                     '.qualifier-list', '.infographic-preview',
+                     'body.printing #print-sheet.infographic-sheet'):
+        assert selector in css, f'{selector!r} mancante in styles.css'
+    assert css.count('{') == css.count('}')
+
+
+def test_infographic_probe_is_versioned_with_the_suite(client):
+    probe = BASE / 'tests' / 'infographic_probe.js'
+    assert probe.exists()
+    text = probe.read_text(encoding='utf-8')
+    assert 'buildSvg' in text
+    assert 'qr' in text
+
+
 def test_role_gate_offers_teacher_login_and_student_read_only(client):
     html = client.get('/').text
     assert 'id="role-gate"' in html

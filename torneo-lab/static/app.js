@@ -1848,6 +1848,8 @@ function renderTournament() {
   ];
   if (t.format !== "knockout") tabs.push(["standings", "Classifiche"]);
   if (t.format !== "round_robin") tabs.push(["bracket", "Tabellone"]);
+  const regulationIndex = tabs.findIndex(([key]) => key === "regulation");
+  tabs.splice(regulationIndex, 0, ["stats", "Statistiche"]);
   const teamMode = t.participant_kind === "team";
   if (teamMode && canEdit()) tabs.splice(2, 0, ["students", "Studenti"]);
   if (canManage()) {
@@ -1868,9 +1870,11 @@ function renderTournament() {
           ? standingsView()
           : tab === "bracket"
             ? bracket()
-            : tab === "regulation"
-              ? regulationView()
-              : overview();
+            : tab === "stats"
+              ? statsView()
+              : tab === "regulation"
+                ? regulationView()
+                : overview();
   const legacy = data.legacy_sport;
   $("#content").innerHTML =
     `${!publicToken ? `<button class="back-link" data-action="dashboard">${icon("back")} Tutti i tornei</button>` : '<p class="eyebrow">SEGUI IL TORNEO · SOLA LETTURA</p>'}<div class="tournament-heading"><div><p class="eyebrow">${h(t.sport)} <span>/</span> ${h(variant?.name || "Sport storico")} <span>/</span> ${label(t.format)} ${t.archived_at ? '<span class="tag archived"><i></i>Archiviato</span>' : legacy ? '<span class="tag archived"><i></i>Solo lettura</span>' : `<span class="tag ${data.status}">${stateLabel(data.status)}</span>${!canManage() ? '<span class="tag archived"><i></i>Solo lettura</span>' : ''}`}</p><h1>${h(t.name)}</h1><p>${h(t.description || "Ogni partita, un passo verso una nuova sfida.")}</p></div><div class="toolbar">${publicToken ? button("Aggiorna", "refresh", "", "check") : `${t.archived_at && canManage() ? button("Ripristina", "restore", "primary", "refresh") : ""}${!t.archived_at && !legacy && canManage() ? button("Modifica", "edit", "", "edit") : ""}${button("Condividi", "share", "", "share")}<a class="button" href="/api/tournaments/${t.id}/export.csv" download>${icon("download")}Esporta</a>${!t.archived_at && !legacy && canManage() ? button("Archivia", "archive", "danger") : ""}`}</div></div><div class="tabs" role="tablist" aria-label="Sezioni torneo">${tabs.map(([v, l]) => `<button class="tab ${tab === v ? "active" : ""}" role="tab" id="tab-${v}" aria-controls="tournament-panel" tabindex="${tab === v ? 0 : -1}" aria-selected="${tab === v}" data-tab="${v}">${l}</button>`).join("")}</div><div id="tournament-panel" role="tabpanel" aria-labelledby="tab-${tab}">${champion()}${body}</div>`;
@@ -2163,6 +2167,294 @@ function regulationView() {
   );
   const generated = data.matches.length > 0;
   return `${generated ? `<div class="rule-warning-banner" role="status">${icon("clock")}<div><strong>Torneo già iniziato.</strong><p>Le regole sono congelate: cambiarle richiederebbe di rigenerare gli incontri. Puoi ancora modificare nomi, orari e risultati.</p></div></div>` : ""}<div class="section-header"><div><h2>Le regole scendono in campo.</h2><p class="section-sub">${h(t.sport)} · ${h(v.name)}. Il regolamento è congelato alla creazione del torneo.</p></div><div class="toolbar">${canManage() && !generated ? `<button class="button" data-action="edit">${icon("edit")}Modifica regole</button>` : ""}<button class="button ghost" data-action="print">${icon("download")}Stampa</button></div></div><div class="stat-grid">${summary.map(([label, value]) => stat(label, value, "", "ball")).join("")}</div><div class="catalog-detail-grid"><section class="panel"><h2>Regolamento applicato</h2><div class="regulation-copy">${(data.regulation || "").split(/\n\n+/).map((p) => `<p>${h(p)}</p>`).join("")}</div></section><section class="panel"><h2>Dettagli</h2><ul class="rule-list">${details.map((d) => `<li>${h(d)}</li>`).join("")}</ul><p class="field-help">Punti in classifica: vittoria ${t.win_points}, pareggio ${t.draw_points}, sconfitta ${t.loss_points}. A parità: ${tieLabel(t.tie_breaker)}.</p></section></div>`;
+}
+function qrMatrix(url) {
+  if (typeof qrcode !== "function" || !url) return null;
+  try {
+    const qr = qrcode(0, "M");
+    qr.addData(url);
+    qr.make();
+    const count = qr.getModuleCount();
+    return Array.from({ length: count }, (_, row) =>
+      Array.from({ length: count }, (_, column) => qr.isDark(row, column)),
+    );
+  } catch {
+    return null;
+  }
+}
+function dateOnlyRome(iso) {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("it-IT", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Europe/Rome",
+  }).format(date);
+}
+function periodLabel(matches, fallback) {
+  const times = (matches || [])
+    .filter((match) => match.scheduled_at)
+    .map((match) => new Date(match.scheduled_at).getTime())
+    .filter((value) => Number.isFinite(value))
+    .sort((a, b) => a - b);
+  if (times.length) {
+    const first = new Date(times[0]).toISOString();
+    const last = new Date(times[times.length - 1]).toISOString();
+    const firstDay = new Date(times[0]).toLocaleDateString("sv-SE", {
+      timeZone: "Europe/Rome",
+    });
+    const lastDay = new Date(times[times.length - 1]).toLocaleDateString(
+      "sv-SE",
+      { timeZone: "Europe/Rome" },
+    );
+    return firstDay === lastDay
+      ? dateOnlyRome(first)
+      : `${dateOnlyRome(first)} – ${dateOnlyRome(last)}`;
+  }
+  if (fallback) return `Creato il ${dateOnlyRome(fallback)}`;
+  return "Periodo da definire";
+}
+function infographicPodium() {
+  if ((data.standings || []).length)
+    return data.standings.slice(0, 3).map((row) => ({
+      name: row.name,
+      detail: `${row.points} punti · ${row.won}V ${row.drawn}N ${row.lost}P`,
+    }));
+  if (data.champion_team_id) {
+    const final = [...(data.matches || [])]
+      .filter((match) => match.kind === "knockout")
+      .sort(
+        (a, b) => b.round_no - a.round_no || b.position - a.position,
+      )[0];
+    const entries = [
+      { name: teamName(data.champion_team_id), detail: "Campione" },
+    ];
+    if (final) {
+      const runner =
+        final.home_team_id === data.champion_team_id
+          ? final.away_team_id
+          : final.home_team_id;
+      if (runner) entries.push({ name: teamName(runner), detail: "Finalista" });
+    }
+    return entries;
+  }
+  return [];
+}
+function infographicQualifiers() {
+  const t = data.tournament;
+  if (t.format !== "groups") return [];
+  const groupMatches = (data.matches || []).filter(
+    (match) => match.kind === "round_robin" && !match.is_bye,
+  );
+  // Before the group stage is complete the order is provisional: do not
+  // present it as a set of qualifiers.
+  if (!groupMatches.length || groupMatches.some((match) => match.home_score === null))
+    return [];
+  const limit = Math.max(1, Number(t.qualifiers) || 1);
+  return (data.groups || []).flatMap((group) =>
+    (group.standings || []).slice(0, limit).map((row) => ({
+      group: group.name,
+      name: row.name,
+    })),
+  );
+}
+function infographicChampion() {
+  if (data.champion_team_id) return teamName(data.champion_team_id);
+  const t = data.tournament;
+  if (
+    t.format === "round_robin" &&
+    data.status === "completed" &&
+    (data.standings || []).length
+  )
+    return data.standings[0].name;
+  return null;
+}
+function buildInfographicPayload() {
+  const t = data.tournament;
+  const teams = data.teams || [];
+  const matches = (data.matches || []).filter((match) => !match.is_bye);
+  const completed = matches.filter(
+    (match) => match.home_score !== null,
+  ).length;
+  const remaining = matches.length - completed;
+  const progress = matches.length
+    ? Math.round((completed / matches.length) * 100)
+    : 0;
+  const students = teams.reduce(
+    (sum, team) => sum + (team.player_count || 0),
+    0,
+  );
+  const publicUrl = t.public_token
+    ? location.origin + "/public/" + t.public_token
+    : publicToken
+      ? location.origin + "/public/" + encodeURIComponent(publicToken)
+      : null;
+  return {
+    title: t.name,
+    sport: t.sport,
+    variant: currentVariant()?.name || "",
+    format: label(t.format),
+    status: stateLabel(data.status),
+    period: periodLabel(data.matches || [], t.created_at),
+    teams: teams.length,
+    students,
+    matches: matches.length,
+    completed,
+    remaining,
+    progress,
+    pending: resultProposalsAdapter.ready ? approvalsCache.length : null,
+    podium: infographicPodium(),
+    podiumLabel:
+      t.format === "round_robin" && data.status !== "completed"
+        ? "CLASSIFICA ATTUALE"
+        : "PODIO",
+    qualifiers: infographicQualifiers(),
+    champion: infographicChampion(),
+    winnerLabel: t.format === "round_robin" ? "PRIMO POSTO" : "CAMPIONE",
+    qr: publicUrl ? { url: publicUrl, matrix: qrMatrix(publicUrl) } : null,
+    generatedAt: new Date().toISOString(),
+  };
+}
+function infographicSvg(payload, xmlDeclaration = false) {
+  if (typeof Infographic === "undefined")
+    throw new Error("Generatore dell’infografica non disponibile: ricarica la pagina.");
+  return Infographic.buildSvg(payload, { xmlDeclaration });
+}
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function exportInfographicSvg() {
+  const payload = buildInfographicPayload();
+  const blob = new Blob([infographicSvg(payload, true)], {
+    type: "image/svg+xml;charset=utf-8",
+  });
+  downloadBlob(blob, `infografica-${data.tournament.id}.svg`);
+  notify("Infografica SVG scaricata.");
+}
+async function exportInfographicPng() {
+  const payload = buildInfographicPayload();
+  const source = infographicSvg(payload, true);
+  const svgUrl = URL.createObjectURL(
+    new Blob([source], { type: "image/svg+xml;charset=utf-8" }),
+  );
+  try {
+    const image = await new Promise((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () =>
+        reject(new Error("Conversione PNG non riuscita: scarica l’SVG."));
+      element.src = svgUrl;
+    });
+    const scale = 2;
+    const canvas = document.createElement("canvas");
+    canvas.width = 1080 * scale;
+    canvas.height = 1350 * scale;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Canvas non disponibile in questo browser.");
+    context.scale(scale, scale);
+    context.fillStyle = "#f6f7f2";
+    context.fillRect(0, 0, 1080, 1350);
+    context.drawImage(image, 0, 0, 1080, 1350);
+    const png = await new Promise((resolve, reject) => {
+      if (!canvas.toBlob) {
+        reject(new Error("PNG non supportato: scarica l’SVG."));
+        return;
+      }
+      canvas.toBlob(
+        (blob) =>
+          blob ? resolve(blob) : reject(new Error("PNG non generato.")),
+        "image/png",
+      );
+    });
+    downloadBlob(png, `infografica-${data.tournament.id}.png`);
+    notify("Infografica PNG scaricata.");
+  } finally {
+    URL.revokeObjectURL(svgUrl);
+  }
+}
+function printInfographic() {
+  const svg = infographicSvg(buildInfographicPayload());
+  document.querySelectorAll("#print-sheet").forEach((element) => element.remove());
+  const sheet = document.createElement("div");
+  sheet.id = "print-sheet";
+  sheet.className = "infographic-sheet";
+  sheet.innerHTML = svg;
+  document.body.appendChild(sheet);
+  document.body.classList.add("printing");
+  let done = false;
+  const cleanup = () => {
+    if (done) return;
+    done = true;
+    document.body.classList.remove("printing");
+    sheet.remove();
+  };
+  window.addEventListener("afterprint", cleanup, { once: true });
+  setTimeout(cleanup, 60000);
+  window.print();
+}
+function statsView() {
+  const payload = buildInfographicPayload();
+  const preview = (() => {
+    try {
+      return infographicSvg(payload);
+    } catch (e) {
+      return `<p class="muted">${h(e.message)}</p>`;
+    }
+  })();
+  const stats = [
+    stat("Squadre", payload.teams, "Partecipanti iscritti", "users"),
+    stat("Studenti", payload.students, "Somma delle rose", "users"),
+    stat("Partite", payload.matches, "Esclusi i BYE", "calendar"),
+    stat("Completate", payload.completed, "Risultati ufficiali", "check"),
+    stat("Rimanenti", payload.remaining, "Ancora da giocare", "clock"),
+    stat(
+      "Avanzamento",
+      `${payload.progress}%`,
+      `${payload.completed}/${payload.matches} incontri`,
+      "chart",
+    ),
+    stat(
+      "Da verificare",
+      payload.pending === null ? "—" : payload.pending,
+      payload.pending === null ? "API proposte in attesa" : "Proposte in coda",
+      "spark",
+    ),
+    stat(
+      "Qualificate",
+      payload.qualifiers.length || "—",
+      payload.qualifiers.length ? "Alla fase finale" : "Non previste",
+      "trophy",
+    ),
+  ].join("");
+  const podium = payload.podium.length
+    ? `<div class="podium">${payload.podium
+        .map(
+          (entry, index) =>
+            `<div class="podium-card ${index === 0 ? "first" : ""}"><span class="podium-place">${index + 1}°</span><strong>${h(entry.name)}</strong><small>${h(entry.detail || "")}</small></div>`,
+        )
+        .join("")}</div>`
+    : '<p class="muted">Classifica in aggiornamento.</p>';
+  const qualifiers = payload.qualifiers.length
+    ? `<div class="qualifier-list">${payload.qualifiers
+        .map(
+          (item) =>
+            `<span><strong>${h(item.group || "Qualificata")}</strong>${h(item.name)}</span>`,
+        )
+        .join("")}</div>`
+    : "";
+  const localOnly = ["localhost", "127.0.0.1", "::1"].includes(
+    location.hostname,
+  );
+  return `<div class="section-header"><div><h2>Numeri e storie del torneo.</h2><p class="section-sub">Dati ufficiali del torneo, pronti da condividere.</p></div><div class="toolbar"><button type="button" class="button" data-action="export-svg">${icon("download")}SVG</button><button type="button" class="button" data-action="export-png">${icon("download")}PNG</button><button type="button" class="button ghost" data-action="print-infographic">${icon("download")}Stampa</button></div></div><div class="stat-grid">${stats}</div><div class="progress-track" role="progressbar" aria-label="Avanzamento del torneo" aria-valuenow="${payload.progress}" aria-valuemin="0" aria-valuemax="100"><span style="width:${payload.progress}%"></span></div><div class="stats-layout"><section class="panel"><div class="section-header"><h2>${payload.podiumLabel === "PODIO" ? "Podio" : "Classifica"}</h2><span class="panel-label">${payload.podium.length ? payload.podiumLabel : "IN ATTESA"}</span></div>${podium}${qualifiers}</section><section class="panel infographic-panel"><div class="section-header"><div><h2>Infografica condivisibile</h2><p class="section-sub">Anteprima identica al file esportato. Solo dati reali del torneo.</p></div></div><div class="infographic-preview">${preview}</div><p class="field-help">Nessun nome di studente: solo squadre, numeri e risultati. PNG e SVG sono generati nel browser; per il PDF usa “Stampa” e scegli “Salva come PDF”.${localOnly ? " Stai usando localhost: il QR funziona solo su questo computer; apri l'app con l'IP della LAN per condividerlo." : ""}</p></section></div>`;
 }
 function approvalsView() {
   if (!resultProposalsAdapter.ready) {
@@ -3012,6 +3304,9 @@ const actions = {
   "download-qr": () => downloadQr(),
   "print-qr": () => printQr(),
   "share-qr": () => shareLink(),
+  "export-svg": () => exportInfographicSvg(),
+  "export-png": () => exportInfographicPng(),
+  "print-infographic": () => printInfographic(),
   "invite-join": () => joinInvite(),
   "invite-login": () => {
     pendingInviteToken = inviteToken;

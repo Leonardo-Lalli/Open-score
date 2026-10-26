@@ -219,6 +219,18 @@ Regole: il calendario non salva nulla; i conflitti client sono dichiarati come a
 
 Regole: un controllo modificabile esiste solo se il backend lo dichiara con `config_schema` (o se appartiene al contratto condiviso). Le regole non modificabili vengono lette da `variant.rules` e mostrate in sola lettura. Gli avvisi non sostituiscono la validazione server: il messaggio del backend resta visibile e nessun salvataggio viene forzato.
 
+### 4.11 Statistiche e infografica
+
+| Componente | Classi | Note |
+| --- | --- | --- |
+| Layout statistiche | `.stats-layout` | due colonne sopra 1100px, una sotto |
+| Podio | `.podium`, `.podium-card`, `.podium-card.first`, `.podium-place` | prima card in lime; etichetta «Classifica attuale» se il torneo non è concluso |
+| Qualificati | `.qualifier-list` | girone + squadra, solo a gironi completati |
+| Anteprima infografica | `.infographic-preview` | stesso SVG dell'export, scalato |
+| Foglio di stampa | `#print-sheet.infographic-sheet` | solo l'infografica, A4 verticale |
+
+Regole: l'infografica non contiene nomi di studenti né dati hardcoded; il QR usa solo l'URL pubblico. SVG e PNG sono file reali; il PDF è la stampa del browser e la UI lo dice esplicitamente. Gli stati vuoti sono dichiarati («Classifica in aggiornamento», «Link pubblico non disponibile»), mai riempiti con dati finti.
+
 ## 5. Responsive
 
 Breakpoint presenti:

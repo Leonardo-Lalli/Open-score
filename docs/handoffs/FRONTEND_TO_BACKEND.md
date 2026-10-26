@@ -33,6 +33,7 @@ Questo documento è l'audit iniziale del frontend e l'elenco delle richieste ver
 | Condivisione e inviti | `share`, `qrSvg`, `downloadQr`, `printQr`, `shareLink`, `inviteAdapter`, `inviteError`, `showInviteShell`, `openInvite`, `renderInvite`, `joinInvite` |
 | Campi e calendario | `fieldsAdapter`, `fieldError`, `openFields`, `renderFields`, `fieldModal`, `fieldCard`, `knownFieldOptions`, `calendarAdapter`, `openCalendar`, `reloadCalendar`, `renderCalendar`, `buildCalendarEvents`, `detectCalendarConflicts`, `filterCalendarEvents`, `updateScheduleConflictHint`, `scheduleError` |
 | Regole e metadati | `variantRuleSchema`, `fallbackRuleSchema`, `ruleInputHtml`, `ruleFieldsetHtml`, `ruleWarnings`, `derivedRuleItems`, `updateRuleWarnings`, `renderEditRules`, `readEditRules` |
+| Statistiche e infografica | `statsView`, `buildInfographicPayload`, `infographicPodium`, `infographicQualifiers`, `infographicChampion`, `qrMatrix`, `periodLabel`, `exportInfographicSvg`, `exportInfographicPng`, `printInfographic` |
 | Avvio | `init` — carica sessione e catalogo, decide gate vs studente, delega il rendering |
 
 Stato globale: `list`, `sports`, `auth {role, authenticated, teacher}`, `selectedId`, `data`, `tab`, `filter`, `matchFilter`, `search`, `wizard`, `wizardStep`, `catalogMode`, `catalogSport`, `catalogVariant`, `catalogDetail`, `calendarMode`, `fieldsMode`, `calendarState`, `calendarFilters`, `calendarError`, `calendarLoading`, `fieldsCache`, `fieldsError`, `inviteState`, `pendingInviteToken`.
@@ -70,6 +71,7 @@ Stato globale: `list`, `sports`, `auth {role, authenticated, teacher}`, `selecte
 - Pagina **Calendario** (`#/calendar`) con partite per giorno, filtri per torneo/squadra/giorno/campo/stato e conflitti visibili.
 - Form di configurazione sport/regole guidati dai metadati della variante, condivisi tra wizard e modifica torneo, con validazione live e avviso sui tornei già iniziati.
 - Tabellone a eliminazione con relazioni reali `source_home`/`source_away`, risultati ufficiali, BYE, colonna Campione, chip dei turni su mobile e test geometrici per 4/8/16 squadre.
+- Scheda **Statistiche** con KPI, podio/qualificati e infografica condivisibile; export **SVG** e **PNG** reali, stampa A4 (il PDF resta la stampa del browser).
 - Riordino dei partecipanti nel wizard con drag & drop (mouse/touch) e tastiera; l'ordine viene inviato al backend in `team_names`.
 - Vista spettatore (`/public/{token}`) in sola lettura con auto-refresh.
 
@@ -154,7 +156,7 @@ Prima del contratto ufficiale, lavoro su attività indipendenti o con mock isola
    - *Oggi*: senza `config_schema` il frontend usa come fallback il contratto di `TournamentInput` (punti, criterio a parità, gare, gironi, qualificate). Durata, tempi, set e regole di pareggio restano derivati da `variant.rules` in sola lettura.
    - *Vincolo*: il payload resta limitato ai campi accettati dal backend; il frontend non inventa chiavi e non forza un salvataggio quando il server risponde `409` o `422`.
 
-Per QR, infografiche lato client, tabellone e GitHub Pages **non serve** alcuna nuova API. Il tabellone usa già `source_home`/`source_away`, `winner_team_id` e `champion_team_id`; chiediamo solo che restino stabili nel contratto. Il drag & drop del wizard usa già `team_names`; servono API per il riordino post-creazione (punto 1) e per gli aggregati dashboard (punto 7).
+Per QR, infografiche lato client, tabellone e GitHub Pages **non serve** alcuna nuova API. Il tabellone usa già `source_home`/`source_away`, `winner_team_id` e `champion_team_id`; chiediamo solo che restino stabili nel contratto. L'infografica usa il dettaglio del torneo (`teams[].player_count`, `matches`, `standings`, `groups`, `champion_team_id`, `public_token`): se in futuro arriverà un aggregato statistiche dedicato, il frontend potrà sostituire il calcolo locale senza cambiare la UI. Il conteggio «risultati da verificare» dipende dall'API del punto 11; finché manca viene mostrato `—`. Il drag & drop del wizard usa già `team_names`; servono API per il riordino post-creazione (punto 1) e per gli aggregati dashboard (punto 7).
 
 ---
 
