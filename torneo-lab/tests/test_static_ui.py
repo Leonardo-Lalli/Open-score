@@ -127,6 +127,14 @@ def test_wizard_reorder_is_accessible_and_uses_existing_contract(client):
     assert 'touch-action: none' in css
 
 
+def test_professor_dashboard_has_upcoming_matches(client):
+    script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
+    assert 'loadUpcoming' in script
+    assert 'upcoming-matches' in script
+    css = (BASE / 'static' / 'styles.css').read_text(encoding='utf-8')
+    assert '.upcoming-row' in css
+
+
 def test_share_modal_has_client_side_qr(client):
     html = client.get('/').text
     assert '/static/vendor/qrcode.js?v=0.8.0' in html

@@ -426,6 +426,7 @@ async function dashboard() {
   if (location.hash) history.replaceState(null, "", location.pathname);
   $("#breadcrumb").textContent = "Panoramica";
   renderDashboard();
+  if (canEdit()) safely(() => loadUpcoming());
   setMenu(false);
 }
 function renderDashboard() {
@@ -443,6 +444,7 @@ function renderDashboard() {
     `<div class="page-heading"><div><p class="eyebrow"><span class="line"></span> MENO ORGANIZZAZIONE, PIÙ GIOCO</p><h1>Ogni torneo comincia qui.</h1><p>Metti in campo le tue idee. Noi teniamo il punteggio.</p></div><span class="date-note">Uno spazio, tutte le tue sfide.</span></div>
  <section class="hero" aria-label="Inizia a organizzare"><div class="hero-copy"><p class="eyebrow">IL PROSSIMO FISCHIO D’INIZIO</p><h2>Lo sport unisce.<br><em>Organizzarlo è semplice.</em></h2><p>Dalle partite in palestra alla coppa d’istituto: squadre, incontri e risultati, tutti nello stesso posto.</p><div class="hero-buttons">${canEdit() ? button("Crea il tuo torneo", "new", "primary", "plus") : button("Accedi per organizzare", "login", "primary", "check")}${button("Sport e regole", "catalog", "ghost", "ball")}</div></div><div class="hero-art" aria-hidden="true"><div class="court"><div class="court-circle"></div></div><div class="hero-score"><div class="score-kicker">IL TUO PROSSIMO TORNEO <span>● SI GIOCA</span></div><div class="score-line">${avatar("A", 2)}La tua squadra <b>—</b></div><div class="score-line">${avatar("B", 1)}Una nuova sfida <b>—</b></div></div><div class="hero-sticker">${icon("trophy")}</div></div></section>
  <div class="stat-grid">${stat("Tornei creati", active.length, "Tutte le tue competizioni", "trophy")}${stat("Partecipanti", totalTeams, "Pronti a scendere in campo", "users")}${stat("Tornei in corso", active.filter((t) => t.status === "active").length, "Il gioco continua", "ball")}${stat("Risultati registrati", done, "Ogni partita conta", "check")}</div>
+ ${canEdit() ? `<section class="upcoming-section" aria-label="Prossime partite"><div class="section-header"><div><h2>Prossime partite</h2><p class="section-sub">I prossimi incontri da giocare o da programmare.</p></div></div><div id="upcoming-matches" class="upcoming-grid"><p class="muted">Caricamento prossime partite…</p></div></section>` : ""}
  <section><div class="section-header"><div><h2>I tuoi tornei <span class="muted">${active.length.toString().padStart(2, "0")}</span></h2><p class="section-sub">Scegli una competizione e porta avanti il gioco.</p></div><div class="filters" aria-label="Filtra tornei">${[
    ["all", "Tutti"],
    ["active", "In corso"],
@@ -457,6 +459,54 @@ function renderDashboard() {
  <div class="tournament-grid">${shown.map(eventCard).join("") || `<div class="panel empty">${icon("trophy")}<h2>Il campo è libero.</h2><p>${filter === "archived" ? "Nessun torneo archiviato, per ora." : list.length ? "Nessun torneo con questo filtro." : "Crea il primo torneo per iniziare."}</p>${filter === "archived" ? "" : canEdit() ? button("Nuovo torneo", "new", "primary") : button("Accedi per organizzare", "login", "primary", "check")}</div>`}</div></section>
  <div class="note-banner">${icon("spark")}<div><strong>Un progetto aperto, anche alle tue idee.</strong><p>Il prossimo passo lo scegliamo insieme.</p></div><button class="text-button" data-action="project">Il progetto ${icon("arrow")}</button></div>`;
   $("#content").setAttribute("aria-busy", "false");
+}
+async function loadUpcoming() {
+  const box = $("#upcoming-matches");
+  if (!box) return;
+  const targets = list.filter((t) => !t.archived_at && t.can_manage);
+  if (!targets.length) {
+    box.innerHTML = '<p class="muted">Nessun torneo attivo da seguire.</p>';
+    return;
+  }
+  const upcoming = [];
+  const now = Date.now();
+  await Promise.all(
+    targets.map(async (t) => {
+      try {
+        const detail = await api("/tournaments/" + t.id);
+        const teams = detail.teams || [];
+        for (const m of detail.matches || []) {
+          if (m.is_bye || m.status !== "ready") continue;
+          const time = m.scheduled_at ? new Date(m.scheduled_at).getTime() : null;
+          if (time && time < now) continue;
+          upcoming.push({
+            id: t.id,
+            tournament: detail.tournament.name,
+            home: teams.find((x) => x.id === m.home_team_id)?.name || "Da definire",
+            away: teams.find((x) => x.id === m.away_team_id)?.name || "Da definire",
+            scheduled_at: m.scheduled_at,
+            location: m.location,
+          });
+        }
+      } catch {
+        // Un torneo non leggibile non blocca il riepilogo.
+      }
+    }),
+  );
+  upcoming.sort((a, b) => {
+    const ta = a.scheduled_at ? new Date(a.scheduled_at).getTime() : Infinity;
+    const tb = b.scheduled_at ? new Date(b.scheduled_at).getTime() : Infinity;
+    return ta - tb;
+  });
+  box.innerHTML = upcoming.length
+    ? upcoming
+        .slice(0, 5)
+        .map(
+          (m) =>
+            `<button class="upcoming-row" data-open="${m.id}"><span class="upcoming-time">${m.scheduled_at ? h(dateText(m.scheduled_at)) : "Da programmare"}</span><span class="upcoming-match">${h(m.home)} <b>—</b> ${h(m.away)}</span><span class="upcoming-tournament">${h(m.tournament)}${m.location ? " · " + h(m.location) : ""}</span></button>`,
+        )
+        .join("")
+    : '<p class="muted">Nessuna partita in arrivo. Genera gli incontri o programma le partite.</p>';
 }
 function eventCard(t, i) {
   const progress = t.progress.total

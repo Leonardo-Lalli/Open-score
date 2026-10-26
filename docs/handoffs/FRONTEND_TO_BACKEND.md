@@ -100,7 +100,16 @@ Prima del contratto ufficiale, lavoro su attività indipendenti o con mock isola
 
 6. **Scheduler automatico** (futuro, non prioritario): restrizioni campi/arbitri.
 
-Per QR, drag & drop visuale, infografiche lato client e GitHub Pages **non serve** nessuna nuova API.
+7. **Aggregati per la dashboard docente**.
+   - *Serve*: mostrare in un'unica chiamata prossime partite, risultati da verificare, problemi di calendario e numero di studenti, evitando le richieste N+1 del frontend.
+   - *Input*: `?mine=1` e opzionalmente un intervallo temporale.
+   - *Output*: elenco incontri futuri con torneo/squadre/orario/campo, eventuali conflitti e conteggi.
+
+8. **Approvazione risultati e gestione campi** (se previsti).
+   - *Serve*: un flusso esplicito “risultato da approvare” e la gestione di campi/arbitri come risorse. Oggi il risultato è inserito direttamente e il campo è solo testo.
+   - *Nota*: da concordare con il Team A se introdurre lo stato `pending` e un inventario campi.
+
+Per QR, infografiche lato client e GitHub Pages **non serve** alcuna nuova API. Il drag & drop del wizard usa già `team_names`; servono API per il riordino post-creazione (punto 1) e per gli aggregati dashboard (punto 7).
 
 ---
 
