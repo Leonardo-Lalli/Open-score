@@ -108,6 +108,7 @@ Regole: una sola `.primary` per vista; `.danger` solo per azioni distruttive; te
 | Errore modale | `.modal-error` | `role="alert"` |
 | Ricerca/filtri | `.filters`, `.filter`, `.filter.active` | filtri dashboard |
 | Riordino | `.reorder-block`, `.reorder-list`, `.reorder-item`, `.reorder-position`, `.reorder-handle`, `.reorder-name` | drag & drop pointer e tastiera; handle 44px e live region `.sr-only` |
+| Ordine squadre | `.team-order-table`, `.team-order-row`, `.order-position`, `.order-move`, `.drag-target` | tabella con drag nativo, frecce e tastiera; ordine di visualizzazione, non classifica/seeding |
 
 Input su mobile: `font-size: 16px` per evitare lo zoom iOS; touch target ≥44px.
 

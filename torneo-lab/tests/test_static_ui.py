@@ -127,6 +127,20 @@ def test_wizard_reorder_is_accessible_and_uses_existing_contract(client):
     assert 'touch-action: none' in css
 
 
+def test_team_order_table_is_accessible_and_has_save_adapter(client):
+    script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
+    for marker in ('teamOrderPanel', 'team-order-body', 'team-order-move',
+                   'teamOrderAdapter', 'team-order-status', 'team-order-live',
+                   'drag-target'):
+        assert marker in script
+    assert 'PATCH' in script
+    assert 'team_ids' in script
+    css = (BASE / 'static' / 'styles.css').read_text(encoding='utf-8')
+    assert '.team-order-table' in css
+    assert '.team-order-row.dragging' in css
+    assert '.order-move' in css
+
+
 def test_student_management_uses_existing_roster_api(client):
     script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
     for marker in ('studentsView', 'loadStudentsDetail', 'parseStudentList',

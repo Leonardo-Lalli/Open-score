@@ -81,9 +81,11 @@ Stato globale: `list`, `sports`, `auth {role, authenticated, teacher}`, `selecte
 Prima del contratto ufficiale, lavoro su attività indipendenti o con mock isolati. Le funzioni che richiedono backend sono:
 
 1. **Riordino/seeding partecipanti** (per drag & drop nel wizard e nel tabellone).
-   - *Serve*: riordinare le squadre **di un torneo già creato** e/o rigenerare con un ordine/seed esplicito. Nel wizard l'ordine è già supportato da `team_names`; il componente frontend `enableReorder` è pronto e va collegato a un adapter quando il contratto sarà disponibile.
-   - *Input proposto*: `PATCH /api/tournaments/{id}/teams/order` con `team_ids` ordinati, oppure estensione di `POST /generate` con `random_seed`/ordine.
-   - *Output/stati*: lista aggiornata; 409 se la generazione è già avvenuta.
+   - *Serve*: riordinare le squadre **di un torneo già creato** e/o rigenerare con un ordine/seed esplicito. Nel wizard l'ordine è già supportato da `team_names`.
+   - *Contratto proposto*: `PATCH /api/tournaments/{id}/teams/order` con `{"team_ids": [...]}`; risposta `{"ok": true, "team_ids": [...]}`. Il frontend ha `teamOrderAdapter` con `ready: false`: quando l'endpoint esiste, impostare `ready: true`.
+   - *Semantica*: l'ordine è di **visualizzazione**, non classifica o seeding. Non usarlo per accoppiamenti senza un contratto esplicito.
+   - *Rollback*: su rifiuto il frontend ricarica dal server; se il reload fallisce ripristina l'ordine precedente.
+   - *Output/stati*: lista aggiornata; 409 se la generazione è già avvenuta, se questa è la regola concordata.
 
 2. **Statistiche individuali / tabella marcatori**.
    - *Serve*: infografiche e dettagli giocatore.

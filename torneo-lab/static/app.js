@@ -201,9 +201,31 @@ function moveItem(items, from, to) {
   next.splice(to, 0, item);
   return next;
 }
-function enableReorder(list, onReorder) {
+const teamOrderAdapter = {
+  // Team A: esporre PATCH /api/tournaments/{id}/teams/order {team_ids:[...]}.
+  // Finché non esiste, l'ordine resta solo in anteprima locale.
+  ready: false,
+  async save(tournamentId, teamIds) {
+    if (!this.ready) return { saved: false };
+    const response = await fetch(`/api/tournaments/${tournamentId}/teams/order`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ team_ids: teamIds }),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(
+        typeof body.detail === "string"
+          ? body.detail
+          : "Ordine non salvato dal server",
+      );
+    }
+    return { saved: true };
+  },
+};
+function enableReorder(list, onReorder, liveSelector = "#reorder-live") {
   if (!list) return;
-  const live = $("#reorder-live");
+  const live = $(liveSelector);
   const items = () => [...list.querySelectorAll("[data-reorder-item]")];
   const order = () => items().map((item) => item.dataset.id);
   const announce = (text) => {
@@ -211,22 +233,26 @@ function enableReorder(list, onReorder) {
   };
   const positions = () => {
     items().forEach((item, index) => {
-      const slot = item.querySelector(".reorder-position");
+      const slot = item.querySelector(".reorder-position, .order-position");
       if (slot) slot.textContent = String(index + 1);
     });
   };
   let dragging = null;
   let pointerId = null;
+  let previous = null;
   const finish = () => {
     if (!dragging) return;
     const moved = dragging;
     dragging.classList.remove("dragging");
+    list.querySelectorAll(".drag-target").forEach((item) => item.classList.remove("drag-target"));
     const index = items().indexOf(moved);
     dragging = null;
     pointerId = null;
+    const before = previous;
+    previous = null;
     document.body.classList.remove("reorder-active");
     positions();
-    onReorder(order());
+    onReorder(order(), before);
     announce(
       `${moved.dataset.id} spostato in posizione ${index + 1} di ${items().length}.`,
     );
@@ -239,6 +265,7 @@ function enableReorder(list, onReorder) {
     event.preventDefault();
     dragging = item;
     pointerId = event.pointerId;
+    previous = order();
     item.classList.add("dragging");
     document.body.classList.add("reorder-active");
     handle.setPointerCapture(pointerId);
@@ -250,6 +277,8 @@ function enableReorder(list, onReorder) {
       .elementFromPoint(event.clientX, event.clientY)
       ?.closest("[data-reorder-item]");
     if (!target || target === dragging || target.parentElement !== list) return;
+    items().forEach((item) => item.classList.remove("drag-target"));
+    target.classList.add("drag-target");
     const rect = target.getBoundingClientRect();
     const before = event.clientY < rect.top + rect.height / 2;
     list.insertBefore(dragging, before ? target : target.nextSibling);
@@ -271,10 +300,11 @@ function enableReorder(list, onReorder) {
     if (event.key === "End") to = current.length - 1;
     if (to === from) return;
     event.preventDefault();
+    const before = order();
     const next = moveItem(current, from, to);
     next.forEach((item) => list.appendChild(item));
     positions();
-    onReorder(next.map((item) => item.dataset.id));
+    onReorder(next.map((item) => item.dataset.id), before);
     announce(
       `${item.dataset.id} spostato in posizione ${to + 1} di ${current.length}.`,
     );
@@ -673,6 +703,12 @@ function renderTournament() {
     `${!publicToken ? `<button class="back-link" data-action="dashboard">${icon("back")} Tutti i tornei</button>` : '<p class="eyebrow">SEGUI IL TORNEO · SOLA LETTURA</p>'}<div class="tournament-heading"><div><p class="eyebrow">${h(t.sport)} <span>/</span> ${h(variant?.name || "Sport storico")} <span>/</span> ${label(t.format)} ${t.archived_at ? '<span class="tag archived"><i></i>Archiviato</span>' : legacy ? '<span class="tag archived"><i></i>Solo lettura</span>' : `<span class="tag ${data.status}">${stateLabel(data.status)}</span>${!canManage() ? '<span class="tag archived"><i></i>Solo lettura</span>' : ''}`}</p><h1>${h(t.name)}</h1><p>${h(t.description || "Ogni partita, un passo verso una nuova sfida.")}</p></div><div class="toolbar">${publicToken ? button("Aggiorna", "refresh", "", "check") : `${t.archived_at && canManage() ? button("Ripristina", "restore", "primary", "refresh") : ""}${!t.archived_at && !legacy && canManage() ? button("Modifica", "edit", "", "edit") : ""}${button("Condividi", "share", "", "share")}<a class="button" href="/api/tournaments/${t.id}/export.csv" download>${icon("download")}Esporta</a>${!t.archived_at && !legacy && canManage() ? button("Archivia", "archive", "danger") : ""}`}</div></div><div class="tabs" role="tablist" aria-label="Sezioni torneo">${tabs.map(([v, l]) => `<button class="tab ${tab === v ? "active" : ""}" role="tab" id="tab-${v}" aria-controls="tournament-panel" tabindex="${tab === v ? 0 : -1}" aria-selected="${tab === v}" data-tab="${v}">${l}</button>`).join("")}</div><div id="tournament-panel" role="tabpanel" aria-labelledby="tab-${tab}">${champion()}${body}</div>`;
   $("#content").setAttribute("aria-busy", "false");
   if (tab === "students") safely(() => loadStudentsDetail());
+  if (tab === "participants")
+    enableReorder(
+      $("#team-order-body"),
+      (order, previous) => saveTeamOrder(order, previous),
+      "#team-order-live",
+    );
 }
 function overview() {
   const t = data.tournament,
@@ -729,6 +765,65 @@ function matchesView() {
       "",
     )}</div></div><div class="panel">${[...sets].map(([k, ms]) => `<div class="round-title">${h(k)} <span>${ms.length} incontri</span></div>${ms.map(matchRow).join("")}`).join("") || '<div class="empty">Nessun incontro in questa vista.</div>'}</div>`;
 }
+function teamOrderPanel() {
+  if (data.tournament.participant_kind !== "team" || !canManage()) return "";
+  const teams = data.teams || [];
+  if (teams.length < 2) return "";
+  const max = currentVariant()?.max_roster || 0;
+  const rows = teams
+    .map(
+      (team, i) =>
+        `<tr class="team-order-row" data-reorder-item data-id="${team.id}"><td class="order-position">${i + 1}</td><td><button type="button" class="reorder-handle" data-drag-handle aria-label="Trascina ${h(team.name)}" aria-describedby="team-order-help">${icon("menu")}</button></td><td><strong>${h(team.name)}</strong></td><td>${h(data.groups.find((g) => g.id === team.group_id)?.name || "–")}</td><td>${team.player_count || 0}/${max}</td><td><div class="order-actions"><button type="button" class="icon-button order-move" data-action="team-order-move" data-team="${team.id}" data-direction="up" aria-label="Sposta su ${h(team.name)}" ${i === 0 ? "disabled" : ""}>↑</button><button type="button" class="icon-button order-move" data-action="team-order-move" data-team="${team.id}" data-direction="down" aria-label="Sposta giù ${h(team.name)}" ${i === teams.length - 1 ? "disabled" : ""}>↓</button></div></td></tr>`,
+    )
+    .join("");
+  return `<section class="panel team-order-panel"><div class="section-header"><div><h2>Ordine delle squadre</h2><p class="section-sub">Trascina le righe o usa le frecce. L'ordine è solo di visualizzazione: non cambia classifica o seeding.</p></div><span class="tag archived"><i></i>${teamOrderAdapter.ready ? "Salvataggio attivo" : "Anteprima locale"}</span></div><div class="table-wrap"><table class="team-order-table"><thead><tr><th>#</th><th><span class="sr-only">Trascina</span></th><th>Squadra</th><th>Girone</th><th>Rosa</th><th>Sposta</th></tr></thead><tbody id="team-order-body">${rows}</tbody></table></div><p class="field-help" id="team-order-help">Trascina con mouse o dito, oppure usa le frecce. Da tastiera: frecce su/giù sull'handle. L'ordine non modifica classifiche o accoppiamenti.</p><p class="field-help" id="team-order-status" aria-live="polite">${teamOrderAdapter.ready ? "Ordine sincronizzato con il server." : "Anteprima locale: il salvataggio API è in attesa del Team A. Al reload torna l'ordine del server."}</p><p class="sr-only" id="team-order-live" aria-live="polite"></p></section>`;
+}
+async function saveTeamOrder(order, previous) {
+  if (!order || order.length < 2) return;
+  try {
+    const result = await teamOrderAdapter.save(selectedId, order.map(Number));
+    applyTeamOrder(order);
+    renderTournament();
+    const status = $("#team-order-status");
+    if (result.saved) {
+      if (status) status.textContent = "Ordine salvato sul server.";
+      notify("Ordine delle squadre salvato.");
+    } else {
+      if (status)
+        status.textContent =
+          "Anteprima locale: ordine non salvato. Al reload torna l'ordine del server.";
+      notify(
+        "Ordine aggiornato solo in anteprima: l'API di salvataggio è in attesa del Team A.",
+      );
+    }
+  } catch (e) {
+    try {
+      await openTournament(selectedId, true);
+    } catch {
+      const tbody = $("#team-order-body");
+      if (tbody && previous) {
+        const rows = new Map(
+          [...tbody.querySelectorAll("[data-reorder-item]")].map((row) => [
+            row.dataset.id,
+            row,
+          ]),
+        );
+        previous.forEach((id) => {
+          const row = rows.get(String(id));
+          if (row) tbody.appendChild(row);
+        });
+        applyTeamOrder(previous);
+        renderTournament();
+      }
+    }
+    notify(e.message, true);
+  }
+}
+function applyTeamOrder(order) {
+  const byId = new Map((data.teams || []).map((team) => [team.id, team]));
+  const next = order.map((id) => byId.get(Number(id))).filter(Boolean);
+  if (next.length === data.teams.length) data.teams = next;
+}
 function participants() {
   const generated = data.matches.length > 0;
   const variant = currentVariant();
@@ -740,7 +835,7 @@ function participants() {
   const rosterNote = teamMode && variant
     ? ` · Rose pronte ${ready}/${data.teams.length} (minimo ${minimum})`
     : "";
-  return `<div class="section-header"><div><h2>Le persone fanno il torneo.</h2><p class="section-sub">${data.teams.length} ${teamMode ? "squadre" : "giocatori"} · I nomi si possono modificare anche a torneo iniziato.${rosterNote}</p></div>${!generated && !publicToken && canManage() ? button("Genera incontri", "generate", "primary", "spark") : ""}</div>${!generated && !publicToken && canManage() ? '<form id="team-form" class="inline-form"><input name="name" required maxlength="60" aria-label="Nome del partecipante" placeholder="Nome del partecipante"><button class="button primary">Aggiungi</button></form>' : ""}<div class="roster">${data.teams.map((p, i) => {
+  return `<div class="section-header"><div><h2>Le persone fanno il torneo.</h2><p class="section-sub">${data.teams.length} ${teamMode ? "squadre" : "giocatori"} · I nomi si possono modificare anche a torneo iniziato.${rosterNote}</p></div>${teamOrderPanel()}${!generated && !publicToken && canManage() ? button("Genera incontri", "generate", "primary", "spark") : ""}</div>${!generated && !publicToken && canManage() ? '<form id="team-form" class="inline-form"><input name="name" required maxlength="60" aria-label="Nome del partecipante" placeholder="Nome del partecipante"><button class="button primary">Aggiungi</button></form>' : ""}<div class="roster">${data.teams.map((p, i) => {
     const group = data.groups.find((g) => g.id === p.group_id)?.name;
     const roster = teamMode && variant
       ? ` · ${p.player_count || 0}/${variant.max_roster} in rosa${(p.player_count || 0) < minimum ? ` · mancano ${minimum - (p.player_count || 0)}` : ""}`
@@ -1448,6 +1543,27 @@ const actions = {
       chip.classList.toggle("active", active);
       chip.setAttribute("aria-pressed", String(active));
     });
+  },
+  "team-order-move": (el) => {
+    const tbody = $("#team-order-body");
+    if (!tbody) return;
+    const rows = [...tbody.querySelectorAll("[data-reorder-item]")];
+    const row = rows.find((item) => item.dataset.id === String(el.dataset.team));
+    if (!row) return;
+    const index = rows.indexOf(row);
+    const to = el.dataset.direction === "up" ? index - 1 : index + 1;
+    if (to < 0 || to >= rows.length) return;
+    const previous = rows.map((item) => item.dataset.id);
+    tbody.insertBefore(
+      row,
+      el.dataset.direction === "up" ? rows[to] : rows[to].nextSibling,
+    );
+    saveTeamOrder(
+      [...tbody.querySelectorAll("[data-reorder-item]")].map(
+        (item) => item.dataset.id,
+      ),
+      previous,
+    );
   },
   "student-team": (el) => {
     studentTeamId = Number(el.dataset.studentTeam);
