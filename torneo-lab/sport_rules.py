@@ -248,7 +248,30 @@ def variant_summary(variant: VariantConfig) -> dict:
         'standings': variant.standings,
         'default_tie_breaker': variant.default_tie_breaker,
         'surface': variant.get_field_type(),
+        'config_schema': configurable_fields(variant),
+        'tie_breakers': [{'value':value,'label':label} for value,label in TIE_BREAKERS],
     }
+
+
+TIE_BREAKERS = [('goal_difference','Differenza punti'),('head_to_head','Scontri diretti'),
+                ('goals_for','Punti fatti'),('wins','Vittorie')]
+
+
+def configurable_fields(variant):
+    fields=[]
+    for key,label,default in [('win_points','Punti vittoria',variant.standings.get('win',3)),
+                              ('draw_points','Punti pareggio',variant.standings.get('draw',0)),
+                              ('loss_points','Punti sconfitta',variant.standings.get('loss',0))]:
+        fields.append({'key': key,'label': label,'type': 'number','min': 0,'max': 10,'step': 1,'default': default or 0,
+            'required': True,'scope': 'tournament','stages': ['round_robin','groups'],'disabled': key=='draw_points' and not variant.draw_allowed})
+    fields.extend([
+        {'key': 'tie_breaker','label': 'Criterio a parità','type': 'select','options': [{'value': v,'label': l} for v,l in TIE_BREAKERS],'default': variant.default_tie_breaker},
+        {'key': 'legs','label': 'Gare','type': 'select','options': [{'value': 1,'label': 'Sola andata'},{'value': 2,'label': 'Andata e ritorno'}],'default': 1,'stages': ['round_robin','groups']},
+        {'key': 'group_count','label': 'Numero gironi','type': 'select','options': [{'value': v,'label': str(v)} for v in (2,4,8)],'default': 2,'stages': ['groups']},
+        {'key': 'qualifiers','label': 'Qualificate','type': 'select','options': [{'value': 1,'label': 'La prima'},{'value': 2,'label': 'Le prime due'}],'default': 2,'stages': ['groups']}])
+    for descriptor in fields:
+        descriptor.setdefault('required',True);descriptor.setdefault('scope','tournament')
+    return fields
 
 
 def variant_detail(variant: VariantConfig) -> dict:

@@ -1,3 +1,12 @@
+# Integrazione locale 0.9.0 — 26 ottobre 2026
+
+Integrato `max-develop` @ `0896096` in `leo-develop`, senza push/deploy.
+Schema 8 compatibile con i due schemi originari, adapter attivi per proposte,
+inviti, campi, calendario e ordine, import atomico e account studenti collegati.
+Dettaglio, compatibilità e limiti nel [report integrazione](TEAM_B_INTEGRATION_REPORT.md).
+
+---
+
 # Changelog
 
 ## 0.8.0 — 26 ottobre 2026

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pagina non trovata · Open Score</title>
+    <meta name="robots" content="noindex" />
+    <meta name="theme-color" content="#f6f7f2" />
+        <meta name="color-scheme" content="light dark" />
+        <base href="__SITE_BASE__" />
+        <script>
+          (function () {
+            var theme;
+            try {
+              var stored = localStorage.getItem("openScoreSiteTheme");
+              var choice =
+                stored === "light" || stored === "dark" ? stored : "system";
+              theme =
+                choice === "system"
+                  ? window.matchMedia("(prefers-color-scheme: dark)").matches
+                    ? "dark"
+                    : "light"
+                  : choice;
+            } catch (error) {
+              theme =
+                window.matchMedia &&
+                window.matchMedia("(prefers-color-scheme: dark)").matches
+                  ? "dark"
+                  : "light";
+            }
+            document.documentElement.dataset.theme = theme;
+            document.documentElement.style.colorScheme = theme;
+            document.documentElement.style.backgroundColor =
+              theme === "dark" ? "#0f1a16" : "#f6f7f2";
+          })();
+        </script>
+    <link rel="icon" type="image/svg+xml" href="assets/mark.svg" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="error-page">
+      <div>
+        <img src="assets/mark.svg" alt="" width="56" height="56" />
+        <p class="eyebrow"><span class="eyebrow-dot"></span> ERRORE 404</p>
+        <h1>Questa pagina non è in campo.</h1>
+        <p>
+          Il link potrebbe essere cambiato, oppure la pagina non esiste. Torna
+          alla presentazione del progetto per continuare.
+        </p>
+        <a class="button primary" href="./">Torna alla home</a>
+      </div>
+    </main>
+  </body>
+</html>

@@ -142,6 +142,8 @@ class ScheduleInput(Input):
     location: str = Field(default='', max_length=80)
     duration: int | None = Field(default=None, strict=True, ge=1, le=240)
     version: int = Field(strict=True, ge=1)
+    field_id: int | None = Field(default=None,strict=True,ge=1)
+    timezone: str = 'Europe/Rome'
 
     @model_validator(mode='after')
     def timezone_required(self):

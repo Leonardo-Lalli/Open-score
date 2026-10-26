@@ -77,8 +77,12 @@ def verify_password(password: str | None, encoded: str | None) -> bool:
         algorithm, iterations, salt_text, digest_text = encoded.split('$', 3)
         if algorithm != 'pbkdf2_sha256':
             return False
-        salt = _b64decode(salt_text)
-        expected = _b64decode(digest_text)
+        if len(salt_text) == 32 and len(digest_text) == 64:
+            salt = bytes.fromhex(salt_text)
+            expected = bytes.fromhex(digest_text)
+        else:
+            salt = _b64decode(salt_text)
+            expected = _b64decode(digest_text)
         actual = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt,
                                      int(iterations))
     except (AttributeError, ValueError):
@@ -106,7 +110,10 @@ def create_teacher(db, email: str, password: str, display_name: str = '') -> int
         )
     except sqlite3.IntegrityError as exc:
         raise ValueError('Email già registrata') from exc
-    return cursor.lastrowid
+    ident = cursor.lastrowid
+    from identity_bridge import ensure_platform_teacher
+    ensure_platform_teacher(db, dict(db.execute('SELECT * FROM teachers WHERE id=?', (ident,)).fetchone()))
+    return ident
 
 
 def ensure_teacher(db, email: str, password: str, display_name: str = '') -> int:
@@ -126,7 +133,7 @@ def find_teacher(db, email: str) -> dict | None:
 
 def authenticate(db, email: str, password: str | None) -> dict | None:
     teacher = find_teacher(db, email)
-    if teacher is None or not verify_password(password, teacher['password_hash']):
+    if teacher is None or not teacher.get('active', True) or not verify_password(password, teacher['password_hash']):
         return None
     return {key: teacher[key] for key in ('id', 'email', 'display_name', 'created_at')}
 
@@ -145,8 +152,12 @@ def set_password(db, email: str, password: str) -> int:
     teacher = find_teacher(db, email)
     if teacher is None:
         raise ValueError('Docente non trovato')
-    db.execute('UPDATE teachers SET password_hash=? WHERE id=?',
-               (hash_password(password), teacher['id']))
+    encoded=hash_password(password)
+    db.execute('UPDATE teachers SET password_hash=? WHERE id=?',(encoded, teacher['id']))
+    link=db.execute('SELECT user_id FROM teacher_user_links WHERE teacher_id=?',(teacher['id'],)).fetchone()
+    if link:
+        db.execute('UPDATE users SET password_hash=? WHERE id=?',(encoded,link[0]))
+        db.execute('DELETE FROM sessions WHERE user_id=?',(link[0],))
     return teacher['id']
 
 
@@ -160,7 +171,7 @@ class Auth:
 
     def issue(self, teacher_id: int, email: str, now: float | None = None) -> str:
         expires = int((now if now is not None else time.time()) + self.ttl)
-        payload = json.dumps({'exp': expires, 'tid': int(teacher_id),
+        payload = json.dumps({'exp': expires, 'tid': int(teacher_id), 'nonce': secrets.token_urlsafe(24),
                               'email': normalize_email(email)},
                              separators=(',', ':'), ensure_ascii=False).encode('utf-8')
         body = _b64encode(payload)

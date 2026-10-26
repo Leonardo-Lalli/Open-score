@@ -97,6 +97,14 @@ def test_without_a_bootstrap_teacher_the_app_stays_read_only(tmp_path):
         }).status_code == 401
 
 
+def test_sessions_issued_in_the_same_second_are_unique():
+    auth = Auth(secret=b'synthetic-test-secret')
+    first = auth.issue(1, EMAIL, now=1000)
+    second = auth.issue(1, EMAIL, now=1000)
+    assert first != second
+    assert auth.decode(first, now=1001) == auth.decode(second, now=1001)
+
+
 def test_password_hash_round_trip():
     encoded = hash_password(PASSWORD)
     assert encoded.startswith('pbkdf2_sha256$')

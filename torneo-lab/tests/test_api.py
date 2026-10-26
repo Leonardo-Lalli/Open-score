@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from app import create_app
 from conftest import make, score, state
+from db import SCHEMA_VERSION
 
 
 def test_round_robin_flow(client):
@@ -173,7 +174,7 @@ def test_persistence_and_migration(tmp_path):
         c.post('/api/auth/login',json={'email':'prof@test.local','password':'password-lunga'})
         assert state(c,tid)['progress']['completed']==1
     with sqlite3.connect(path) as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0]==7
+        assert db.execute('PRAGMA user_version').fetchone()[0]==SCHEMA_VERSION
         assert db.execute('PRAGMA foreign_key_check').fetchall()==[]
 
 
@@ -215,5 +216,5 @@ def test_version_one_database_migrates_without_data_loss(tmp_path):
         data=state(c,1)
         assert data['champion_team_id']==1 and data['matches'][0]['home_score']==3
     with sqlite3.connect(path) as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0]==7
+        assert db.execute('PRAGMA user_version').fetchone()[0]==SCHEMA_VERSION
         assert db.execute('PRAGMA foreign_key_check').fetchall()==[]

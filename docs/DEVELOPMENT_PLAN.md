@@ -1,3 +1,12 @@
+# Stato dopo integrazione 0.9.0
+
+Import CSV atomico, archivio studenti per torneo, spostamento, inviti, proposte,
+campi e calendario sono collegati alle API. Stato e attività future nel
+[report integrazione Team B](TEAM_B_INTEGRATION_REPORT.md). La roadmap originaria
+Team B seguente resta come contesto; non implica che questi adapter siano ancora mancanti.
+
+---
+
 # Piano per passi verificabili
 
 ## Incremento consegnato: sport, varianti e regole 0.4

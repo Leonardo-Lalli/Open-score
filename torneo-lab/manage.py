@@ -17,9 +17,12 @@ from db import BASE, database, initialize
 
 
 def main() -> None:
+    if any(arg in sys.argv for arg in ('migrate','claim','backup','restore','add-collaborator','--email','--organization','--organization-id')):
+        from platform_manage import main as platform_main
+        raise SystemExit(platform_main())
     parser = argparse.ArgumentParser(description='Gestione docenti Open Score')
     parser.add_argument('command',
-                        choices=['create-teacher', 'reset-password', 'list-teachers'])
+                        choices=['create-teacher', 'reset-password', 'list-teachers','deactivate-teacher'])
     parser.add_argument('email', nargs='?')
     parser.add_argument('--name', default='')
     parser.add_argument('--db',
@@ -38,6 +41,15 @@ def main() -> None:
 
     if not args.email:
         parser.error('email obbligatoria per questo comando')
+
+    if args.command == 'deactivate-teacher':
+        with database(path,True) as db:
+            teacher=db.execute('SELECT id FROM teachers WHERE email=? COLLATE NOCASE',(args.email,)).fetchone()
+            if not teacher:parser.error('Docente non trovato')
+            db.execute('UPDATE teachers SET active=0 WHERE id=?',(teacher[0],))
+            db.execute('DELETE FROM sessions WHERE user_id=(SELECT user_id FROM teacher_user_links WHERE teacher_id=?)',(teacher[0],))
+        print('Docente disattivato e sessioni revocate.')
+        return
 
     password = getpass.getpass('Password: ')
     confirm = getpass.getpass('Ripeti password: ')

@@ -143,8 +143,8 @@ def test_regulation_snapshot_survives_catalog_changes(client, tmp_path):
 def test_historical_sport_is_read_only(client, tmp_path):
     path = client.app.state.db_path
     with sqlite3.connect(path) as db:
-        db.execute("INSERT INTO tournaments(id,name,sport,format,public_token) "
-                   "VALUES (999,'Vecchio tennis','Tennis','knockout','legacy-token')")
+        db.execute("INSERT INTO tournaments(id,name,sport,format,public_token,published) "
+                   "VALUES (999,'Vecchio tennis','Tennis','knockout','legacy-token',1)")
     detail = state(client, 999)
     assert detail['legacy_sport'] is True
     assert detail['tournament']['sport'] == 'Tennis'

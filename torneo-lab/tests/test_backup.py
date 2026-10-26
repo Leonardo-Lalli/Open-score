@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 from app import create_app
 from backup import backup_database
+from db import SCHEMA_VERSION
 
 
 def populated_database(tmp_path):
@@ -28,7 +29,7 @@ def test_online_backup_is_readable_and_complete(tmp_path):
     assert target.exists()
     assert target.name.startswith('open_score-')
     with sqlite3.connect(target) as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0] == 7
+        assert db.execute('PRAGMA user_version').fetchone()[0] == SCHEMA_VERSION
         assert db.execute('SELECT count(*) FROM tournaments').fetchone()[0] == 1
         assert db.execute('PRAGMA foreign_key_check').fetchall() == []
         assert db.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'

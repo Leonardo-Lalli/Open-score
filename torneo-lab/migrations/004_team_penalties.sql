@@ -1,0 +1,6 @@
+CREATE TABLE team_penalties (
+ team_id INTEGER PRIMARY KEY REFERENCES teams(id) ON DELETE CASCADE,
+ points INTEGER NOT NULL CHECK(points BETWEEN 0 AND 999),
+ reason TEXT NOT NULL
+);
+PRAGMA user_version=4;

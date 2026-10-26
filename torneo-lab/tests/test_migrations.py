@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import create_app
-from db import BASE, initialize
+from db import BASE, LATEST_SCHEMA, initialize
 
 
 def read_migration(name: str) -> str:
@@ -16,7 +16,7 @@ def test_fresh_database_is_version_seven_with_canonical_catalog(tmp_path):
     assert initialize(path) is True
 
     with sqlite3.connect(path) as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0] == 7
+        assert db.execute('PRAGMA user_version').fetchone()[0] == LATEST_SCHEMA
         assert db.execute('PRAGMA journal_mode').fetchone()[0].lower() == 'wal'
         assert db.execute('PRAGMA foreign_key_check').fetchall() == []
         columns = {row[1] for row in db.execute('PRAGMA table_info(tournaments)')}
@@ -48,7 +48,7 @@ def test_version_two_database_migrates_and_maps_legacy_sport(tmp_path):
     assert initialize(path) is False
 
     with sqlite3.connect(path) as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0] == 7
+        assert db.execute('PRAGMA user_version').fetchone()[0] == LATEST_SCHEMA
         sport, sport_id, variant = db.execute(
             'SELECT sport,sport_id,variant FROM tournaments WHERE id=1').fetchone()
         assert sport == 'Pallavolo'
@@ -70,7 +70,7 @@ def test_version_three_database_adds_archive_columns_and_backfills_update_time(t
     assert initialize(path) is False
 
     with sqlite3.connect(path) as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0] == 7
+        assert db.execute('PRAGMA user_version').fetchone()[0] == LATEST_SCHEMA
         archived_at, updated_at, created_at, tie_breaker = db.execute(
             'SELECT archived_at,updated_at,created_at,tie_breaker FROM tournaments WHERE id=1'
         ).fetchone()
@@ -94,7 +94,7 @@ def test_version_four_database_adds_tie_breaker_with_default(tmp_path):
     assert initialize(path) is False
 
     with sqlite3.connect(path) as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0] == 7
+        assert db.execute('PRAGMA user_version').fetchone()[0] == LATEST_SCHEMA
         assert db.execute('SELECT tie_breaker FROM tournaments WHERE id=1').fetchone()[0] == 'goal_difference'
         with pytest.raises(sqlite3.IntegrityError):
             db.execute("UPDATE tournaments SET tie_breaker='coin_toss' WHERE id=1")
@@ -119,7 +119,7 @@ def test_version_five_remaps_calcio_a_5_and_preserves_removed_sports(tmp_path):
     assert initialize(path) is False
 
     with sqlite3.connect(path) as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0] == 7
+        assert db.execute('PRAGMA user_version').fetchone()[0] == LATEST_SCHEMA
         sport, sport_id, variant, snapshot = db.execute(
             "SELECT sport,sport_id,variant,rules_snapshot FROM tournaments WHERE id=1"
         ).fetchone()

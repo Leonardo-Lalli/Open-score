@@ -1,3 +1,14 @@
+# Aggiornamento integrazione: schema 8
+
+Il migratore riconosce Team A schema 4 e Team B schema 7, crea un backup coerente
+e preserva risultati, account e ordine manuale. L'ID numerico di variante Team B
+rimane `variant_id`; quello testuale Team A diventa `platform_variant_id`.
+Le nuove tabelle collegano account, rose e studenti; vedere
+[report integrazione](TEAM_B_INTEGRATION_REPORT.md). Le descrizioni dello schema
+Team B di seguito sono la base precedente all'integrazione.
+
+---
+
 # Database e conservazione dei dati
 
 Default: `torneo-lab/data/open_score.sqlite3`. Percorso configurabile con `TORNEO_DB_PATH`. Il file, i database di test e l'ambiente Python sono esclusi da Git. Il database parte vuoto: non vengono creati tornei dimostrativi e l'app mostra solo i dati inseriti dagli utenti.

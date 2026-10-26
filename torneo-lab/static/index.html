@@ -14,7 +14,10 @@
     <title>Open Score · Il tuo campo di gioco</title>
     <link rel="icon" type="image/svg+xml" href="/static/mark.svg" />
     <link rel="stylesheet" href="/static/styles.css?v=0.8.0" />
-    <script defer src="/static/app.js?v=0.8.0"></script>
+    <script defer src="/static/vendor/qrcode.js?v=0.8.0"></script>
+    <script defer src="/static/bracket-layout.js?v=0.8.0"></script>
+    <script defer src="/static/infographic.js?v=0.8.0"></script>
+    <script defer src="/static/app.js?v=0.9.0"></script>
   </head>
   <body data-app="spa">
     <a class="skip-link" href="#content">Vai al contenuto</a>
@@ -93,6 +96,12 @@
         </button>
         <button id="sports-nav" class="nav-item" data-action="catalog">
           <span data-icon="ball"></span>Sport e regole
+        </button>
+        <button id="calendar-nav" class="nav-item" data-action="calendar">
+          <span data-icon="calendar"></span>Calendario
+        </button>
+        <button id="fields-nav" class="nav-item" data-action="fields" data-teacher-only>
+          <span data-icon="field"></span>Campi
         </button>
       </nav>
       <div class="nav-label events-label">

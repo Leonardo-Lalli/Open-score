@@ -153,13 +153,17 @@ def _head_to_head(rows: list[dict], matches: list[dict], win_points: int,
 def build_standings(teams: list[dict], matches: list[dict], win_points: int = 3,
                     draw_points: int = 1, loss_points: int = 0,
                     tie_breaker: str = 'goal_difference',
-                    rules: dict | None = None) -> list[dict]:
+                    rules: dict | None = None, penalties: dict | None = None) -> list[dict]:
     table = {t['id']: _empty_row(t) for t in teams}
     for m in matches:
         if m['home_team_id'] in table and m['away_team_id'] in table:
             _apply_match(table[m['home_team_id']], table[m['away_team_id']], m,
                          win_points, draw_points, loss_points, rules)
     _finalise(table)
+    for team_id, deduction in (penalties or {}).items():
+        if team_id in table:
+            table[team_id]['points']-=deduction
+            table[team_id]['penalty_points']=deduction
 
     if tie_breaker == 'head_to_head':
         return _head_to_head(list(table.values()), matches, win_points,
