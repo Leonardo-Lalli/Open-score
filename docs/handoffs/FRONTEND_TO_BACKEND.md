@@ -1,0 +1,126 @@
+# Handoff frontend → backend (Team B → Team A)
+
+> Proprietario: Team B (frontend/UX). Non modificare in parallelo dal Team A.
+> Branch: `max-develop` · Base: `main` @ `f0eedf9` · Data: 26 ottobre 2026 · Versione app: 0.8.0.
+
+Questo documento è l'audit iniziale del frontend e l'elenco delle richieste verso il Team A. Serve come contratto informale finché non sarà pronto `docs/contracts/API_V1.md` (ancora assente al momento della scrittura).
+
+---
+
+## 1. Architettura frontend attuale
+
+- **SPA vanilla, senza build step**: nessun framework. `torneo-lab/static/index.html` + `torneo-lab/static/app.js` + `torneo-lab/static/styles.css`.
+- Servita da FastAPI: `GET /` e `GET /public/{token}` restituiscono `static/index.html`; gli asset sono versionati (`?v=0.8.0`) e serviti con `Cache-Control: no-cache, must-revalidate`.
+- **Un solo file JS** (`app.js`, ~1.500 righe) con stato modulare globale, nessun modulo ES.
+- **Routing hash** limitato al catalogo: `#/sport`, `#/sport/{sport}`, `#/sport/{sport}/{variante}`. La navigazione principale (dashboard, torneo, tab) è gestita via stato (`selectedId`, `tab`) e re-render del `<main id="content">`, non via URL.
+- **Rendering lato client**: funzioni `render*` che producono stringhe HTML e le assegnano con `innerHTML`; `h()` esegue l'escape; `icon()`/`button()` sono helper.
+- Nessun bundler, nessun framework CSS: `styles.css` (~4.200 righe) con token CSS in `:root`.
+
+### Stato e helper principali (`app.js`)
+
+| Area | Funzioni |
+| --- | --- |
+| Escape/icone/azioni | `h`, `icon`, `paths`, `button`, `label`, `stateLabel`, `tieLabel`, `avatar`, `teamName`, `dateText`, `roundName` |
+| Client HTTP | `api(path, options)` — unico punto di accesso a `/api` |
+| Sessione/ruolo | `loadSession`, `renderAuthControl`, `showRoleGate`, `hideRoleGate`, `enterStudentMode`, `loginTeacher`, `canEdit`, `canManage`, `requireManage`, `logout` |
+| Catalogo sport | `loadSports`, `sportFor`, `variantFor`, `openCatalog`, `catalogSportCard`, `catalogVariantCard`, `renderCatalog` |
+| Dashboard | `dashboard`, `refreshList`, `renderNav`, `renderDashboard`, `eventCard` |
+| Torneo | `openTournament`, `renderTournament`, `overview`, `regulationView`, `bracket`, `matches`, `standings`, `teams`, `team view`, `champion` |
+| Wizard | `startWizard`, `sportOptions`, `sportOptionsFor`, `variantOptionsFor`, `syncEditVariant`, `readWizard` |
+| Azioni globali | `actions` map (`new`, `catalog`, `open`, `edit`, `share`, `generate`, `score`, `archive`, `restore`, `print`, `refresh`, `copy`, …) |
+| Avvio | `init` — carica sessione e catalogo, decide gate vs studente, delega il rendering |
+
+Stato globale: `list`, `sports`, `auth {role, authenticated, teacher}`, `selectedId`, `data`, `tab`, `filter`, `matchFilter`, `search`, `wizard`, `wizardStep`, `catalogMode`, `catalogSport`, `catalogVariant`, `catalogDetail`.
+
+### Client HTTP esistente
+
+`api()` è già un client centralizzato minimale: base `/api`, header JSON, gestione 401 (riapre il gate), estrazione `detail` da errori Pydantic/FastAPI, `204` → `null`. Manca: timeout, retry sicuro (specie per `GET`), invalidazione cache e normalizzazione tipizzata delle risposte.
+
+---
+
+## 2. Design system attuale
+
+- **Token** (`styles.css` `:root`): `--bg #f6f7f2`, `--paper #fff`, `--ink #1c3028`, `--muted #738077`, `--line #e3e8df`, `--lime #d6f473`, `--dark #182923`, `--green #2d694d`, `--radius 17px`.
+- **Tipografia**: DM Sans servita localmente (4 file WOFF2, OFL) con fallback `Segoe UI`/Arial.
+- **Componenti**: `.button` (primary/ghost/danger/compact), `.panel`, `.event-card`, `.catalog-card`, `.stat`, `.tag`, `.modal` (`<dialog>`), `.toast`, `.input`/`.select`, `.details-list`, `.rule-list`, `.table`/`.bracket`.
+- **Responsive/mobile** (regole in coda al CSS): `100dvh`, `env(safe-area-inset-*)`, topbar sticky, drawer `.sidebar` con scrim, touch target ≥44px, input 16px, modali full-screen, tabelle/bracket con scroll orizzontale.
+- **Accessibilità presente**: skip-link, `:focus-visible`, `aria-*` su gate/tab/modal, `role="status"` sul toast. Da verificare: contrasto su alcuni colori secondari, focus nei dialog annidati, `prefers-reduced-motion`.
+
+---
+
+## 3. UI già funzionante vs da sviluppare
+
+### Funzionante (end-to-end)
+
+- Gate prof/studente, login/logout, sessione e tag "Sola lettura".
+- Dashboard con filtri, contatori e card torneo.
+- Catalogo sport (6 sport / 16 varianti) con schede dedicate.
+- Wizard di creazione (sport → variante → formato → partecipanti → riepilogo).
+- Dettaglio torneo con tab: panoramica, incontri, classifica, tabellone, regolamento, squadre/partecipanti.
+- Risultati numerici e set per set, correzioni, programmazione, archiviazione, condivisione e CSV.
+- Vista spettatore (`/public/{token}`) in sola lettura con auto-refresh.
+
+### Da sviluppare (Team B)
+
+- **Bracket interattivo e drag & drop**: riordino/seeding dei partecipanti e (se il backend lo consente) editing visivo del tabellone.
+- **QR** per il link spettatore (generabile lato client, nessuna API necessaria).
+- **Infografiche/statistiche** più ricche (andamento, marcatori, distribuzione risultati).
+- **Dashboard responsive riprogettata** per telefono (card ridotte, non solo larghezza minore).
+- **GitHub Pages** come vetrina statica del progetto (separata dall'app reale).
+- **README in inglese** e documentazione pubblica/presentazione.
+- **Design system esplicitato** (tavola componenti, token, stati loading/empty/error).
+- **Test frontend** (oggi solo test statici in `tests/test_static_ui.py`).
+
+---
+
+## 4. API necessarie (richieste al Team A)
+
+Prima del contratto ufficiale, lavoro su attività indipendenti o con mock isolati. Le funzioni che richiedono backend sono:
+
+1. **Riordino/seeding partecipanti** (per drag & drop nel wizard e nel tabellone).
+   - *Serve*: riordinare le squadre prima della generazione e/o rigenerare con un ordine/seed esplicito.
+   - *Input proposto*: `PATCH /api/tournaments/{id}/teams/order` con `team_ids` ordinati, oppure estensione di `POST /generate` con `random_seed`/ordine.
+   - *Output/stati*: lista aggiornata; 409 se la generazione è già avvenuta.
+
+2. **Statistiche individuali / tabella marcatori**.
+   - *Serve*: infografiche e dettagli giocatore.
+   - *Input*: nessuno (derivato). *Output*: aggregati per giocatore/squadra.
+   - *Nota*: oggi esiste solo il conteggio aggregato nel dettaglio torneo; l'individuale non è implementato.
+
+3. **Import CSV partecipanti**.
+   - *Serve*: creare squadre/giocatori da file.
+   - *Input*: `multipart/form-data` o JSON. *Output*: riepilogo errori/creati.
+
+4. **Disattivazione account docente** (oggi solo via database).
+   - *Serve*: gestione account dalla UI. *Output*: stato account.
+
+5. **Paginazione/filtri elenco tornei** (se cresce il numero di tornei).
+
+6. **Scheduler automatico** (futuro, non prioritario): restrizioni campi/arbitri.
+
+Per QR, drag & drop visuale, infografiche lato client e GitHub Pages **non serve** nessuna nuova API.
+
+---
+
+## 5. Blocchi tecnici e decisioni
+
+- **Monolite frontend/backend**: il backend è in `app.py`/`services.py`, il frontend in `static/`. Non c'è sovrapposizione di file: il Team B può lavorare su `static/`, `README*`, `docs/handoffs/` e documentazione pubblica senza toccare i file backend.
+- **`docs/API.md` contiene un residuo obsoleto**: riga 119 "Caricamento esempi ripetuto…" riferita all'endpoint `/api/demo` ormai rimosso. Chiedo al Team A di correggerla insieme al contratto ufficiale (non l'ho modificata per non toccare il contratto condiviso).
+- **`docs/contracts/API_V1.md` e `docs/contracts/openapi.yaml` non esistono ancora**: le integrazioni backend restano in attesa.
+- **Nessun framework nuovo**: si mantiene la SPA vanilla, si migliora in place. Nessuna introduzione di React/TypeScript o librerie UI ridondanti.
+- **Cache degli asset**: bump di versione (`?v=`) a ogni modifica di `app.js`/`styles.css` per evitare cache stantia.
+
+## 6. Test e commit di riferimento
+
+- Test esistenti del frontend: `torneo-lab/tests/test_static_ui.py` (gate, accessibilità statica, cache, assenza contenuti demo, redirect legacy).
+- Suite completa al baseline: **190 passed, 1 warning** (warning Starlette/httpx, innocuo).
+- Lint: `ruff check --select I,C4,UP,F .` pulito; `node --check static/app.js` OK.
+- Commit base: `f0eedf9` (`feat!: rimuovi i dati dimostrativi preinstallati`), uguale su `main`, `develop` e `max-develop`.
+
+## 7. Prossimi passi proposti (indipendenti dal backend)
+
+1. Tavola del design system (`docs/design-system.md`) con token e componenti censiti.
+2. Riprogettazione responsive della dashboard e del bracket per schermi piccoli.
+3. Componente QR (client-only) per il link spettatore.
+4. Sito GitHub Pages di presentazione + README in inglese.
+5. Test visivi/frontend aggiuntivi senza introdurre dipendenze pesanti.
