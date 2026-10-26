@@ -1,6 +1,7 @@
 # Handoff backend → Team B — versione 0.3
 
 26 ottobre 2026, branch **leo-develop**, partenza `4e15385`.
+Commit backend da integrare dopo revisione: **`00a4d20`**.
 L'utente ha richiesto implementazione locale e **nessun push**. Nessuna PR aperta,
 merge, pubblicazione o modifica del branch del Team B. Revisione congiunta ancora necessaria.
 

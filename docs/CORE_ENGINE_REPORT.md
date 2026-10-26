@@ -2,6 +2,7 @@
 
 26 ottobre 2026. Branch **leo-develop**; baseline precedente
 `4e15385` (audit/contratto), baseline demo `b541824`.
+Commit dell'implementazione verificata: **`00a4d20`**, `feat(core): add authenticated tournament backend`.
 L'utente ha richiesto espressamente di proseguire l'implementazione in locale,
 senza push. Nessuna revisione del Team B, integrazione in main o pubblicazione
 è stata simulata. Nessun altro branch modificato.
