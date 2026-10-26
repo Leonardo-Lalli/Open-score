@@ -28,11 +28,12 @@ Regole guida:
 
 `styles.css` contiene **due sezioni storiche**:
 
-1. **righe ~35–2130** — shell e componenti attuali della SPA (fonte principale per il lavoro nuovo);
-2. **righe ~2133–3799** — token e classi delle vecchie pagine di design (`.btn-primary`, `.stats-grid`, `.standings-table`, `.editorial-grid`, …). **Non è usata dalla SPA attuale** e non va estesa;
-3. **righe ~3800–4217** — mobile hardening, gate e regole finali.
+1. **righe ~35–3068** — shell, componenti e responsive della SPA;
+2. **righe ~3069 in poi** — mobile hardening, catalogo/set e gate finale.
 
-Regola: i nuovi componenti usano i token e le classi della sezione 1, oppure vengono aggiunti in coda prima del blocco mobile. Non introdurre un terzo `:root`.
+Il vecchio design system (secondo `:root`, classi `.btn-primary`, `.create-steps`, `.display-large`, pagine editoriali) è stato rimosso il 26 ottobre 2026: non va reintrodotto.
+
+Regola: esiste **un solo `:root`**. I nuovi componenti usano i token della sezione 1 e vengono aggiunti prima del blocco mobile.
 
 ## 3. Token
 
@@ -56,23 +57,21 @@ Colori semantici aggiuntivi usati nei componenti:
 - errore: `#ba1a1a`, sfondo `#ffdad6`, testo `#93000a`;
 - pericolo: `#b14135` su `#fff3ee`.
 
-### 3.2 Colori estesi (sezione 2, legacy)
+### 3.2 Palette estesa
 
-La seconda sezione definisce una palette Material-like (`--primary`, `--secondary-container`, `--surface`, `--outline`, `--error`, …). **Non usarla per nuovi componenti della SPA**: serve solo alle vecchie pagine di design. Se un valore manca nella palette attiva, aggiungerlo alla sezione 1 con un nome semantico.
+La vecchia palette Material-like (`--primary`, `--surface`, `--outline`, …) è stata rimossa insieme al blocco legacy. Se serve un nuovo valore, aggiungerlo alla sezione 1 con un nome semantico.
 
 ### 3.3 Tipografia
 
 - Famiglia: **DM Sans**, locale, `font-display: swap`; fallback `"Segoe UI", Arial, sans-serif`.
 - Pesi: 300, 400, 500, 600, 700.
-- Scala legacy (sezione 2): display 32/24/20, headline 24/20/18, title 16/14/12, body 16/14/12, label 14/12/11.
-- Nella shell attuale i testi usano valori puntuali: titoli 17–29px, testi 10–13px, etichette 8–10px, numero statistiche 29px.
+- Nella shell i testi usano valori puntuali: titoli 17–29px, testi 10–13px, etichette 8–10px, numero statistiche 29px.
 
 **Gap noto:** molte etichette sono sotto i 12px. Vanno verificate su mobile e con ingrandimento del testo; per i nuovi componenti usare almeno 12px per il testo operativo e 16px per gli input su mobile.
 
 ### 3.4 Spaziature e raggi
 
-- Spaziatura legacy: `4, 8, 12, 16, 24, 32px` (`--space-xs…2xl`).
-- Nella shell attuale: padding tipici 17–28px, gap 8–25px.
+- Nella shell: padding tipici 17–28px, gap 8–25px.
 - Raggi: 6–8px (controlli), 10–12px (card piccole), 14–18px (pannelli, card, dialog), 24px (gate), `999px` (pillole e chip).
 - Ombre: leggere sulle card (`0 7px 20px`), marcate su dialog e gate (`0 30px 100px`).
 
@@ -241,7 +240,6 @@ Breakpoint presenti:
 | `max-width: 1150px` | riduzione colonne |
 | `max-width: 1100px` / `900px` | layout torneo e catalogo |
 | `max-width: 800px` | **mobile shell**: drawer, topbar sticky, modali full-screen, touch 44px, input 16px |
-| `max-width: 768px` | form e pagine legacy |
 | `max-width: 680px` | catalogo |
 | `max-width: 560px` | griglie a una colonna |
 | `max-width: 380px` | azioni login in colonna |
@@ -295,16 +293,16 @@ Da verificare o completare:
 5. Usa `h()` per interpolare dati utente nell’HTML.
 6. Non introdurre librerie UI o framework CSS: il progetto resta senza build step.
 7. Aggiungi le regole prima del blocco mobile; aggiorna i breakpoint solo se necessario.
-8. Alza `?v=` in `index.html` quando cambi `app.js` o `styles.css`.
+8. Il server serve gli asset con `no-cache`; alza `?v=` a ogni rilascio, non a ogni modifica locale.
 9. Le librerie di utilità vanno in `static/vendor/` con licenza e provenienza documentate; nessuna CDN a runtime.
 10. Aggiungi o aggiorna un test in `torneo-lab/tests/test_static_ui.py` per le regole strutturali (gate, cache, classi chiave, assenza di contenuti demo).
 11. Verifica con `node --check static/app.js` e con la suite `pytest`.
 
 ## 8. Debito tecnico noto
 
-- Due `:root` e due linguaggi visivi nello stesso file; consolidamento consigliato in un refactor dedicato.
-- Sezione legacy non usata dalla SPA: candidata alla rimozione dopo verifica dei redirect e delle pagine statiche.
 - Molte dimensioni tipografiche piccole (8–10px) e valori hardcoded fuori dai token di spaziatura.
-- Nessun dark mode / `prefers-color-scheme`.
+- L'app non ha dark mode / `prefers-color-scheme` (il sito pubblico sì).
 - Bracket senza zoom/pan e senza drag & drop del tabellone; il navigatore dei turni su mobile e il riordino dei partecipanti nel wizard sono già presenti.
 - Statistiche individuali non ancora presenti; il QR spettatore è implementato lato client.
+
+Risolto il 26 ottobre 2026: un solo `:root`, un solo linguaggio visivo, blocco legacy rimosso (1.512 righe) e guardia `test_stylesheet_has_a_single_design_system`.

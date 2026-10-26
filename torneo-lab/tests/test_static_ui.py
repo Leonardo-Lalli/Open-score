@@ -204,10 +204,10 @@ def test_share_actions_and_invite_landing_are_prepared(client):
     script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
     for marker in ('downloadQr', 'printQr', 'shareLink', 'download-qr',
                    'print-qr', 'share-qr', 'share-actions', 'print-sheet',
-                   'inviteAdapter', 'inviteError', 'openInvite', 'renderInvite',
+                   'inviteAdapter', 'INVITE_MESSAGES', 'apiWithMessages', 'openInvite', 'renderInvite',
                    'joinInvite', 'invite-join', 'invite-login', 'invite-retry',
                    'inviteState', 'inviteStatusCopy', 'unverified',
-                   '?invite=', '#/join/', '/api/invites/'):
+                   '?invite=', '#/join/', '/invites/'):
         assert marker in script, f'{marker!r} mancante in app.js'
 
     css = (BASE / 'static' / 'styles.css').read_text(encoding='utf-8')
@@ -231,15 +231,15 @@ def test_invite_landing_only_uses_real_server_data(client):
 
 def test_fields_and_calendar_interfaces_are_prepared(client):
     script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
-    for marker in ('fieldsAdapter', 'fieldError', 'fieldModal', 'renderFields',
+    for marker in ('fieldsAdapter', 'FIELD_MESSAGES', 'fieldModal', 'renderFields',
                    'openFields', 'field-card', 'field-form', 'field-new',
                    'field-edit', 'field-toggle', 'knownFieldOptions',
-                   'calendarAdapter', 'calendarApiError', 'openCalendar',
+                   'calendarAdapter', 'CALENDAR_MESSAGES', 'openCalendar',
                    'reloadCalendar', 'renderCalendar', 'filterCalendarEvents',
                    'detectCalendarConflicts', 'calendar-conflict',
                    'data-calendar-filter', 'calendar-open', 'calendar-reset',
                    'updateScheduleConflictHint', 'schedule-conflict',
-                   'known-fields', '/api/fields', '/api/calendar'):
+                   'known-fields', '/fields', '/calendar'):
         assert marker in script, f'{marker!r} mancante in app.js'
 
     html = (BASE / 'static' / 'index.html').read_text(encoding='utf-8')
@@ -250,7 +250,8 @@ def test_fields_and_calendar_interfaces_are_prepared(client):
     css = (BASE / 'static' / 'styles.css').read_text(encoding='utf-8')
     for selector in ('.field-grid', '.field-card', '.field-actions',
                      '.calendar-filters', '.calendar-day', '.calendar-event',
-                     '.calendar-conflict-panel', '.schedule-conflict'):
+                     '.calendar-main', '.calendar-conflict-panel',
+                     '.schedule-conflict'):
         assert selector in css, f'{selector!r} mancante in styles.css'
     assert css.count('{') == css.count('}')
 
@@ -346,7 +347,7 @@ def test_statistics_and_infographic_are_wired(client):
 
     css = (BASE / 'static' / 'styles.css').read_text(encoding='utf-8')
     for selector in ('.stats-layout', '.podium', '.podium-card',
-                     '.qualifier-list', '.infographic-preview',
+                     '.qualifier-list', '.infographic-preview', '.infographic-panel',
                      'body.printing #print-sheet.infographic-sheet'):
         assert selector in css, f'{selector!r} mancante in styles.css'
     assert css.count('{') == css.count('}')

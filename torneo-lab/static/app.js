@@ -518,6 +518,42 @@ async function safely(fn) {
     } else notify(e.message, true);
   }
 }
+async function apiWithMessages(path, options, messages = {}) {
+  try {
+    return await api(path, options);
+  } catch (error) {
+    const text = messages[error.status];
+    if (!text) throw error;
+    const mapped = new Error(text);
+    mapped.status = error.status;
+    throw mapped;
+  }
+}
+const PROPOSAL_MESSAGES = {
+  401: "Sessione scaduta. Accedi di nuovo.",
+  403: "Non hai i permessi per questa azione.",
+  404: "Partita o proposta non trovata.",
+  409: "La proposta è già stata revisionata o modificata da un altro utente.",
+};
+const INVITE_MESSAGES = {
+  401: "Accedi come prof per completare l'adesione.",
+  403: "Non hai i permessi per questo invito.",
+  404: "Questo invito non esiste o è stato revocato.",
+  409: "Sei già iscritto oppure la squadra è completa.",
+  410: "Questo invito è scaduto.",
+};
+const FIELD_MESSAGES = {
+  401: "Sessione scaduta. Accedi di nuovo.",
+  403: "Non hai i permessi per gestire i campi.",
+  404: "Campo non trovato.",
+  409: "Esiste già un campo con questo nome.",
+  422: "Controlla i dati del campo: nome, sede o sport non validi.",
+};
+const CALENDAR_MESSAGES = {
+  401: "Sessione scaduta. Accedi di nuovo.",
+  403: "Non hai i permessi per questo calendario.",
+  409: "Conflitto di calendario segnalato dal server.",
+};
 function moveItem(items, from, to) {
   const next = [...items];
   if (
@@ -538,74 +574,41 @@ const resultProposalsAdapter = {
   ready: false,
   async list(tournamentId) {
     if (!this.ready) return [];
-    const response = await fetch(
-      `/api/tournaments/${tournamentId}/proposals?status=pending`,
-      { headers: { Accept: "application/json" } },
+    const body = await apiWithMessages(
+      `/tournaments/${tournamentId}/proposals?status=pending`,
+      {},
+      PROPOSAL_MESSAGES,
     );
-    if (!response.ok) throw await proposalError(response);
-    const body = await response.json().catch(() => ({}));
     return body.proposals || [];
   },
   async propose(tournamentId, matchId, payload) {
     if (!this.ready) throw new Error("Invio proposte non ancora disponibile.");
-    const response = await fetch(
-      `/api/tournaments/${tournamentId}/matches/${matchId}/proposals`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      },
+    return apiWithMessages(
+      `/tournaments/${tournamentId}/matches/${matchId}/proposals`,
+      { method: "POST", body: JSON.stringify(payload) },
+      PROPOSAL_MESSAGES,
     );
-    if (!response.ok) throw await proposalError(response);
-    return response.json();
   },
   async decide(proposalId, action, payload = {}) {
     if (!this.ready)
       throw new Error("Revisione delle proposte non ancora disponibile.");
-    const response = await fetch(`/api/proposals/${proposalId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, ...payload }),
-    });
-    if (!response.ok) throw await proposalError(response);
-    return response.json();
+    return apiWithMessages(
+      `/proposals/${proposalId}`,
+      { method: "PATCH", body: JSON.stringify({ action, ...payload }) },
+      PROPOSAL_MESSAGES,
+    );
   },
 };
-async function proposalError(response) {
-  const body = await response.json().catch(() => ({}));
-  const messages = {
-    401: "Sessione scaduta. Accedi di nuovo.",
-    403: "Non hai i permessi per questa azione.",
-    404: "Partita o proposta non trovata.",
-    409: "La proposta è già stata revisionata o modificata da un altro utente.",
-  };
-  const error = new Error(
-    messages[response.status] ||
-      body.detail ||
-      `Operazione non riuscita (${response.status})`,
-  );
-  error.status = response.status;
-  return error;
-}
 const teamOrderAdapter = {
   // Team A: esporre PATCH /api/tournaments/{id}/teams/order {team_ids:[...]}.
   // Finché non esiste, l'ordine resta solo in anteprima locale.
   ready: false,
   async save(tournamentId, teamIds) {
     if (!this.ready) return { saved: false };
-    const response = await fetch(`/api/tournaments/${tournamentId}/teams/order`, {
+    await apiWithMessages(`/tournaments/${tournamentId}/teams/order`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ team_ids: teamIds }),
     });
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({}));
-      throw new Error(
-        typeof body.detail === "string"
-          ? body.detail
-          : "Ordine non salvato dal server",
-      );
-    }
     return { saved: true };
   },
 };
@@ -615,13 +618,12 @@ const inviteAdapter = {
   // esistente: nessuna adesione viene simulata.
   ready: false,
   async resolve(token) {
-    if (this.ready) {
-      const response = await fetch(`/api/invites/${encodeURIComponent(token)}`, {
-        headers: { Accept: "application/json" },
-      });
-      if (!response.ok) throw await inviteError(response);
-      return response.json();
-    }
+    if (this.ready)
+      return apiWithMessages(
+        `/invites/${encodeURIComponent(token)}`,
+        {},
+        INVITE_MESSAGES,
+      );
     // Read-only preview through the existing public link. The flag below makes
     // the UI state explicit: the invite has not been verified server-side.
     const preview = await api("/public/" + encodeURIComponent(token));
@@ -643,83 +645,43 @@ const inviteAdapter = {
   },
   async join(token) {
     if (!this.ready) throw new Error("Adesione non ancora disponibile.");
-    const response = await fetch(
-      `/api/invites/${encodeURIComponent(token)}/join`,
-      { method: "POST", headers: { "Content-Type": "application/json" } },
+    return apiWithMessages(
+      `/invites/${encodeURIComponent(token)}/join`,
+      { method: "POST" },
+      INVITE_MESSAGES,
     );
-    if (!response.ok) throw await inviteError(response);
-    return response.json();
   },
 };
-async function inviteError(response) {
-  const body = await response.json().catch(() => ({}));
-  const messages = {
-    401: "Accedi come prof per completare l'adesione.",
-    403: "Non hai i permessi per questo invito.",
-    404: "Questo invito non esiste o è stato revocato.",
-    409: "Sei già iscritto oppure la squadra è completa.",
-    410: "Questo invito è scaduto.",
-  };
-  const error = new Error(
-    messages[response.status] ||
-      body.detail ||
-      `Operazione non riuscita (${response.status})`,
-  );
-  error.status = response.status;
-  return error;
-}
 const fieldsAdapter = {
   // Team A: esporre i campi del docente. Finché `ready` è false la pagina
   // mostra solo i campi citati negli incontri e non invia alcun salvataggio.
   ready: false,
   async list() {
     if (!this.ready) return [];
-    const response = await fetch("/api/fields", {
-      headers: { Accept: "application/json" },
-    });
-    if (!response.ok) throw await fieldError(response);
-    const body = await response.json().catch(() => ({}));
+    const body = await apiWithMessages("/fields", {}, FIELD_MESSAGES);
     return body.fields || [];
   },
   async save(payload, fieldId = null) {
     if (!this.ready)
       throw new Error("Salvataggio dei campi non ancora disponibile.");
-    const response = await fetch(
-      fieldId ? `/api/fields/${fieldId}` : "/api/fields",
-      {
-        method: fieldId ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      },
+    return apiWithMessages(
+      fieldId ? `/fields/${fieldId}` : "/fields",
+      { method: fieldId ? "PATCH" : "POST", body: JSON.stringify(payload) },
+      FIELD_MESSAGES,
     );
-    if (!response.ok) throw await fieldError(response);
-    return response.json();
   },
   async deactivate(fieldId) {
     if (!this.ready)
       throw new Error("Disattivazione dei campi non ancora disponibile.");
-    const response = await fetch(`/api/fields/${fieldId}`, { method: "DELETE" });
-    if (!response.ok) throw await fieldError(response);
-    return response.json().catch(() => ({}));
+    return (
+      (await apiWithMessages(
+        `/fields/${fieldId}`,
+        { method: "DELETE" },
+        FIELD_MESSAGES,
+      )) || {}
+    );
   },
 };
-async function fieldError(response) {
-  const body = await response.json().catch(() => ({}));
-  const messages = {
-    401: "Sessione scaduta. Accedi di nuovo.",
-    403: "Non hai i permessi per gestire i campi.",
-    404: "Campo non trovato.",
-    409: "Esiste già un campo con questo nome.",
-    422: "Controlla i dati del campo: nome, sede o sport non validi.",
-  };
-  const error = new Error(
-    messages[response.status] ||
-      body.detail ||
-      `Operazione non riuscita (${response.status})`,
-  );
-  error.status = response.status;
-  return error;
-}
 const calendarAdapter = {
   // Team A: esporre un aggregato del calendario con i conflitti calcolati dal
   // server. Finché `ready` è false il frontend aggrega i dettagli dei tornei
@@ -731,28 +693,9 @@ const calendarAdapter = {
     for (const [key, value] of Object.entries(filters)) {
       if (value && value !== "all") params.set(key, value);
     }
-    const response = await fetch(`/api/calendar?${params}`, {
-      headers: { Accept: "application/json" },
-    });
-    if (!response.ok) throw await calendarApiError(response);
-    return response.json();
+    return apiWithMessages(`/calendar?${params}`, {}, CALENDAR_MESSAGES);
   },
 };
-async function calendarApiError(response) {
-  const body = await response.json().catch(() => ({}));
-  const messages = {
-    401: "Sessione scaduta. Accedi di nuovo.",
-    403: "Non hai i permessi per questo calendario.",
-    409: "Conflitto di calendario segnalato dal server.",
-  };
-  const error = new Error(
-    messages[response.status] ||
-      body.detail ||
-      `Operazione non riuscita (${response.status})`,
-  );
-  error.status = response.status;
-  return error;
-}
 function enableReorder(list, onReorder, liveSelector = "#reorder-live") {
   if (!list) return;
   const live = $(liveSelector);

@@ -245,3 +245,15 @@ del Team A). Fino a quella decisione la UI espone solo nome e numero di maglia.
   l'origine del sito e conferma di chi gestisce la zona DNS Aruba.
 - Da chiedere al professore: dominio reale, piano Aruba, scelta apex/`www`,
   presenza di posta o sito esistente sull'apex.
+
+## 11. Qualità frontend (prompt 26)
+
+- CSS: rimosso il design system legacy (1.512 righe), un solo `:root`,
+  `.subsection-title` preservato, font DM Sans nel `:root` attivo. Aggiunti
+  `.calendar-main` e `.infographic-panel`.
+- HTTP: `fetch(` compare una sola volta, dentro `api()`; gli adapter usano
+  `apiWithMessages` con messaggi per stato.
+- Guardie: `tests/test_quality.py` verifica client unico, azioni cablate,
+  classifiche dal backend, CSS unico, QR e assenza di dati demo.
+- Nessuna modifica al backend in questo passaggio. Dettaglio in
+  [`../QUALITY.md`](../QUALITY.md).
