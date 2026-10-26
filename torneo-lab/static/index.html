@@ -2,19 +2,76 @@
 <html lang="it">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
     <meta name="theme-color" content="#182923" />
     <meta
       name="description"
-      content="Open Score: il campo di gioco per i tuoi tornei. Demo scolastica open source."
+      content="Open Score: il campo di gioco per i tuoi tornei. Progetto scolastico open source."
     />
     <title>Open Score · Il tuo campo di gioco</title>
     <link rel="icon" type="image/svg+xml" href="/static/mark.svg" />
-    <link rel="stylesheet" href="/static/styles.css" />
-    <script defer src="/static/app.js"></script>
+    <link rel="stylesheet" href="/static/styles.css?v=0.8.0" />
+    <script defer src="/static/vendor/qrcode.js?v=0.8.0"></script>
+    <script defer src="/static/bracket-layout.js?v=0.8.0"></script>
+    <script defer src="/static/infographic.js?v=0.8.0"></script>
+    <script defer src="/static/app.js?v=0.9.0"></script>
   </head>
-  <body>
+  <body data-app="spa">
     <a class="skip-link" href="#content">Vai al contenuto</a>
+    <section id="role-gate" class="role-gate" aria-labelledby="role-title">
+      <div class="role-gate-panel">
+        <a class="brand role-brand" href="/" aria-label="Open Score">
+          <img src="/static/mark.svg" alt="" width="38" height="38" />
+          <span
+            >open<span class="brand-light">score</span
+            ><small>IL TUO CAMPO DI GIOCO</small></span
+          >
+        </a>
+        <p class="eyebrow">OPEN SCORE · ACCESSO</p>
+        <h1 id="role-title">Come vuoi entrare?</h1>
+        <p class="role-intro" id="role-intro">
+          Scegli il tuo ruolo. Potrai cambiarlo in seguito dalla barra in alto.
+        </p>
+        <div class="role-options" id="role-options">
+          <button class="role-choice role-teacher" type="button" data-role="teacher">
+            <span class="role-choice-icon" data-icon="trophy"></span>
+            <strong>Sono un prof</strong>
+            <span>Accedi per creare e gestire i tuoi tornei.</span>
+          </button>
+          <button class="role-choice role-student" type="button" data-role="student">
+            <span class="role-choice-icon" data-icon="users"></span>
+            <strong>Sono uno studente</strong>
+            <span>Consulta tornei, calendario e risultati in sola lettura.</span>
+          </button>
+        </div>
+        <form id="role-login-form" class="role-login hidden">
+          <p class="eyebrow">ACCESSO PROF</p>
+          <h2>Entra nel tuo spazio.</h2>
+          <label>
+            Email
+            <input type="email" name="email" autocomplete="username"
+              inputmode="email" required maxlength="200" />
+          </label>
+          <label>
+            Password
+            <input type="password" name="password" autocomplete="current-password"
+              required maxlength="200" />
+          </label>
+          <div id="role-login-error" class="modal-error hidden" role="alert"></div>
+          <div class="role-login-actions">
+            <button type="button" class="button ghost" data-role="back">Torna indietro</button>
+            <button type="submit" class="button primary">Accedi</button>
+          </div>
+        </form>
+        <button type="button" id="role-switch-student"
+          class="button ghost role-switch hidden" data-role="student">
+          Continua come studente
+        </button>
+      </div>
+    </section>
     <aside id="sidebar" class="sidebar">
       <a class="brand" href="/" aria-label="Open Score, panoramica"
         ><img src="/static/mark.svg" alt="" width="38" height="38" /><span
@@ -37,6 +94,15 @@
             >+</span
           >
         </button>
+        <button id="sports-nav" class="nav-item" data-action="catalog">
+          <span data-icon="ball"></span>Sport e regole
+        </button>
+        <button id="calendar-nav" class="nav-item" data-action="calendar">
+          <span data-icon="calendar"></span>Calendario
+        </button>
+        <button id="fields-nav" class="nav-item" data-action="fields" data-teacher-only>
+          <span data-icon="field"></span>Campi
+        </button>
       </nav>
       <div class="nav-label events-label">
         I TUOI TORNEI <span id="event-count">0</span>
@@ -52,7 +118,7 @@
             Scopri il progetto <span aria-hidden="true">↗</span>
           </button>
         </div>
-        <div class="local-status"><i></i> Spazio locale <span>v0.2</span></div>
+        <div class="local-status"><i></i> Spazio locale <span>v0.8.0</span></div>
       </div>
     </aside>
     <div class="app-shell">
@@ -62,6 +128,7 @@
             id="mobile-menu"
             class="icon-button"
             aria-label="Apri navigazione"
+            aria-controls="sidebar"
             aria-expanded="false"
           >
             <span data-icon="menu"></span></button
@@ -69,7 +136,7 @@
           ><strong id="breadcrumb">Panoramica</strong>
         </div>
         <div class="top-actions">
-          <span class="demo-label"><i></i> DEMO SCOLASTICA</span
+          <span class="context-label"><i></i> PROGETTO SCOLASTICO</span
           ><button class="button primary compact" data-action="new">
             <span data-icon="plus"></span>Nuovo torneo
           </button>

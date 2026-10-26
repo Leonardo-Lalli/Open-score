@@ -1,0 +1,5 @@
+# Tooling configuration only; the app runs directly with uvicorn.
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+src = [".", "tests"]

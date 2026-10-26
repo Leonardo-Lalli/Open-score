@@ -15,7 +15,7 @@ def round_robin(team_ids: list[int], legs: int = 1) -> list[tuple[int, int, int]
     validate_ids(team_ids)
     if legs not in (1, 2):
         raise ValueError('Scegli sola andata o andata e ritorno')
-    rotation = list(team_ids)
+    rotation: list[int | None] = list(team_ids)
     if len(rotation) % 2:
         rotation.append(None)
     fixtures = []
@@ -50,53 +50,128 @@ def knockout_plan(team_ids: list[int], seed: int | None = None) -> list[dict]:
     for position in range(size//2):
         home, away = slots[2*position:2*position+2]
         previous.append(len(plan))
-        plan.append(dict(round_no=1, position=position, home_team_id=home,
-                         away_team_id=away, source_home=None, source_away=None,
-                         is_bye=int(home is None or away is None)))
+        plan.append({'round_no': 1, 'position': position, 'home_team_id': home,
+                     'away_team_id': away, 'source_home': None, 'source_away': None,
+                     'is_bye': int(home is None or away is None)})
     turn = 2
     while len(previous) > 1:
         current = []
         for position in range(len(previous)//2):
             current.append(len(plan))
-            plan.append(dict(round_no=turn, position=position, home_team_id=None,
-                             away_team_id=None, source_home=previous[2*position],
-                             source_away=previous[2*position+1], is_bye=0))
+            plan.append({'round_no': turn, 'position': position, 'home_team_id': None,
+                         'away_team_id': None, 'source_home': previous[2*position],
+                         'source_away': previous[2*position+1], 'is_bye': 0})
         previous = current
         turn += 1
     return plan
 
 
-def knockout_first_round(team_ids: list[int]) -> list[tuple[int, int, int]]:
-    """Compatibility helper: playable first-round fixtures only."""
-    return [(1, m['home_team_id'], m['away_team_id']) for m in knockout_plan(team_ids)
-            if m['round_no'] == 1 and not m['is_bye']]
+def _empty_row(team: dict) -> dict:
+    return {'team_id': team['id'], 'name': team['name'], 'played': 0, 'won': 0, 'drawn': 0,
+            'lost': 0, 'goals_for': 0, 'goals_against': 0, 'goal_difference': 0, 'points': 0}
+
+
+def _apply_match(row_home: dict, row_away: dict, match: dict, win_points: int,
+                 draw_points: int, loss_points: int,
+                 rules: dict | None = None) -> None:
+    ga, gb = match['home_score'], match['away_score']
+    if ga is None or gb is None or match.get('is_bye'):
+        return
+    for row, scored, conceded in ((row_home, ga, gb), (row_away, gb, ga)):
+        row['played'] += 1
+        row['goals_for'] += scored
+        row['goals_against'] += conceded
+    if ga == gb:
+        for row in (row_home, row_away):
+            row['drawn'] += 1
+            row['points'] += draw_points
+    else:
+        winner, loser = (row_home, row_away) if ga > gb else (row_away, row_home)
+        winner_points, loser_points = win_points, loss_points
+        # Sports such as volleyball award a bonus point when the match goes to
+        # the deciding set. `home_score`/`away_score` hold the sets won.
+        profile = (rules or {}).get('standings') or {}
+        max_sets = (rules or {}).get('max_sets')
+        win_tiebreak = profile.get('win_tiebreak')
+        if (max_sets and win_tiebreak is not None
+                and (ga + gb) == int(max_sets)):
+            winner_points = int(win_tiebreak)
+            loser_points = int(profile.get('loss_tiebreak') or 0)
+        winner['won'] += 1
+        winner['points'] += winner_points
+        loser['lost'] += 1
+        loser['points'] += loser_points
+
+
+def _finalise(table: dict[int, dict]) -> None:
+    for row in table.values():
+        row['goal_difference'] = row['goals_for'] - row['goals_against']
+
+
+def _default_key(row: dict) -> tuple:
+    return (-row['points'], -row['goal_difference'], -row['goals_for'],
+            row['name'].casefold(), row['team_id'])
+
+
+def _head_to_head(rows: list[dict], matches: list[dict], win_points: int,
+                  draw_points: int, loss_points: int,
+                  rules: dict | None = None) -> list[dict]:
+    """Rank equal-points groups by a mini-table of their mutual matches."""
+    ordered = sorted(rows, key=_default_key)
+    result: list[dict] = []
+    start = 0
+    while start < len(ordered):
+        end = start + 1
+        while end < len(ordered) and ordered[end]['points'] == ordered[start]['points']:
+            end += 1
+        group = ordered[start:end]
+        if len(group) == 1:
+            result.extend(group)
+        else:
+            ids = {row['team_id'] for row in group}
+            mini = {row['team_id']: dict(row) for row in group}
+            for row in mini.values():
+                for field in ('played', 'won', 'drawn', 'lost', 'goals_for',
+                              'goals_against', 'goal_difference', 'points'):
+                    row[field] = 0
+            for match in matches:
+                if match['home_team_id'] in ids and match['away_team_id'] in ids:
+                    _apply_match(mini[match['home_team_id']], mini[match['away_team_id']],
+                                 match, win_points, draw_points, loss_points, rules)
+            _finalise(mini)
+            overall = {row['team_id']: row for row in group}
+            ordered_mini = sorted(mini.values(), key=lambda row: (
+                -row['points'], -row['goal_difference'], -row['goals_for'],
+                -overall[row['team_id']]['goal_difference'],
+                -overall[row['team_id']]['goals_for'],
+                row['name'].casefold(), row['team_id']))
+            result.extend(overall[row['team_id']] for row in ordered_mini)
+        start = end
+    return result
 
 
 def build_standings(teams: list[dict], matches: list[dict], win_points: int = 3,
-                    draw_points: int = 1, loss_points: int = 0) -> list[dict]:
-    table = {t['id']: dict(team_id=t['id'], name=t['name'], played=0, won=0,
-             drawn=0, lost=0, goals_for=0, goals_against=0, goal_difference=0, points=0)
-             for t in teams}
+                    draw_points: int = 1, loss_points: int = 0,
+                    tie_breaker: str = 'goal_difference',
+                    rules: dict | None = None, penalties: dict | None = None) -> list[dict]:
+    table = {t['id']: _empty_row(t) for t in teams}
     for m in matches:
-        ga, gb = m['home_score'], m['away_score']
-        if ga is None or gb is None or m.get('is_bye'):
-            continue
-        h, v = table[m['home_team_id']], table[m['away_team_id']]
-        for row, scored, conceded in ((h, ga, gb), (v, gb, ga)):
-            row['played'] += 1
-            row['goals_for'] += scored
-            row['goals_against'] += conceded
-        if ga == gb:
-            for row in (h, v):
-                row['drawn'] += 1
-                row['points'] += draw_points
-        else:
-            winner, loser = (h, v) if ga > gb else (v, h)
-            winner['won'] += 1
-            winner['points'] += win_points
-            loser['lost'] += 1
-            loser['points'] += loss_points
-    for row in table.values():
-        row['goal_difference'] = row['goals_for'] - row['goals_against']
-    return sorted(table.values(), key=lambda x: (-x['points'], -x['goal_difference'],
-                   -x['goals_for'], x['name'].casefold(), x['team_id']))
+        if m['home_team_id'] in table and m['away_team_id'] in table:
+            _apply_match(table[m['home_team_id']], table[m['away_team_id']], m,
+                         win_points, draw_points, loss_points, rules)
+    _finalise(table)
+    for team_id, deduction in (penalties or {}).items():
+        if team_id in table:
+            table[team_id]['points']-=deduction
+            table[team_id]['penalty_points']=deduction
+
+    if tie_breaker == 'head_to_head':
+        return _head_to_head(list(table.values()), matches, win_points,
+                             draw_points, loss_points, rules)
+    keys = {
+        'goals_for': lambda x: (-x['points'], -x['goals_for'], -x['goal_difference'],
+                                x['name'].casefold(), x['team_id']),
+        'wins': lambda x: (-x['points'], -x['won'], -x['goal_difference'],
+                           -x['goals_for'], x['name'].casefold(), x['team_id']),
+    }.get(tie_breaker, _default_key)
+    return sorted(table.values(), key=keys)

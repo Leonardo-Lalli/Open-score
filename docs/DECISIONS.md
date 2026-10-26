@@ -1,14 +1,19 @@
-# Decisioni e ipotesi — 24 ottobre 2026
+# Decisioni e ipotesi — 25 ottobre 2026
 
 1. **Consegna delimitata alla demo.** Il master prompt è una visione di piattaforma; la richiesta attuale privilegia una demo funzionante da mostrare. Formati avanzati e produzione non vengono dichiarati completi.
 2. **Nome Open Score provvisorio.** TorneoLab è il nome dello starter e della cartella; il prodotto mostrato usa il nome della repository. La scelta finale resta del gruppo.
 3. **Continuità Python.** Conservati FastAPI, SQLite e il metodo del cerchio, con moduli separati. Nessuna build Node necessaria per avviare la demo. React/TypeScript e ORM richiederebbero complessità non utile alla presentazione immediata.
 4. **Nuovo schema isolato.** Nuovo file `data/open_score.sqlite3`; nessuna sovrascrittura automatica del vecchio database dello starter. Schema SQL versionato, importazione legacy rimandata e documentata.
 5. **Correzioni esplicite.** Il vincitore di un incontro determina i nodi successivi. La conferma d'invalidazione è richiesta quando si perderebbero risultati già registrati o una qualificazione; lo storico viene conservato. Gli orari degli incontri invalidati sono azzerati.
-6. **Regole trasparenti.** Classifica: punti, differenza, fatti, nome e ID. Ultimi criteri deterministici della demo, non un regolamento scolastico approvato o una copia dei criteri completi di Score7.
+6. **Regole trasparenti.** Classifica: punti e criterio scelto fra differenza, scontri diretti, reti fatte e vittorie, poi nome e ID. Sono criteri deterministici della demo, non un regolamento scolastico approvato o una copia dei criteri completi di Score7.
 7. **Multifase ridotto.** Gironi uguali, prime 1/2 per gruppo, poi eliminazione singola. Nessun migliore terzo, qualificazione anticipata, Swiss o consolazione.
-8. **Sport con punteggio numerico.** Calcio, calcio a 5, basket e pallamano condividono il modello numerico della demo. Set, rigori, supplementari e statistiche individuali sono futuri incrementi.
-9. **Presentazione locale.** GitHub condivide codice e istruzioni; non esegue il backend. Nessun deploy remoto o account con permessi fittizi. Un link loopback non rende il torneo raggiungibile dal computer dell'amico.
-10. **Dati di provenienza.** Gli ID del JSON fornito sono conservati come `source_id`. I punteggi vuoti diventano NULL, non zero. Tutti gli altri esempi sono sintetici.
-11. **Dipendenze.** Versioni runtime fissate a quelle usate nella verifica. Il frontend non scarica font, immagini, script o asset da Score7.
-12. **Licenza.** Scelta da concordare con entrambi gli autori prima del rilascio open source stabile. La pubblicazione del codice della demo non viene presentata come sostituto di una licenza esplicita.
+8. **Sport, varianti e regole nel database.** Sei sport padre con sedici varianti; la variante determina composizione, durata, punteggio e regolamento. Le regole sono scelte del progetto e vengono congelate in uno snapshot alla creazione del torneo. Pallamano e Tennis restano leggibili come storia ma non sono più selezionabili.
+9. **LAN scolastica, non Internet.** Il server gira su un computer della scuola ed è raggiungibile dalla rete interna. GitHub condivide codice e istruzioni; non esegue il backend. Non si promette un servizio pubblico né un hosting remoto.
+10. **Account docenti separati.** Ogni docente accede con email e password e gestisce solo i tornei della propria utenza; studenti e anonimi restano in sola lettura. Le password sono hash PBKDF2-SHA256. Il primo account nasce da `TORNEO_ADMIN_EMAIL`/`TORNEO_ADMIN_PASSWORD`, gli altri da `manage.py`. Non esistono ruoli amministrativi aggiuntivi né iscrizione autonoma.
+11. **Segreti fuori dal repository.** Password, token, segreto di sessione, database e backup vivono solo sul server. Il segreto dei cookie è su file o variabile d'ambiente e può essere ruotato per invalidare tutte le sessioni.
+12. **Dati di provenienza rimossi.** La fixture JSON e il caricamento degli esempi sono stati eliminati nella 0.8.0: i tornei nascono solo dai dati inseriti dagli utenti. La colonna `demo_key` resta nello schema per compatibilità.
+13. **Dipendenze.** Versioni runtime fissate a quelle usate nella verifica. Il frontend non scarica font, immagini, script o asset da Score7.
+14. **Un solo worker SQLite.** WAL, `busy_timeout` e `BEGIN IMMEDIATE` bastano per la LAN con un processo `uvicorn`. PostgreSQL e più worker richiederebbero una migrazione dedicata, non un cambio di configurazione.
+15. **Backup online.** I backup usano `VACUUM INTO` e non la copia a caldo del file: con WAL una copia del solo database può essere incompleta. La conservazione predefinita è di 14 copie.
+16. **Licenza.** Scelta da concordare con entrambi gli autori prima del rilascio open source stabile. La pubblicazione del codice della demo non viene presentata come sostituto di una licenza esplicita.
+17. **Nessun dato dimostrativo preinstallato.** Il database parte vuoto e non esiste un endpoint di seed: studenti e docenti vedono solo i tornei creati e persistiti. La colonna `demo_key` resta nello schema solo per compatibilità con database storici.

@@ -62,11 +62,11 @@ class SetRules(Model):
 
 
 VARIANTS = {
-    'football-11': ('Calcio', 'Calcio a 11', 'points', dict(duration=90)),
-    'football-7': ('Calcio', 'Calcio a 7', 'points', dict(duration=50)),
-    'football-5': ('Calcio a 5', 'Calcio a 5', 'points', dict(duration=40)),
-    'basketball': ('Basket', 'Basket standard', 'points', dict(duration=40, periods=4,
-                    allow_draw=False, win_points=2, draw_points=0, forfeit_score=20)),
+    'football-11': ('Calcio', 'Calcio a 11', 'points', {'duration': 90}),
+    'football-7': ('Calcio', 'Calcio a 7', 'points', {'duration': 50}),
+    'football-5': ('Calcio a 5', 'Calcio a 5', 'points', {'duration': 40}),
+    'basketball': ('Basket', 'Basket standard', 'points', {'duration': 40, 'periods': 4,
+                    'allow_draw': False, 'win_points': 2, 'draw_points': 0, 'forfeit_score': 20}),
     'volleyball-indoor': ('Pallavolo', 'Pallavolo indoor', 'sets', {}),
 }
 
@@ -85,12 +85,12 @@ def configuration(variant_id, config=None):
 def metadata(variant_id):
     rules = configuration(variant_id)
     kind = VARIANTS[variant_id][2]
-    return dict(variant_id=variant_id, defaults=rules,
-                rules_schema=(SetRules if kind == 'sets' else PointsRules).model_json_schema(),
-                result_schema=(SetsScore if kind == 'sets' else PointsScore).model_json_schema(),
-                administrative_result_schema=ForfeitScore.model_json_schema(),
-                standings_criteria=(['points', 'set_difference', 'rally_difference', 'name', 'team_id']
-                                    if kind == 'sets' else ['points', 'goal_difference', 'goals_for', 'name', 'team_id']))
+    return {'variant_id': variant_id, 'defaults': rules,
+                'rules_schema': (SetRules if kind == 'sets' else PointsRules).model_json_schema(),
+                'result_schema': (SetsScore if kind == 'sets' else PointsScore).model_json_schema(),
+                'administrative_result_schema': ForfeitScore.model_json_schema(),
+                'standings_criteria': (['points', 'set_difference', 'rally_difference', 'name', 'team_id']
+                                    if kind == 'sets' else ['points', 'goal_difference', 'goals_for', 'name', 'team_id'])}
 
 
 def validate_score(variant_id, rules, score, knockout=False):

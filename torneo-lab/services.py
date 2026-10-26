@@ -2,22 +2,75 @@
 import json
 import secrets
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from fastapi import HTTPException
 
+import sport_rules
 from engine import build_standings, knockout_plan, round_robin
-from schemas import TournamentInput
+from schemas import PlayerInput, TournamentInput, TournamentUpdate
+
+STRUCTURAL_FIELDS = {
+    'sport', 'sport_id', 'variant', 'variant_id', 'format', 'participant_kind',
+    'win_points', 'draw_points', 'loss_points', 'legs', 'group_count',
+    'qualifiers', 'random_seed', 'tournament_type', 'scoring_system',
+    'tie_breaker',
+}
+
+OWNER_ONLY_FIELDS = frozenset({'public_token', 'teacher_id', 'owner_id', 'organization_id', 'public_slug'})
+LEGACY_FIELDS = frozenset({'demo_key'})
 
 
-def rows(db, sql, params=()):
+def visible_tournament(tournament: dict[str, Any], owner: bool) -> dict[str, Any]:
+    """Strip internal columns unless the caller owns the tournament.
+
+    `public_token` is the bearer key of the spectator link and `teacher_id`
+    identifies another account, so they never leave the owner's session.
+    `demo_key` is a legacy column that is no longer read anywhere.
+    """
+    hidden = LEGACY_FIELDS if owner else LEGACY_FIELDS | OWNER_ONLY_FIELDS
+    return {key: value for key, value in tournament.items() if key not in hidden}
+
+
+def rows(db, sql: str, params: tuple = ()) -> list[dict[str, Any]]:
     return [dict(r) for r in db.execute(sql, params)]
 
 
-def required(db, tid):
+def required(db, tid) -> dict[str, Any]:
     result = db.execute('SELECT * FROM tournaments WHERE id=?', (tid,)).fetchone()
     if result is None:
         raise HTTPException(404, 'Torneo non trovato')
     return dict(result)
+
+
+def active(db, tid):
+    """Reject writes on archived or historical tournaments."""
+    tournament = required(db, tid)
+    if tournament['archived_at']:
+        raise HTTPException(409, 'Torneo archiviato: ripristinalo prima di modificarlo')
+    if tournament['sport_id'] is None or tournament['variant_id'] is None:
+        raise HTTPException(409, 'Sport storico non più supportato: il torneo è in sola lettura')
+    return tournament
+
+
+def require_owner(db, tid, teacher_id: int):
+    """Only the teacher who created a tournament may change it."""
+    tournament = active(db, tid)
+    if tournament['teacher_id'] is None:
+        raise HTTPException(403, 'Torneo non assegnato a un docente: sola lettura')
+    if tournament['teacher_id'] != teacher_id:
+        raise HTTPException(403, 'Non hai i permessi su questo torneo')
+    return tournament
+
+
+def require_owner_any(db, tid, teacher_id: int):
+    """Ownership check that also works on archived tournaments (restore)."""
+    tournament = required(db, tid)
+    if tournament['teacher_id'] is None:
+        raise HTTPException(403, 'Torneo non assegnato a un docente: sola lettura')
+    if tournament['teacher_id'] != teacher_id:
+        raise HTTPException(403, 'Non hai i permessi su questo torneo')
+    return tournament
 
 
 def audit(db, tid, action, payload):
@@ -25,75 +78,423 @@ def audit(db, tid, action, payload):
                (tid, action, json.dumps(payload, ensure_ascii=False)))
 
 
-def create(db, data: TournamentInput, demo_key=None):
+def _rules(tournament: dict) -> dict:
+    try:
+        parsed = json.loads(tournament.get('rules_snapshot') or '{}')
+    except (TypeError, ValueError):
+        parsed = {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _variant_for_tournament(db, tournament: dict):
+    if tournament.get('variant_id'):
+        variant = sport_rules.get_variant_by_id(db, tournament['variant_id'])
+        if variant:
+            return variant
+    if tournament.get('variant'):
+        variant = sport_rules.get_variant_by_slug(db, tournament['variant'])
+        if variant:
+            return variant
+    if tournament.get('sport_id'):
+        sport = sport_rules.get_sport_by_id(db, tournament['sport_id'])
+        if sport:
+            return sport.default_variant(tournament.get('participant_kind'))
+    return None
+
+
+def resolve_selection(db, sport_name: str, sport_id: int | None,
+                      variant_slug: str | None, participant_kind: str,
+                      kind_explicit: bool = False):
+    """Resolve a parent sport and one compatible variant.
+
+    The variant drives `participant_kind`; an explicit incompatible value is a
+    validation error instead of a silent rewrite.
+    """
+    sport_row = db.execute('SELECT * FROM sport_configs WHERE name=?',
+                           (sport_name,)).fetchone()
+    if sport_row is None:
+        raise HTTPException(422, 'Sport non supportato')
+    if sport_id is not None and sport_id != sport_row['id']:
+        raise HTTPException(422, 'Sport e sport_id non corrispondono')
+
+    sport = sport_rules.get_sport_by_id(db, sport_row['id'])
+    if sport is None or not sport.variants:
+        raise HTTPException(422, 'Questo sport non ha varianti configurate')
+
+    variant = None
+    if variant_slug:
+        variant = sport_rules.get_variant_by_slug(db, variant_slug)
+        if variant is None or variant.sport_id != sport.id:
+            raise HTTPException(422, 'Variante non valida per questo sport')
+        if kind_explicit and participant_kind != variant.participant_kind:
+            raise HTTPException(422, 'La variante non è compatibile con il tipo di partecipanti')
+        participant_kind = variant.participant_kind
+    else:
+        matching = [v for v in sport.variants
+                    if v.participant_kind == participant_kind]
+        if kind_explicit and not matching:
+            raise HTTPException(422, 'Nessuna variante disponibile per questo tipo di partecipanti')
+        variant = (min(matching, key=lambda v: (v.sort_order, v.id))
+                   if matching else sport.default_variant())
+        if variant is None:
+            raise HTTPException(422, 'Nessuna variante disponibile per questo sport')
+        participant_kind = variant.participant_kind
+
+    return dict(sport_row), variant, participant_kind
+
+
+def _variant_values(variant) -> dict:
+    """Database values and snapshot for a selected variant."""
+    return {
+        'variant_id': variant.id,
+        'variant': variant.slug,
+        'participant_kind': variant.participant_kind,
+        'rules_snapshot': json.dumps(variant.rules, ensure_ascii=False),
+        'regulation_snapshot': variant.regulation,
+        'scoring_system': 'sets' if variant.supports_sets else 'points',
+    }
+
+
+def _apply_variant_defaults(values: dict, fields_set: set[str], variant) -> None:
+    values.update(_variant_values(variant))
+    standings = variant.standings
+    if 'win_points' not in fields_set:
+        values['win_points'] = int(standings.get('win', 3) or 0)
+    if 'draw_points' not in fields_set:
+        values['draw_points'] = int(standings.get('draw', 1) or 0)
+    if 'loss_points' not in fields_set:
+        values['loss_points'] = int(standings.get('loss', 0) or 0)
+    if 'tie_breaker' not in fields_set:
+        values['tie_breaker'] = variant.default_tie_breaker
+
+
+def create(db, data: TournamentInput, teacher_id: int | None = None):
     values = data.model_dump(exclude={'team_names'})
-    values.update(public_token=secrets.token_urlsafe(18), demo_key=demo_key)
+    fields_set = set(data.model_fields_set)
+    sport_name = values.pop('sport')
+    requested_variant = values.pop('variant', None)
+    sport_id = values.get('sport_id')
+    sport_row, variant, kind = resolve_selection(
+        db, sport_name, sport_id, requested_variant,
+        values.get('participant_kind', 'team'),
+        'participant_kind' in fields_set,
+    )
+    values['sport'] = sport_row['name']
+    values['sport_id'] = sport_row['id']
+    values['participant_kind'] = kind
+    values['teacher_id'] = teacher_id
+    _apply_variant_defaults(values, fields_set, variant)
+    values['public_token'] = secrets.token_urlsafe(18)
     cols = ','.join(values)
     tid = db.execute(f'INSERT INTO tournaments({cols}) VALUES ({",".join("?" for _ in values)})',
                      list(values.values())).lastrowid
     db.executemany('INSERT INTO teams(tournament_id,name) VALUES (?,?)',
                    [(tid, n) for n in data.team_names])
-    audit(db, tid, 'created', {'name': data.name})
+    audit(db, tid, 'created', {'name': data.name, 'variant': variant.slug})
     return tid
 
 
-def teams(db, tid):
-    return rows(db, 'SELECT * FROM teams WHERE tournament_id=? AND archived=0 ORDER BY id', (tid,))
+def update_tournament(db, tid, data: TournamentUpdate):
+    tournament = active(db, tid)
+    values = data.model_dump(exclude_unset=True)
+    fields_set = set(data.model_fields_set)
+    if games(db, tid) and STRUCTURAL_FIELDS & values.keys():
+        raise HTTPException(409, 'Formato, sport e regole non sono modificabili dopo la generazione degli incontri')
+
+    sport_changed = 'sport' in values or 'sport_id' in values or 'variant' in values
+    kind_changed = 'participant_kind' in values
+    if sport_changed or kind_changed:
+        sport_name = values.get('sport', tournament['sport'])
+        sport_id = (values.get('sport_id') if 'sport' in values
+                    else values.get('sport_id', tournament['sport_id']))
+        requested_variant = values.pop('variant', None)
+        if not sport_changed and not requested_variant:
+            requested_variant = tournament['variant']
+        kind = values.get('participant_kind', tournament['participant_kind'])
+        kind_explicit = 'participant_kind' in fields_set
+        sport_row, variant, kind = resolve_selection(
+            db, sport_name, sport_id, requested_variant, kind, kind_explicit)
+        values['sport'] = sport_row['name']
+        values['sport_id'] = sport_row['id']
+        # Keep explicit point overrides, otherwise re-apply variant defaults.
+        defaults = dict(values)
+        defaults_fields = set(fields_set)
+        _apply_variant_defaults(defaults, defaults_fields, variant)
+        for key in ('variant_id', 'variant', 'participant_kind', 'rules_snapshot',
+                    'regulation_snapshot', 'scoring_system'):
+            values[key] = defaults[key]
+        for key in ('win_points', 'draw_points', 'loss_points', 'tie_breaker'):
+            if key in fields_set:
+                values[key] = getattr(data, key)
+            else:
+                values[key] = defaults[key]
+    else:
+        values.pop('variant', None)
+
+    if values.get('format', tournament['format']) == 'knockout' and values.get('legs', tournament['legs']) != 1:
+        raise HTTPException(422, 'Il formato knockout prevede una sola gara per incontro')
+    if not values:
+        return {'ok': True, 'changed': 0}
+    if STRUCTURAL_FIELDS & fields_set:
+        # A change through the catalog makes the catalog snapshot authoritative.
+        values.update(platform_variant_id=None,rules_json=None)
+    assignments = ','.join(f'{column}=?' for column in values)
+    db.execute(f"UPDATE tournaments SET {assignments},version=version+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?",
+               [*values.values(), tid])
+    audit(db, tid, 'updated', {'fields': sorted(values)})
+    return {'ok': True, 'changed': len(values)}
 
 
-def games(db, tid):
+def set_archived(db, tid, archived: bool):
+    required(db, tid)
+    if archived:
+        db.execute("UPDATE tournaments SET archived_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),"
+                   "updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?", (tid,))
+    else:
+        db.execute("UPDATE tournaments SET archived_at=NULL,"
+                   "updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?", (tid,))
+    audit(db, tid, 'archived' if archived else 'restored', {})
+    return {'ok': True, 'archived': archived}
+
+
+def teams(db, tid) -> list[dict[str, Any]]:
+    return rows(db, 'SELECT * FROM teams WHERE tournament_id=? AND archived=0 ORDER BY display_order,id', (tid,))
+
+
+def players(db, tid, team_id) -> list[dict[str, Any]]:
+    team = db.execute('SELECT id FROM teams WHERE id=? AND tournament_id=?',
+                      (team_id, tid)).fetchone()
+    if team is None:
+        raise HTTPException(404, 'Partecipante non trovato')
+    return rows(db, 'SELECT id,name,shirt_number FROM team_players WHERE team_id=? '
+                     'ORDER BY id', (team_id,))
+
+
+def add_player(db, tid, team_id, data: PlayerInput):
+    tournament = active(db, tid)
+    if tournament['participant_kind'] != 'team':
+        raise HTTPException(422, 'Le rose sono disponibili solo per i tornei a squadre')
+    players(db, tid, team_id)
+    variant = _variant_for_tournament(db, tournament)
+    maximum = variant.max_roster if variant else 30
+    if db.execute('SELECT count(*) FROM team_players WHERE team_id=?',
+                  (team_id,)).fetchone()[0] >= maximum:
+        raise HTTPException(422, f'La rosa può contenere al massimo {maximum} giocatori')
+    if db.execute('SELECT 1 FROM team_players WHERE team_id=? AND name=? COLLATE NOCASE',
+                  (team_id, data.name)).fetchone():
+        raise HTTPException(409, 'Questo giocatore è già in rosa')
+    cur = db.execute('INSERT INTO team_players(team_id,name,shirt_number) VALUES (?,?,?)',
+                     (team_id, data.name, data.shirt_number))
+    from roster_bridge import link_player
+    link_player(db,cur.lastrowid,tid)
+    audit(db, tid, 'player_added', {'team_id': team_id, 'name': data.name})
+    return {'id': cur.lastrowid}
+
+
+def remove_player(db, tid, team_id, player_id):
+    active(db, tid)
+    # The team must belong to this tournament: without this check an owner
+    # could delete a player of another teacher's team by guessing two ids.
+    if db.execute('SELECT 1 FROM teams WHERE id=? AND tournament_id=?',
+                  (team_id, tid)).fetchone() is None:
+        raise HTTPException(404, 'Partecipante non trovato')
+    player = db.execute('SELECT student_id FROM team_players WHERE id=? AND team_id=?',(player_id,team_id)).fetchone()
+    cur = db.execute('DELETE FROM team_players WHERE id=? AND team_id=?',
+                     (player_id, team_id))
+    if not cur.rowcount:
+        raise HTTPException(404, 'Giocatore non trovato')
+    if player and player['student_id']:
+        db.execute('UPDATE students SET team_id=NULL,version=version+1 WHERE id=?',(player['student_id'],))
+    audit(db, tid, 'player_removed', {'team_id': team_id, 'player_id': player_id})
+    return {'ok': True}
+
+
+def games(db, tid) -> list[dict[str, Any]]:
     return rows(db, 'SELECT m.*,s.kind FROM matches m JOIN stages s ON s.id=m.stage_id '
-                   'WHERE m.tournament_id=? ORDER BY s.ordinal,m.round_no,m.position,m.id', (tid,))
+                    'WHERE m.tournament_id=? ORDER BY s.ordinal,m.round_no,m.position,m.id',
+                (tid,))
+
+
+def _sets_by_match(db, tid):
+    result: dict[int, list[dict]] = {}
+    for row in rows(db,
+                    'SELECT ms.match_id,ms.set_no,ms.home_points,ms.away_points '
+                    'FROM match_sets ms JOIN matches m ON m.id=ms.match_id '
+                    'WHERE m.tournament_id=? ORDER BY ms.match_id,ms.set_no', (tid,)):
+        result.setdefault(row['match_id'], []).append(
+            {'set': row['set_no'], 'home': row['home_points'],
+             'away': row['away_points']})
+    return result
 
 
 def table(db, t, group_id=None):
+    if t.get('platform_variant_id'):
+        import platform_services
+        return platform_services.table(db, t, group_id)
     roster = teams(db, t['id'])
     fixtures = [m for m in games(db, t['id']) if m['kind'] == 'round_robin']
     if group_id is not None:
         roster = [p for p in roster if p['group_id'] == group_id]
         fixtures = [m for m in fixtures if m['group_id'] == group_id]
-    if t.get('variant_id'):
-        from sports import standings
-        penalties = {r['team_id']: r['points'] for r in db.execute(
-            'SELECT p.* FROM team_penalties p JOIN teams t ON t.id=p.team_id WHERE t.tournament_id=?', (t['id'],))}
-        return standings(roster, fixtures, t['variant_id'], json.loads(t['rules_json']), penalties)
-    return build_standings(roster, fixtures, t['win_points'], t['draw_points'], t['loss_points'])
+    penalties={p['team_id']:p['points'] for p in rows(db,'SELECT p.* FROM team_penalties p JOIN teams t ON t.id=p.team_id WHERE t.tournament_id=?',(t['id'],))}
+    return build_standings(roster, fixtures, t['win_points'], t['draw_points'],
+                           t['loss_points'], t['tie_breaker'], _rules(t),penalties)
 
 
-def detail(db, tid, public=False):
+def match_status(m):
+    return ('bye' if m['is_bye'] else
+            ('completed' if m['home_score'] is not None else
+             ('ready' if m['home_team_id'] and m['away_team_id'] else 'waiting')))
+
+
+def _summary_fields(fixture_count: int, playable: int, completed: int,
+                    champion, fmt: str) -> dict[str, Any]:
+    """Single source of truth for status, progress and champion."""
+    if not fixture_count:
+        status = 'draft'
+    elif champion or (fmt == 'round_robin' and completed == playable):
+        status = 'completed'
+    else:
+        status = 'active'
+    return {'status': status,
+            'progress': {'completed': completed, 'total': playable},
+            'champion_team_id': champion}
+
+
+def summary_states(db) -> dict[int, dict[str, Any]]:
+    """Status, progress and champion for every tournament in two queries.
+
+    The list endpoint used to call `detail()` once per row, which loaded
+    teams, matches, sets and standings only to keep three values.
+    """
+    entries = {row['id']: {'format': row['format'], 'fixtures': 0,
+                           'playable': 0, 'completed': 0, 'champion': None}
+               for row in rows(db, 'SELECT id,format FROM tournaments')}
+    for row in rows(db,
+                    'SELECT m.tournament_id,s.kind,m.is_bye,m.home_score,m.winner_team_id '
+                    'FROM matches m JOIN stages s ON s.id=m.stage_id '
+                    'ORDER BY m.tournament_id,s.ordinal,m.round_no,m.position,m.id'):
+        entry = entries.get(row['tournament_id'])
+        if entry is None:
+            continue
+        entry['fixtures'] += 1
+        if row['kind'] == 'knockout':
+            entry['champion'] = row['winner_team_id']
+        if row['is_bye']:
+            continue
+        entry['playable'] += 1
+        if row['home_score'] is not None:
+            entry['completed'] += 1
+    return {tid: _summary_fields(entry['fixtures'], entry['playable'],
+                                entry['completed'], entry['champion'], entry['format'])
+            for tid, entry in entries.items()}
+
+
+def detail(db, tid, public=False, viewer_id: int | None = None) -> dict[str, Any]:
     t = required(db, tid)
+    owner = viewer_id is not None and t['teacher_id'] == viewer_id and not public
     fixtures = games(db, tid)
     roster = teams(db, tid)
+    sets = _sets_by_match(db, tid)
+    counts = {row['team_id']: row['total'] for row in rows(
+        db, 'SELECT team_id,count(*) AS total FROM team_players '
+            'WHERE team_id IN (SELECT id FROM teams WHERE tournament_id=?) '
+            'GROUP BY team_id', (tid,))}
+    for team in roster:
+        team['player_count'] = counts.get(team['id'], 0)
     groups = rows(db, 'SELECT g.* FROM groups g JOIN stages s ON s.id=g.stage_id '
                       'WHERE s.tournament_id=? ORDER BY g.id', (tid,))
     for g in groups:
         g['standings'] = table(db, t, g['id'])
     for m in fixtures:
-        m['status'] = 'bye' if m['is_bye'] else ('completed' if m['home_score'] is not None
-                       else ('ready' if m['home_team_id'] and m['away_team_id'] else 'waiting'))
+        m['status'] = match_status(m)
+        m['sets'] = sets.get(m['id'], [])
+        if not owner:
+            m.pop('score_json',None)
     knockout = [m for m in fixtures if m['kind'] == 'knockout']
     champion = knockout[-1]['winner_team_id'] if knockout else None
     playable = [m for m in fixtures if not m['is_bye']]
     completed = sum(m['home_score'] is not None for m in playable)
-    status = 'draft' if not fixtures else ('completed' if (champion or
-             (t['format'] == 'round_robin' and completed == len(playable))) else 'active')
-    result = dict(tournament=t, teams=roster, matches=fixtures, groups=groups,
-                  stages=rows(db, 'SELECT * FROM stages WHERE tournament_id=? ORDER BY ordinal', (tid,)),
-                  standings=table(db, t) if t['format'] == 'round_robin' else [],
-                  champion_team_id=champion, status=status,
-                  progress=dict(completed=completed, total=len(playable)),
-                  public=public)
-    if public:
-        result['tournament'] = {k:v for k,v in t.items() if k not in ('public_token','demo_key')}
-    else:
-        result['audit'] = rows(db, 'SELECT id,action,created_at FROM audit_logs WHERE tournament_id=? ORDER BY id DESC LIMIT 30', (tid,))
+    summary = _summary_fields(len(fixtures), len(playable), completed, champion,
+                             t['format'])
+    sport = sport_rules.get_sport_by_id(db, t['sport_id']) if t['sport_id'] else None
+    variant = _variant_for_tournament(db, t)
+    rules = _rules(t) or (variant.rules if variant else {})
+    regulation = t.get('regulation_snapshot') or (variant.regulation if variant else '')
+    result: dict[str, Any] = {
+        'tournament': t, 'teams': roster, 'matches': fixtures, 'groups': groups,
+        'stages': rows(db, 'SELECT * FROM stages WHERE tournament_id=? ORDER BY ordinal', (tid,)),
+        'standings': table(db, t) if t['format'] == 'round_robin' else [],
+        'champion_team_id': summary['champion_team_id'], 'status': summary['status'],
+        'progress': summary['progress'],
+        'sport_config': sport_rules.summary(sport) if sport else None,
+        'variant_config': sport_rules.variant_detail(variant) if variant else None,
+        'rules': rules, 'regulation': regulation,
+        'legacy_sport': bool(t['sport'] and (t['sport_id'] is None or variant is None)),
+        'public': public,
+        'can_manage': owner,
+    }
+    result['tournament'] = visible_tournament(t, owner)
+    if owner:
+        result['audit'] = rows(db, 'SELECT id,action,created_at FROM audit_logs '
+                                    'WHERE tournament_id=? ORDER BY id DESC LIMIT 30', (tid,))
     return result
 
 
-def insert_bracket(db, tid, sid, ids, seed=None):
+def team_detail(db, tid, team_id, viewer_id: int | None = None) -> dict[str, Any]:
+    """Single-participant view: group, standing position, fixtures and results."""
+    t = required(db, tid)
+    row = db.execute('SELECT * FROM teams WHERE id=? AND tournament_id=?', (team_id, tid)).fetchone()
+    if row is None:
+        raise HTTPException(404, 'Partecipante non trovato')
+    team = dict(row)
+    group = db.execute('SELECT name FROM groups WHERE id=?', (team['group_id'],)).fetchone() \
+        if team['group_id'] else None
+    team['group_name'] = group['name'] if group else None
+
+    roster = {p['id']: p['name'] for p in teams(db, tid)}
+    fixtures = []
+    sets = _sets_by_match(db, tid)
+    for match in games(db, tid):
+        if team_id not in (match['home_team_id'], match['away_team_id']):
+            continue
+        match['status'] = match_status(match)
+        match['sets'] = sets.get(match['id'], [])
+        if viewer_id != t['teacher_id']:
+            match.pop('score_json',None)
+        match['home_name'] = roster.get(match['home_team_id'])
+        match['away_name'] = roster.get(match['away_team_id'])
+        match['opponent_name'] = roster.get(
+            match['away_team_id'] if match['home_team_id'] == team_id else match['home_team_id'])
+        fixtures.append(match)
+
+    standing_rows = []
+    if t['format'] == 'groups' and team['group_id']:
+        standing_rows = table(db, t, team['group_id'])
+    elif t['format'] == 'round_robin':
+        standing_rows = table(db, t)
+    standing = next((r for r in standing_rows if r['team_id'] == team_id), None)
+    position = standing_rows.index(standing) + 1 if standing else None
+    public_tournament = {k: t[k] for k in (
+        'id', 'name', 'sport', 'variant', 'format', 'participant_kind',
+        'win_points', 'draw_points', 'loss_points', 'qualifiers', 'tie_breaker')}
+    variant = _variant_for_tournament(db, t)
+    return {'team': team, 'standing': standing, 'position': position,
+            'matches': fixtures, 'tournament': public_tournament,
+            'can_manage': viewer_id is not None and t['teacher_id'] == viewer_id,
+            'players': players(db, tid, team_id) if t['participant_kind'] == 'team' else [],
+            'max_roster': variant.max_roster if variant else 30,
+            'players_on_field': variant.players_on_field if variant else 1,
+            'min_lineup': variant.min_lineup if variant else 1,
+            'variant_name': variant.name if variant else None,
+            'participant_kind': t['participant_kind']}
+
+
+def insert_bracket(db, tid, sid, ids, seed=None, duration=20):
     mapping = {}
     for i, match in enumerate(knockout_plan(ids, seed)):
         m = dict(match)
+        m['duration'] = duration
         for key in ('source_home', 'source_away'):
             if m[key] is not None:
                 m[key] = mapping[m[key]]
@@ -101,9 +502,6 @@ def insert_bracket(db, tid, sid, ids, seed=None):
         mapping[i] = db.execute(f'INSERT INTO matches(tournament_id,stage_id,{cols}) '
                                f'VALUES (?,?,{",".join("?" for _ in m)})',
                                [tid, sid, *m.values()]).lastrowid
-    tournament = required(db, tid)
-    if tournament.get('rules_json'):
-        db.execute('UPDATE matches SET duration=? WHERE stage_id=?', (json.loads(tournament['rules_json'])['duration'], sid))
     progress_bracket(db, tid)
 
 
@@ -128,20 +526,22 @@ def progress_bracket(db, tid):
 
 
 def generate(db, tid):
-    t = required(db, tid)
+    t = active(db, tid)
     if games(db, tid):
         raise HTTPException(409, 'Incontri già generati: il comando non crea duplicati')
-    ids = [p['id'] for p in teams(db, tid)]
+    ids = sorted(p['id'] for p in teams(db, tid))
     if not 2 <= len(ids) <= 32:
         raise HTTPException(422, 'Servono da 2 a 32 partecipanti')
     if t['format'] == 'groups':
         count = t['group_count']
         if len(ids) % count or len(ids)//count < max(2, t['qualifiers']):
-            raise HTTPException(422, 'Per questa demo servono gironi uguali con almeno 2 squadre e abbastanza qualificate')
+            raise HTTPException(422, 'Per questo formato servono gironi uguali con almeno 2 squadre e abbastanza qualificate')
+    variant = _variant_for_tournament(db, t)
+    duration = _rules(t).get('match_duration') or (variant.match_duration if variant else 20)
     kind = 'knockout' if t['format'] == 'knockout' else 'round_robin'
     sid = db.execute('INSERT INTO stages(tournament_id,ordinal,kind) VALUES (?,0,?)', (tid,kind)).lastrowid
     if kind == 'knockout':
-        insert_bracket(db, tid, sid, ids, t['random_seed'])
+        insert_bracket(db, tid, sid, ids, t['random_seed'], duration)
     else:
         pools = [(None, ids)]
         if t['format'] == 'groups':
@@ -154,11 +554,10 @@ def generate(db, tid):
         position = 0
         for gid, members in pools:
             for turn, home, away in round_robin(members, t['legs']):
-                db.execute('INSERT INTO matches(tournament_id,stage_id,group_id,round_no,position,home_team_id,away_team_id) '
-                           'VALUES (?,?,?,?,?,?,?)', (tid,sid,gid,turn,position,home,away))
+                db.execute('INSERT INTO matches(tournament_id,stage_id,group_id,round_no,position,'
+                           'home_team_id,away_team_id,duration) VALUES (?,?,?,?,?,?,?,?)',
+                           (tid,sid,gid,turn,position,home,away,duration))
                 position += 1
-    if t.get('rules_json'):
-        db.execute('UPDATE matches SET duration=? WHERE tournament_id=?', (json.loads(t['rules_json'])['duration'], tid))
     audit(db, tid, 'generated', {'participants':len(ids)})
     return {'created':len(games(db, tid))}
 
@@ -177,13 +576,55 @@ def qualify(db, tid):
     tables = [table(db, t, g['group_id']) for g in gids]
     # Ranked tiers, then group order. Standard bracket seeding distributes groups.
     ids = [standings[rank]['team_id'] for rank in range(t['qualifiers']) for standings in tables]
+    variant = _variant_for_tournament(db, t)
     sid = db.execute("INSERT INTO stages(tournament_id,ordinal,kind) VALUES (?,1,'knockout')", (tid,)).lastrowid
-    insert_bracket(db, tid, sid, ids)
+    insert_bracket(db, tid, sid, ids, duration=_rules(t).get('match_duration') or (variant.match_duration if variant else 20))
     audit(db, tid, 'qualified', {'team_ids':ids})
 
 
+def validate_sets(sets, rules: dict) -> list[dict]:
+    """Validate a complete set-by-set score and return normalised rows."""
+    if not sets:
+        raise HTTPException(422, 'Inserisci almeno un set')
+    sets_to_win = int(rules.get('sets_to_win') or 0)
+    max_sets = int(rules.get('max_sets') or len(sets))
+    points_per_set = int(rules.get('points_per_set') or 0)
+    tiebreak_points = int(rules.get('tiebreak_points') or points_per_set)
+    win_by_two = bool(rules.get('win_by_two', False))
+    max_points = rules.get('max_points')
+    if not sets_to_win or not points_per_set:
+        raise HTTPException(422, 'Regole set non configurate per questa variante')
+    if len(sets) > max_sets:
+        raise HTTPException(422, f'La partita può avere al massimo {max_sets} set')
+
+    wins = [0, 0]
+    normalised = []
+    for index, item in enumerate(sets, start=1):
+        home = item['home'] if isinstance(item, dict) else item.home
+        away = item['away'] if isinstance(item, dict) else item.away
+        if home == away:
+            raise HTTPException(422, f'Il set {index} non può finire in parità')
+        winner, loser = max(home, away), min(home, away)
+        target = tiebreak_points if index == max_sets else points_per_set
+        if winner < target:
+            raise HTTPException(422, f'Il set {index} deve arrivare almeno a {target} punti')
+        if max_points is not None and winner > int(max_points):
+            raise HTTPException(422, f'Il set {index} supera il limite di {max_points} punti')
+        if (not (max_points is not None and winner == int(max_points))
+                and win_by_two and winner - loser < 2):
+            raise HTTPException(422, f'Il set {index} richiede almeno 2 punti di scarto')
+        won_by = 0 if home > away else 1
+        wins[won_by] += 1
+        if wins[won_by] == sets_to_win and index < len(sets):
+            raise HTTPException(422, 'La partita è già terminata: rimuovi i set in più')
+        normalised.append({'home': home, 'away': away})
+    if sets_to_win not in wins:
+        raise HTTPException(422, f'Serve un vincitore con {sets_to_win} set')
+    return normalised
+
+
 def required_match(db, tid, mid, version):
-    required(db, tid)
+    active(db, tid)
     m = next((m for m in games(db, tid) if m['id'] == mid), None)
     if m is None:
         raise HTTPException(404, 'Partita non trovata')
@@ -201,26 +642,68 @@ def descendants(fixtures, mid):
     return result
 
 
-def save_result(db, tid, mid, version, home=None, away=None, invalidate=False, score_payload=None):
+def save_result(db, tid, mid, version, home=None, away=None, invalidate=False, sets=None):
     m = required_match(db, tid, mid, version)
+    tournament = required(db, tid)
+    rules = _rules(tournament)
+    variant = _variant_for_tournament(db, tournament)
     if m['is_bye'] or not m['home_team_id'] or not m['away_team_id']:
         raise HTTPException(409, 'Incontro non giocabile: attendi gli avversari o il passaggio per BYE')
-    if m['kind'] == 'knockout' and home is not None and home == away:
-        raise HTTPException(422, 'Serve un vincitore. Inserisci un punteggio decisivo; rigori e set non sono gestiti nella demo')
-    winner = None if home is None or home == away else (m['home_team_id'] if home > away else m['away_team_id'])
+
+    clearing = home is None and away is None and sets is None
+    if variant and variant.supports_sets:
+        if clearing:
+            normalised = []
+        else:
+            if home is not None or away is not None:
+                raise HTTPException(422, 'Questa variante richiede il punteggio set per set')
+            if sets is None:
+                raise HTTPException(422, 'Inserisci il punteggio set per set')
+            normalised = validate_sets(sets, rules)
+            home = sum(1 for s in normalised if s['home'] > s['away'])
+            away = len(normalised) - home
+    else:
+        if clearing:
+            normalised = []
+        else:
+            if sets is not None:
+                raise HTTPException(422, 'Questa variante usa un punteggio unico, non i set')
+            if home is None or away is None:
+                raise HTTPException(422, 'Inserisci entrambi i punteggi')
+            normalised = []
+            if home == away and not bool(rules.get('draw_allowed', True)):
+                raise HTTPException(422, 'Questa variante non ammette pareggi')
+            if m['kind'] == 'knockout' and home == away:
+                raise HTTPException(422, 'Serve un vincitore: questa variante non ammette pareggi')
+
+    if not clearing and tournament.get('platform_variant_id'):
+        import sports
+        payload={'type':'sets','sets':normalised} if normalised else {'type':'points','home':home,'away':away}
+        try:
+            sports.validate_score(tournament['platform_variant_id'],json.loads(tournament['rules_json']),payload,m['kind']=='knockout')
+        except ValueError as exc:
+            raise HTTPException(422,str(exc)) from exc
+    if not clearing and m['kind'] == 'knockout' and home == away:
+        raise HTTPException(422, 'Serve un vincitore. Inserisci un punteggio decisivo')
+    winner = None
+    if home is not None and away is not None and home != away:
+        winner = m['home_team_id'] if home > away else m['away_team_id']
     fixtures = games(db, tid)
     affected = []
     if m['kind'] == 'round_robin':
         affected = [g for g in fixtures if g['kind'] == 'knockout']
     elif winner != m['winner_team_id']:
         affected = descendants(fixtures, mid)
-    encoded = json.dumps(score_payload) if score_payload is not None else None
-    changed = ((home,away) != (m['home_score'],m['away_score']) or
-               (score_payload is not None and encoded != m.get('score_json')))
+    current_sets = rows(db, 'SELECT home_points,away_points FROM match_sets WHERE match_id=? ORDER BY set_no',
+                        (mid,))
+    current_normalised = [{'home': s['home_points'], 'away': s['away_points']}
+                          for s in current_sets]
+    changed = ((home, away) != (m['home_score'], m['away_score'])
+               or normalised != current_normalised)
     if changed and affected:
         if (m['kind'] == 'round_robin' or any(g['home_score'] is not None for g in affected)) and not invalidate:
             raise HTTPException(409, 'La correzione modifica le fasi successive. Conferma l’annullamento dei risultati dipendenti')
-        audit(db, tid, 'invalidated', {'matches':affected})
+        audit(db, tid, 'invalidated', {'matches': affected})
         if m['kind'] == 'round_robin':
             # Remove dependencies before nodes; retain snapshots in the audit log.
             for g in reversed(affected):
@@ -228,14 +711,26 @@ def save_result(db, tid, mid, version, home=None, away=None, invalidate=False, s
             db.execute("DELETE FROM stages WHERE tournament_id=? AND ordinal=1", (tid,))
         else:
             for g in affected:
-                db.execute('UPDATE matches SET home_score=NULL,away_score=NULL,winner_team_id=NULL,score_json=NULL,'
-                           'scheduled_at=NULL,location=NULL,field_id=NULL,timezone=NULL,version=version+1 WHERE id=?', (g['id'],))
-                db.execute('DELETE FROM official_results WHERE match_id=?', (g['id'],))
+                db.execute('UPDATE matches SET home_score=NULL,away_score=NULL,winner_team_id=NULL,'
+                           'scheduled_at=NULL,location=NULL,score_json=NULL,field_id=NULL,timezone=NULL,version=version+1 WHERE id=?', (g['id'],))
+                db.execute('DELETE FROM match_sets WHERE match_id=?', (g['id'],))
+                db.execute('DELETE FROM official_results WHERE match_id=?',(g['id'],))
+                db.execute('DELETE FROM player_performances WHERE match_id=?',(g['id'],))
     if changed:
-        db.execute('UPDATE matches SET home_score=?,away_score=?,winner_team_id=?,score_json=?,version=version+1 WHERE id=?',
-                   (home,away,winner,encoded,mid))
+        db.execute('DELETE FROM player_performances WHERE match_id=?',(mid,))
+        encoded=json.dumps({'type':'sets','sets':normalised} if normalised else
+                           {'type':'points','home':home,'away':away}) if home is not None else None
+        db.execute('UPDATE matches SET home_score=?,away_score=?,winner_team_id=?,version=version+1 WHERE id=?',
+                   (home,away,winner,mid))
+        db.execute('UPDATE matches SET score_json=? WHERE id=?',(encoded,mid))
+        db.execute('DELETE FROM official_results WHERE match_id=?',(mid,))
+        db.execute('DELETE FROM match_sets WHERE match_id=?', (mid,))
+        if normalised:
+            db.executemany('INSERT INTO match_sets(match_id,set_no,home_points,away_points) VALUES (?,?,?,?)',
+                           [(mid, i, s['home'], s['away']) for i, s in enumerate(normalised, start=1)])
         audit(db, tid, 'result_cleared' if home is None else 'result_saved',
-              {'match_id':mid, 'before':[m['home_score'],m['away_score']], 'after':[home,away]})
+              {'match_id':mid, 'before':[m['home_score'],m['away_score']],
+               'after':[home,away], 'sets':normalised})
     progress_bracket(db, tid)
     qualify(db, tid)
     state = detail(db, tid)
@@ -247,11 +742,37 @@ def schedule(db, tid, mid, data):
     m = required_match(db, tid, mid, data.version)
     if m['is_bye']:
         raise HTTPException(422, 'Un BYE non occupa un campo')
+    tournament = required(db, tid)
+    variant = _variant_for_tournament(db, tournament)
+    duration = data.duration or _rules(tournament).get('match_duration') or (variant.match_duration if variant else 20)
     timestamp = data.scheduled_at.astimezone(timezone.utc) if data.scheduled_at else None
     location = data.location.strip()
+    field_id = data.field_id
+    if field_id is None and location and tournament.get('owner_id'):
+        field = db.execute('SELECT id FROM fields WHERE owner_id=? AND name=? COLLATE NOCASE AND archived=0',
+                           (tournament['owner_id'],location)).fetchone()
+        field_id = field[0] if field else None
+    if field_id is not None:
+        field=db.execute('SELECT * FROM fields WHERE id=? AND owner_id=? AND archived=0',(field_id,tournament['owner_id'])).fetchone()
+        if not field:
+            raise HTTPException(404,'Campo non trovato')
+        location=field['name']
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+    try: ZoneInfo(data.timezone)
+    except (ZoneInfoNotFoundError,ValueError): raise HTTPException(422,'Timezone non valida')
+    if timestamp:
+        from v1_resources import check_booking
+        check_booking(db,tournament,m,timestamp,field_id,duration)
+        # Also preserve textual field conflict checks across this teacher's tournaments.
+        for other in rows(db,'SELECT m.* FROM matches m JOIN tournaments t ON t.id=m.tournament_id '
+                          'WHERE t.teacher_id=? AND m.id!=? AND m.scheduled_at IS NOT NULL',
+                          (tournament['teacher_id'],mid)):
+            start=datetime.fromisoformat(other['scheduled_at'])
+            if location and location.casefold()==(other['location'] or '').casefold() and timestamp<start+timedelta(minutes=other['duration']) and start<timestamp+timedelta(minutes=duration):
+                raise HTTPException(409,'Orario in conflitto: campo già impegnato')
     fixtures = games(db, tid)
     if timestamp:
-        end = timestamp + timedelta(minutes=data.duration)
+        end = timestamp + timedelta(minutes=duration)
         ids = {m['home_team_id'],m['away_team_id']} - {None}
         for other in fixtures:
             if other['id'] == mid or not other['scheduled_at']:
@@ -267,6 +788,8 @@ def schedule(db, tid, mid, data):
             if mid in (other['source_home'],other['source_away']) and end > start:
                 raise HTTPException(409, 'La partita deve finire prima del turno successivo pianificato')
     db.execute('UPDATE matches SET scheduled_at=?,location=?,duration=?,version=version+1 WHERE id=?',
-               (timestamp.isoformat() if timestamp else None,location or None,data.duration,mid))
-    audit(db, tid, 'scheduled', {'match_id':mid, 'utc':timestamp.isoformat() if timestamp else None, 'location':location})
-    return {'ok':True}
+               (timestamp.isoformat() if timestamp else None,location or None,duration,mid))
+    db.execute('UPDATE matches SET field_id=?,timezone=? WHERE id=?',(field_id,data.timezone,mid))
+    audit(db, tid, 'scheduled', {'match_id':mid, 'utc':timestamp.isoformat() if timestamp else None,
+                                 'location':location, 'duration':duration})
+    return {'ok':True, 'duration':duration}

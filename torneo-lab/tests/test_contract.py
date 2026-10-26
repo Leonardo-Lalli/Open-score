@@ -1,10 +1,9 @@
 """Keep the published machine-readable contract aligned with the running API."""
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
-
+from pathlib import Path
 
 SNAPSHOT = Path(__file__).resolve().parents[2] / 'docs/contracts/openapi.yaml'
 

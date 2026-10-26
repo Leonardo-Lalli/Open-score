@@ -4,11 +4,11 @@ import secrets
 
 from pydantic import ValidationError
 
-import auth
-from auth import fail, version
-from schemas import TournamentInput
-import services as svc
+import platform_auth as auth
+import platform_services as svc
 import sports
+from platform_auth import fail, version
+from platform_schemas import TournamentInput
 
 
 def audit(db, user, tid, action, payload):
@@ -42,9 +42,11 @@ def create_tournament(db, user, data):
     except ValidationError as exc:
         fail(422, 'invalid_tournament', str(exc))
     tid = svc.create(db, payload)
-    db.execute('UPDATE tournaments SET owner_id=?,organization_id=?,variant_id=?,rules_json=?,sport=?,public_slug=? WHERE id=?',
+    db.execute('UPDATE tournaments SET owner_id=?,organization_id=?,platform_variant_id=?,rules_json=?,sport=?,public_slug=? WHERE id=?',
         (user['id'], user['organization_id'], data.variant_id, json.dumps(config), label, secrets.token_urlsafe(12), tid))
     db.execute('UPDATE teams SET display_order=id WHERE tournament_id=?', (tid,))
+    from identity_bridge import sync_platform_tournament
+    sync_platform_tournament(db, tid)
     audit(db, user, tid, 'tournament_owned', {})
     return {'id': tid}
 
@@ -115,7 +117,7 @@ def reorder(db, user, tid, data):
     db.executemany('UPDATE teams SET display_order=? WHERE id=?', [(i, ident) for i, ident in enumerate(ids)])
     db.execute('UPDATE tournaments SET order_version=order_version+1 WHERE id=?', (tid,))
     audit(db, user, tid, 'teams_reordered', {'ordered_team_ids': ids})
-    return dict(ordered_team_ids=ids, version=data.version+1)
+    return {'ordered_team_ids': ids, 'version': data.version+1}
 
 
 def student_user(db, uid):
@@ -158,6 +160,8 @@ def assign_student(db, user, tid, sid, data):
     if data.team_id is not None:
         capacity(db, tid, data.team_id, sid)
     db.execute('UPDATE students SET team_id=?,version=version+1 WHERE id=?', (data.team_id, sid))
+    from roster_bridge import sync_student
+    sync_student(db,sid)
     audit(db, user, tid, 'student_moved', {'student_id': sid, 'from_team_id': student['team_id'], 'team_id': data.team_id})
     return dict(db.execute('SELECT * FROM students WHERE id=?', (sid,)).fetchone())
 
@@ -168,8 +172,9 @@ def detail(db, user, tid, public=False):
     # Explicit DTOs keep new private columns out of every visitor/student response.
     visible = ('id', 'name', 'sport', 'format', 'description', 'participant_kind',
                'win_points', 'draw_points', 'loss_points', 'legs', 'group_count',
-               'qualifiers', 'variant_id', 'created_at')
+               'qualifiers', 'created_at')
     state['tournament'] = {k: tournament[k] for k in visible}
+    state['tournament']['variant_id'] = tournament['platform_variant_id']
     state['tournament']['rules'] = json.loads(tournament['rules_json']) if tournament['rules_json'] else None
     state['teams'] = [{k: t[k] for k in ('id', 'name', 'group_id', 'display_order')}
                       for t in ordered_teams(db, tid)]
@@ -210,9 +215,9 @@ def bracket(db, user, tid, public=False):
                        official_result=({'score': m['score'], 'winner_team_id': m['winner_team_id']}
                                         if m['home_score'] is not None else None))
                        for m in nodes if m['stage_id'] == stage['id'] and m['round_no'] == turn]
-            rounds.append(dict(round_no=turn, matches=matches))
-        stages.append(dict(id=stage['id'], rounds=rounds))
-    return dict(stages=stages, champion_team_id=state['champion_team_id'])
+            rounds.append({'round_no': turn, 'matches': matches})
+        stages.append({'id': stage['id'], 'rounds': rounds})
+    return {'stages': stages, 'champion_team_id': state['champion_team_id']}
 
 
 def statistics(db, user, tid, public=False):
@@ -221,11 +226,11 @@ def statistics(db, user, tid, public=False):
     knockout = [m for m in state['matches'] if m['kind'] == 'knockout']
     qualified = sorted({ident for m in knockout if m['round_no'] == 1
                         for ident in (m['home_team_id'], m['away_team_id']) if ident is not None})
-    result = dict(team_count=len(state['teams']), matches_total=total, matches_completed=completed,
-                  matches_remaining=total-completed, completion_percentage=round(100*completed/total, 2) if total else 0,
-                  phases_pending_generation=state['tournament']['format'] == 'groups' and not knockout,
-                  champion_team_id=state['champion_team_id'], qualified_team_ids=qualified if state['tournament']['format'] == 'groups' else [],
-                  standings=state['standings'], groups=state['groups'], sport_statistics={})
+    result = {'team_count': len(state['teams']), 'matches_total': total, 'matches_completed': completed,
+                  'matches_remaining': total-completed, 'completion_percentage': round(100*completed/total, 2) if total else 0,
+                  'phases_pending_generation': state['tournament']['format'] == 'groups' and not knockout,
+                  'champion_team_id': state['champion_team_id'], 'qualified_team_ids': qualified if state['tournament']['format'] == 'groups' else [],
+                  'standings': state['standings'], 'groups': state['groups'], 'sport_statistics': {}}
     scored = [m for m in state['matches'] if m['home_score'] is not None and not m['is_bye']]
     variant = state['tournament']['variant_id']
     if variant and sports.VARIANTS[variant][2] == 'sets':

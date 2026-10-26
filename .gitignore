@@ -427,12 +427,22 @@ FodyWeavers.xsd
 # Official VS Code C# Dev Kit Extension exclusion
 #*.lscache
 
-# Local Python demo, runtime data and incoming source archive
+# Local Python runtime, data and incoming source archive
 .venv/
 __pycache__/
 .pytest_cache/
 *.py[cod]
+*.backup
 *.sqlite3
 *.sqlite3-*
 .work/
 torneo-lab-mvp.zip
+torneo-lab/data/
+torneo-lab/backup/
+deploy/open-score.env
+
+# Configurazione locale dell'agente, non fa parte del progetto
+opencode.json
+
+# Sito statico generato da .github/scripts/build_site.py
+_site/

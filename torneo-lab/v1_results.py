@@ -1,10 +1,10 @@
 """Proposals never mutate official scores; reviews and advancement share one transaction."""
 import json
 
-import auth
-from auth import fail, version
-import services as svc
+import platform_auth as auth
+import platform_services as svc
 import sports
+from platform_auth import fail, version
 from v1_domain import audit
 
 
@@ -18,12 +18,27 @@ def match(db, tid, mid, expected=None):
 
 
 def score_totals(tournament, game, score):
-    if not tournament['variant_id']:
-        fail(409, 'rules_required', 'Assegnare un preset sportivo prima di usare il workflow V1')
     if game['is_bye'] or not game['home_team_id'] or not game['away_team_id']:
         fail(409, 'match_not_ready', 'Attendere gli avversari; un BYE non accetta risultati')
+    if not tournament['platform_variant_id']:
+        import services
+        rules = services._rules(tournament)
+        if not tournament.get('variant_id'):
+            fail(409, 'rules_required', 'Assegnare un preset sportivo')
+        if score.type == 'sets':
+            sets = services.validate_sets(score.sets, rules)
+            home = sum(s['home'] > s['away'] for s in sets)
+            return home, len(sets)-home
+        if score.type == 'forfeit':
+            total = rules.get('sets_to_win') or 3
+            return (total, 0) if score.winner == 'home' else (0, total)
+        if rules.get('scoring_mode') == 'sets':
+            fail(422, 'invalid_score', 'Questa variante richiede set completi')
+        if score.home == score.away and (game['kind']=='knockout' or not rules.get('draw_allowed', True)):
+            fail(422, 'invalid_score', 'Serve un vincitore')
+        return score.home, score.away
     try:
-        return sports.validate_score(tournament['variant_id'], json.loads(tournament['rules_json']),
+        return sports.validate_score(tournament['platform_variant_id'], json.loads(tournament['rules_json']),
                                      score, game['kind'] == 'knockout')
     except ValueError as exc:
         fail(422, 'invalid_score', str(exc))
@@ -69,10 +84,10 @@ def official(db, tid, mid):
         result['version'] = game['version']
     elif game['home_score'] is not None:
         # Imported legacy result: preserve it, without fabricating an approver.
-        result = dict(id=None, match_id=mid, score={'type': 'points', 'home': game['home_score'], 'away': game['away_score']},
-                      winner_team_id=game['winner_team_id'], version=game['version'], approved_by=None,
-                      approved_at=None, source_proposal_id=None, provenance='legacy')
-    return dict(official_result=result, match_version=game['version'])
+        result = {'id': None, 'match_id': mid, 'score': {'type': 'points', 'home': game['home_score'], 'away': game['away_score']},
+                      'winner_team_id': game['winner_team_id'], 'version': game['version'], 'approved_by': None,
+                      'approved_at': None, 'source_proposal_id': None, 'provenance': 'legacy'}
+    return {'official_result': result, 'match_version': game['version']}
 
 
 def save(db, user, tid, mid, expected, score, invalidate, reason, proposal_id=None):

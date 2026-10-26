@@ -5,9 +5,10 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 from fastapi.testclient import TestClient
+
 from app import create_app
+from conftest import make, score, state
 from db import SCHEMA_VERSION
-from conftest import make,score,state
 
 
 def test_round_robin_flow(client):
@@ -91,7 +92,7 @@ def test_multiphase_16_teams_and_requalification(client):
     assert score(client,tid,finals[0]).status_code==404
 
 
-@pytest.mark.parametrize('payload',[{'name':'  '},{'name':'A'},{'name':'OK','team_names':['Alfa','alfa']},{'name':'OK','team_names':['  ']},{'name':'OK','sport':'Pallavolo'},{'name':'OK','format':'swiss'}])
+@pytest.mark.parametrize('payload',[{'name':'  '},{'name':'A'},{'name':'OK','team_names':['Alfa','alfa']},{'name':'OK','team_names':['  ']},{'name':'OK','sport':'Curling'},{'name':'OK','format':'swiss'}])
 def test_tournament_validation(client,payload):
     assert client.post('/api/tournaments',json=payload).status_code==422
     assert client.get('/api/tournaments').json()==[]
@@ -146,16 +147,9 @@ def test_schedule_overlap_and_timezone(client):
     assert client.patch(f'/api/tournaments/{tid}/matches/{other["id"]}/schedule',json=body).status_code==422
 
 
-def test_demo_idempotent_and_reference_fidelity(client):
-    first=client.post('/api/demo').json()['ids']
-    assert client.post('/api/demo').json()['ids']==first
-    data=state(client,first[0]);m=data['matches'][0]
-    assert m['source_id']==117234055 and m['home_score'] is None and m['scheduled_at'] is None
-    assert [p['source_id'] for p in data['teams']]==[23045803,23045804]
-    assert data['stages'][0]['source_id']==53882484
-    assert score(client,first[0],m).status_code==200
-    assert client.post('/api/demo').json()['ids']==first
-    assert state(client,first[0])['progress']['completed']==1
+def test_fresh_application_has_no_demo_content(client):
+    assert client.get('/api/tournaments').json() == []
+    assert client.post('/api/demo').status_code == 404
 
 
 def test_public_read_only_and_no_private_fields(client):
@@ -170,9 +164,14 @@ def test_public_read_only_and_no_private_fields(client):
 
 def test_persistence_and_migration(tmp_path):
     path=tmp_path/'persist.sqlite3'
-    with TestClient(create_app(path,False)) as c:
+    admin_email, admin_password = 'prof@test.local', 'password-lunga'
+    with TestClient(create_app(path, admin_email=admin_email,
+                               admin_password=admin_password)) as c:
+        c.post('/api/auth/login',json={'email':'prof@test.local','password':'password-lunga'})
         tid=make(c);m=state(c,tid)['matches'][0];score(c,tid,m)
-    with TestClient(create_app(path,False)) as c:
+    with TestClient(create_app(path, admin_email=admin_email,
+                               admin_password=admin_password)) as c:
+        c.post('/api/auth/login',json={'email':'prof@test.local','password':'password-lunga'})
         assert state(c,tid)['progress']['completed']==1
     with sqlite3.connect(path) as db:
         assert db.execute('PRAGMA user_version').fetchone()[0]==SCHEMA_VERSION
@@ -182,7 +181,7 @@ def test_persistence_and_migration(tmp_path):
 def test_cross_tournament_access_and_origin(client):
     a=make(client);b=make(client);m=state(client,b)['matches'][0]
     assert score(client,a,m).status_code==404
-    assert client.post('/api/demo',headers={'Origin':'https://other.example'}).status_code==403
+    assert client.post('/api/tournaments',json={},headers={'Origin':'https://other.example'}).status_code==403
     assert client.get('/',headers={'Host':'other.example'}).status_code==400
 
 
@@ -213,7 +212,7 @@ def test_version_one_database_migrates_without_data_loss(tmp_path):
         db.execute("INSERT INTO stages(id,tournament_id,ordinal,kind) VALUES (1,1,0,'knockout')")
         db.executemany('INSERT INTO teams(id,tournament_id,name) VALUES (?,1,?)',[(1,'Alfa'),(2,'Beta')])
         db.execute('INSERT INTO matches(id,tournament_id,stage_id,round_no,home_team_id,away_team_id,home_score,away_score,winner_team_id) VALUES (1,1,1,1,1,2,3,1,1)')
-    with TestClient(create_app(path,False)) as c:
+    with TestClient(create_app(path)) as c:
         data=state(c,1)
         assert data['champion_team_id']==1 and data['matches'][0]['home_score']==3
     with sqlite3.connect(path) as db:

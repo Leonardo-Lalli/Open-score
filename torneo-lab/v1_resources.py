@@ -1,12 +1,12 @@
 """Enrollment, invite and shared field scheduling transactions."""
-from datetime import datetime, timedelta, timezone
 import json
 import secrets
+from datetime import datetime, timedelta, timezone
 
-import auth
-from auth import fail, version
-import services as svc
+import platform_auth as auth
+import platform_services as svc
 import sports
+from platform_auth import fail, version
 from v1_domain import audit, capacity, get_team, student_user
 from v1_results import match
 
@@ -47,8 +47,10 @@ def create_member(db, user, tid, team_id):
     if any(s['display_name'].casefold() == user['display_name'].casefold()
            for s in svc.rows(db, 'SELECT display_name FROM students WHERE tournament_id=?', (tid,))):
         fail(409, 'duplicate_student', 'Alias già presente; il professore deve associare lo studente')
-    db.execute('INSERT INTO students(tournament_id,user_id,display_name,team_id) VALUES (?,?,?,?)',
-               (tid, user['id'], user['display_name'], team_id))
+    sid=db.execute('INSERT INTO students(tournament_id,user_id,display_name,team_id) VALUES (?,?,?,?)',
+               (tid, user['id'], user['display_name'], team_id)).lastrowid
+    from roster_bridge import sync_student
+    sync_student(db,sid)
 
 
 def review_enrollment(db, user, tid, eid, data):
@@ -139,10 +141,11 @@ def field_dto(item):
 def field_values(db, user, data):
     if data.venue_id is not None:
         owned(db, 'venues', user, data.venue_id)
-    if len(set(data.sport_variant_ids)) != len(data.sport_variant_ids) or any(v not in sports.VARIANTS for v in data.sport_variant_ids):
+    known=set(sports.VARIANTS) | {r[0] for r in db.execute('SELECT slug FROM sport_variants')}
+    if len(set(data.sport_variant_ids)) != len(data.sport_variant_ids) or any(v not in known for v in data.sport_variant_ids):
         fail(422, 'invalid_variant', 'Varianti sconosciute o duplicate')
-    slots = [dict(starts_at=i.starts_at.astimezone(timezone.utc).isoformat(),
-                  ends_at=i.ends_at.astimezone(timezone.utc).isoformat()) for i in data.availability]
+    slots = [{'starts_at': i.starts_at.astimezone(timezone.utc).isoformat(),
+                  'ends_at': i.ends_at.astimezone(timezone.utc).isoformat()} for i in data.availability]
     return (data.name, data.venue_id, json.dumps(data.sport_variant_ids), json.dumps(slots))
 
 
@@ -162,9 +165,9 @@ def edit_field(db, user, fid, data):
         fail(409, 'field_archived', 'Campo archiviato')
     values = field_values(db, user, data)
     candidate = dict(item, name=values[0], venue_id=values[1], variants_json=values[2], availability_json=values[3])
-    for game in svc.rows(db, 'SELECT m.*,t.variant_id FROM matches m JOIN tournaments t ON t.id=m.tournament_id WHERE m.field_id=? AND m.scheduled_at IS NOT NULL', (fid,)):
+    for game in svc.rows(db, 'SELECT m.*,t.platform_variant_id,t.variant FROM matches m JOIN tournaments t ON t.id=m.tournament_id WHERE m.field_id=? AND m.scheduled_at IS NOT NULL', (fid,)):
         if game['home_score'] is None:
-            check_field(candidate, game['variant_id'], datetime.fromisoformat(game['scheduled_at']), game['duration'])
+            check_field(candidate, game['platform_variant_id'] or game['variant'], datetime.fromisoformat(game['scheduled_at']), game['duration'])
     db.execute('UPDATE fields SET name=?,venue_id=?,variants_json=?,availability_json=?,version=version+1 WHERE id=?', (*values, fid))
     return field_dto(owned(db, 'fields', user, fid))
 
@@ -186,7 +189,7 @@ def check_booking(db, tournament, game, start, fid, duration):
                            (fid, tournament['owner_id'], tournament['organization_id'])).fetchone()
         if not field:
             fail(404, 'not_found', 'Campo non trovato nel contesto del torneo')
-        check_field(field, tournament['variant_id'], start, duration)
+        check_field(field, tournament['platform_variant_id'] or tournament['variant'], start, duration)
     other_games = svc.rows(db, 'SELECT m.* FROM matches m JOIN tournaments t ON t.id=m.tournament_id '
                  'WHERE t.organization_id=? AND m.scheduled_at IS NOT NULL AND m.id!=?', (tournament['organization_id'], game['id']))
     for other in other_games:

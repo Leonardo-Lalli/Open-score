@@ -1,4 +1,4 @@
-# Architettura della demo 0.2
+# Architettura dell'applicazione
 
 ## Estensione backend 0.3
 
@@ -33,7 +33,6 @@ flowchart TD
   Service --> Engine[engine.py: algoritmi puri]
   HTTP --> DB[db.py: transazioni SQLite]
   DB --> Data[(data/open_score.sqlite3)]
-  Seed[demo.py + fixture JSON] --> Service
 ```
 
 ## Responsabilità
@@ -43,7 +42,6 @@ flowchart TD
 - `services.py`: creazione, generazione, qualificazioni, avanzamenti, correzioni, calendario e diario.
 - `engine.py`: metodo del cerchio per i gironi, albero knockout con seeding e BYE, classifica derivata.
 - `db.py` e `migrations/001_initial.sql`: schema versionato e transazione per operazione.
-- `demo.py`: quattro esempi persistenti e caricamento idempotente. Nessuna richiesta a Score7.
 - `static/`: interfaccia italiana responsive, finestre native `dialog`, tabellone SVG/HTML con collegamenti reali.
 
 ## Una modifica attraversa il sistema
@@ -56,6 +54,6 @@ Nei tornei multifase, tutte le partite dei gironi devono essere complete prima d
 
 ## Confine di questa consegna
 
-È un'applicazione locale con un solo spazio di lavoro. La pagina spettatore e il suo endpoint sono di sola lettura; non costituiscono un sistema di ruoli: gli endpoint organizzatore non hanno login. Il server si avvia su `127.0.0.1` e non è destinato a Internet. Database condiviso sullo stesso computer; il collaboratore scarica e avvia la propria copia da GitHub.
+È un'applicazione per uno spazio di lavoro scolastico, utilizzabile sulla LAN. La pagina spettatore e il suo endpoint sono di sola lettura. All'ingresso si sceglie **Sono un prof** (login email/password) o **Sono uno studente** (sola lettura). Ogni docente ha un account in `teachers` e gestisce solo i tornei con il proprio `teacher_id`; i tornei altrui restano leggibili ma non modificabili. Il server può ascoltare sulla LAN, ma non è destinato a Internet; installazione, host ammessi e backup sono descritti in [DEPLOY.md](DEPLOY.md) e [SECURITY.md](SECURITY.md).
 
-Frontend senza build e SQLite riducono i passaggi per presentarla a scuola. React/TypeScript, SQLAlchemy/Alembic, PostgreSQL e account sono opzioni per la piattaforma successiva, non dipendenze necessarie a questa demo.
+Frontend senza build e SQLite riducono i passaggi per presentarla a scuola. React/TypeScript, SQLAlchemy/Alembic e PostgreSQL restano opzioni per la piattaforma successiva; ruoli amministrativi, recupero password e revoca centralizzata richiederebbero un servizio di identità più completo.

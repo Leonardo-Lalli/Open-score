@@ -14,9 +14,10 @@ Dalla cartella `torneo-lab`, usare l'ambiente esistente:
 .\.venv\Scripts\python.exe -m uvicorn app:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Modalità predefinita `demo`: la UI esistente funziona come prima, per i tornei
-dimostrativi/non assegnati. Le nuove API sono in `/docs` e `/openapi.json`.
-Nessuna UI account/studenti/inviti è stata aggiunta: serve l'integrazione Team B.
+Modalità predefinita `demo`: frontend Team B integrato, modifiche autenticate e
+letture pubblicate o autorizzate; nessun dataset dimostrativo inserito. Le API
+sono in `/docs` e `/openapi.json`. Account studente, inviti e relativi adapter
+sono collegati: vedere [report integrazione](TEAM_B_INTEGRATION_REPORT.md).
 Su Linux usare `.venv/bin/python`; Python minimo resta 3.10 per l'applicazione,
 CI su 3.11 e 3.14. Installare `tzdata` dalla requirements anche su Windows.
 
@@ -44,9 +45,9 @@ Non inserire password in URL, script versionati o comandi shell salvati.
 ## Conservazione e migrazioni
 
 Il DB rimane SQLite: default `data/open_score.sqlite3`, override `TORNEO_DB_PATH`.
-Schema corrente **4**, migrazioni SQL 001–004. Prima di aggiornare uno schema
+Schema corrente **8**, migrazione da entrambi gli schemi Team A 4 e Team B 7. Prima di aggiornare uno schema
 esistente il programma crea una copia SQLite consistente accanto all'originale:
-`open_score.pre-v4-TIMESTAMP.sqlite3`. Conservare anche un backup fuori dal server.
+`open_score.pre-v8-TIMESTAMP.sqlite3`. Conservare anche un backup fuori dal server.
 Nuovo schema su DB vuoto non richiede backup. DB legacy senza versione non vuoto
 e DB più recente del codice vengono rifiutati, senza cancellazione.
 
@@ -108,15 +109,15 @@ $env:TORNEO_ALLOW_REGISTRATION = 'true'
 
 Esempio di configurazione, non un ambiente pubblicato. In service l'avvio fallisce
 senza origin HTTPS e host coerenti espliciti; niente wildcard. Cookie Secure,
-Origin e CSRF controllati; API demo escluse e nessun esempio creato automaticamente.
+Origin e CSRF controllati; frontend autenticato e nessun esempio creato automaticamente.
 TORNEO_ALLOW_REGISTRATION false disabilita la registrazione pubblica degli studenti.
 La proprietà mode non è cambiabile via richiesta HTTP.
 
 TLS termina su un reverse proxy o sul servizio di hosting. Esporre solo HTTPS,
 inoltrare Host correttamente, limitare gli header proxy fidati agli indirizzi
 del proxy reale; non accettare X-Forwarded-* da Internet. Nessuna CORS generica.
-Il frontend V1 va sullo stesso origin o dietro un proxy coordinato con Team B.
-La UI legacy non è ancora un client multiutente utilizzabile in service.
+Il frontend integrato va sullo stesso origin o dietro un proxy coordinato con Team B.
+Le API storiche e V1 condividono proprietà, ruoli, risultati e revoca delle sessioni.
 
 ## Scelta dell'ambiente
 
@@ -169,7 +170,7 @@ il token negli access log. L'audit applicativo registra autore e operazioni impo
 
 Rollback: arrestare il processo; conservare sia DB attuale sia backup precedente;
 se lo schema resta compatibile tornare al codice precedente. Un codice schema 2
-non può aprire schema 4: ripristinare il relativo backup in un **nuovo percorso**,
+non può aprire schema 8: ripristinare il relativo backup in un **nuovo percorso**,
 selezionarlo con TORNEO_DB_PATH e accettare esplicitamente le scritture successive
 al backup che andrebbero perse. Nessuna down-migration distruttiva automatica.
 

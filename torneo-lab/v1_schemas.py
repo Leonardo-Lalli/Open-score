@@ -2,9 +2,16 @@
 from typing import Annotated, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import AwareDatetime, Field, SecretStr, StringConstraints, field_validator, model_validator
+from pydantic import (
+    AwareDatetime,
+    Field,
+    SecretStr,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
-from schemas import Input, Name, Title
+from platform_schemas import Input, Name, Title
 from sports import Score
 
 Version = Annotated[int, Field(strict=True, ge=1)]

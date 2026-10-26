@@ -1,141 +1,251 @@
-"""Server sessions, password hashing and authorization. No bearer privileges in QR URLs."""
-from datetime import datetime, timedelta, timezone
+"""Teacher accounts and signed sessions for the school LAN deployment.
+
+Every write requires a teacher session. Students and anonymous visitors keep
+read-only access. A session is a signed cookie carrying the teacher id and
+email; the server never trusts the client for the role or the ownership.
+"""
+
+import base64
 import hashlib
 import hmac
+import json
+import os
 import secrets
+import sqlite3
+import threading
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
 
-from fastapi import HTTPException
-
-from db import database
-
-COOKIE = 'open_score_session'
-ITERATIONS = 600_000
-
-
-def now():
-    return datetime.now(timezone.utc)
-
-
-def digest(value):
-    return hashlib.sha256(value.encode('utf-8')).hexdigest()
+COOKIE_NAME = 'open_score_session'
+DEFAULT_TTL = 12 * 60 * 60
+FAILURE_WINDOW = 300.0
+MAX_FAILURES = 5
+LOCKOUT_SECONDS = 60.0
+PBKDF2_ITERATIONS = 260_000
+MIN_PASSWORD_LENGTH = 8
 
 
-def fail(status, code, message, **extra):
-    raise HTTPException(status, dict(code=code, message=message, **extra))
+def _truthy(value: str | None) -> bool:
+    return str(value or '').strip().lower() in ('1', 'true', 'yes', 'on')
 
 
-def password_hash(password):
-    salt = secrets.token_hex(16)
-    hashed = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), bytes.fromhex(salt), ITERATIONS)
-    return f'pbkdf2_sha256${ITERATIONS}${salt}${hashed.hex()}'
+def _b64encode(value: bytes) -> str:
+    return base64.urlsafe_b64encode(value).decode('ascii').rstrip('=')
 
 
-def verify_password(password, stored):
+def _b64decode(value: str) -> bytes:
+    return base64.urlsafe_b64decode(value + '=' * (-len(value) % 4))
+
+
+def load_or_create_secret(path: Path) -> bytes:
+    """Read the signing secret, creating a random one on first use."""
     try:
-        algorithm, iterations, salt, expected = stored.split('$')
+        existing = path.read_text(encoding='utf-8').strip()
+    except FileNotFoundError:
+        existing = ''
+    if len(existing) >= 32:
+        return existing.encode('utf-8')
+    path.parent.mkdir(parents=True, exist_ok=True)
+    value = secrets.token_urlsafe(48)
+    path.write_text(value, encoding='utf-8')
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        # Windows has no POSIX mode bits; the data directory stays local.
+        pass
+    return value.encode('utf-8')
+
+
+def normalize_email(email: str | None) -> str:
+    return str(email or '').strip().casefold()
+
+
+def hash_password(password: str) -> str:
+    if len(password or '') < MIN_PASSWORD_LENGTH:
+        raise ValueError(f'La password deve contenere almeno {MIN_PASSWORD_LENGTH} caratteri')
+    salt = secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt,
+                                 PBKDF2_ITERATIONS)
+    return f'pbkdf2_sha256${PBKDF2_ITERATIONS}${_b64encode(salt)}${_b64encode(digest)}'
+
+
+def verify_password(password: str | None, encoded: str | None) -> bool:
+    if password is None or not encoded:
+        return False
+    try:
+        algorithm, iterations, salt_text, digest_text = encoded.split('$', 3)
         if algorithm != 'pbkdf2_sha256':
             return False
-        actual = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), bytes.fromhex(salt), int(iterations))
-        return hmac.compare_digest(actual.hex(), expected)
-    except (ValueError, TypeError):
-        return False
-
-
-def create_teacher(db, email, password, display_name, organization_name=None, organization_id=None):
-    """Administrative CLI only; public registration cannot select this role."""
-    from v1_schemas import RegisterInput
-    data = RegisterInput(email=email, password=password, display_name=display_name)
-    if db.execute('SELECT 1 FROM users WHERE email=?', (data.email,)).fetchone():
-        raise ValueError('Account già esistente')
-    if organization_id is not None:
-        if not db.execute('SELECT 1 FROM organizations WHERE id=?', (organization_id,)).fetchone():
-            raise ValueError('Contesto non trovato')
-        oid = organization_id
-    else:
-        if not organization_name or not 1 <= len(organization_name.strip()) <= 120:
-            raise ValueError('Nome contesto richiesto, 1–120 caratteri')
-        oid = db.execute('INSERT INTO organizations(name) VALUES (?)', (organization_name.strip(),)).lastrowid
-    return db.execute('INSERT INTO users(email,display_name,password_hash,role,organization_id) VALUES (?,?,?,?,?)',
-          (data.email, data.display_name, password_hash(password), 'teacher', oid)).lastrowid
-
-
-def public_user(user):
-    return {k: user[k] for k in ('id', 'display_name', 'role', 'organization_id')}
-
-
-def session(db, request, required=True):
-    raw = request.cookies.get(COOKIE, '')
-    record = db.execute('SELECT * FROM sessions WHERE token_hash=? AND expires_at>?',
-                        (digest(raw), now().isoformat())).fetchone() if raw else None
-    if required and (not record or record['user_id'] is None):
-        fail(401, 'authentication_required', 'Accedi per continuare')
-    return dict(record) if record else None
-
-
-def csrf(request, record):
-    token = request.headers.get('X-CSRF-Token', '')
-    if not record or not hmac.compare_digest(token, record['csrf_token']):
-        fail(403, 'csrf_invalid', 'Token CSRF mancante o scaduto')
-
-
-def new_session(db, response, secure, user_id=None, old=None):
-    if old:
-        db.execute('DELETE FROM sessions WHERE token_hash=?', (old['token_hash'],))
-    raw, token = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
-    seconds = 8*3600 if user_id else 1800
-    db.execute('DELETE FROM sessions WHERE expires_at<=?', (now().isoformat(),))
-    db.execute('INSERT INTO sessions VALUES (?,?,?,?)',
-               (digest(raw), user_id, token, (now()+timedelta(seconds=seconds)).isoformat()))
-    response.set_cookie(COOKIE, raw, max_age=seconds, httponly=True, secure=secure, samesite='lax', path='/')
-    return token
-
-
-def rate_limit(path, request, label, maximum=20):
-    # Store hashes, not plaintext IP addresses or emails; failures still commit.
-    key = digest(f'{label}|{request.client.host if request.client else "unknown"}')
-    denied = False
-    with database(path, True) as db:
-        stamp = now()
-        db.execute('DELETE FROM auth_attempts WHERE expires_at<=?', (stamp.isoformat(),))
-        item = db.execute('SELECT attempts FROM auth_attempts WHERE key=?', (key,)).fetchone()
-        if item and item['attempts'] >= maximum:
-            denied = True
-        elif item:
-            db.execute('UPDATE auth_attempts SET attempts=attempts+1 WHERE key=?', (key,))
+        if len(salt_text) == 32 and len(digest_text) == 64:
+            salt = bytes.fromhex(salt_text)
+            expected = bytes.fromhex(digest_text)
         else:
-            db.execute('INSERT INTO auth_attempts VALUES (?,1,?)', (key, (stamp+timedelta(minutes=15)).isoformat()))
-    if denied:
-        fail(429, 'rate_limited', 'Troppi tentativi; riprova più tardi')
+            salt = _b64decode(salt_text)
+            expected = _b64decode(digest_text)
+        actual = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt,
+                                     int(iterations))
+    except (AttributeError, ValueError):
+        return False
+    return hmac.compare_digest(actual, expected)
 
 
-def teacher(user):
-    if user['role'] != 'teacher':
-        fail(403, 'teacher_required', 'Operazione riservata al professore')
+def _row_dict(row) -> dict | None:
+    if row is None:
+        return None
+    if hasattr(row, 'keys'):
+        return dict(row)
+    return dict(zip(('id', 'email', 'password_hash', 'display_name', 'created_at'), row))
 
 
-def manages(db, user, tournament):
-    return user['role'] == 'teacher' and (
-        tournament['owner_id'] == user['id'] or (
-            tournament['organization_id'] == user['organization_id'] and
-            db.execute('SELECT 1 FROM tournament_collaborators WHERE tournament_id=? AND user_id=?',
-                       (tournament['id'], user['id'])).fetchone() is not None))
+def create_teacher(db, email: str, password: str, display_name: str = '') -> int:
+    email = normalize_email(email)
+    if '@' not in email or len(email) < 3:
+        raise ValueError('Email non valida')
+    password_hash = hash_password(password)
+    try:
+        cursor = db.execute(
+            'INSERT INTO teachers(email,password_hash,display_name) VALUES (?,?,?)',
+            (email, password_hash, (display_name or '').strip()),
+        )
+    except sqlite3.IntegrityError as exc:
+        raise ValueError('Email già registrata') from exc
+    ident = cursor.lastrowid
+    from identity_bridge import ensure_platform_teacher
+    ensure_platform_teacher(db, dict(db.execute('SELECT * FROM teachers WHERE id=?', (ident,)).fetchone()))
+    return ident
 
 
-def access(db, user, tid, write=False):
-    record = db.execute('SELECT * FROM tournaments WHERE id=?', (tid,)).fetchone()
-    if not record:
-        fail(404, 'not_found', 'Torneo non trovato')
-    tournament = dict(record)
-    manager = manages(db, user, tournament)
-    enrolled = db.execute('SELECT 1 FROM students WHERE tournament_id=? AND user_id=?',
-                          (tid, user['id'])).fetchone()
-    if not manager and not enrolled:
-        fail(404, 'not_found', 'Torneo non trovato')
-    if write and not manager:
-        fail(403, 'teacher_required', 'Operazione riservata al professore')
-    return tournament
+def ensure_teacher(db, email: str, password: str, display_name: str = '') -> int:
+    """Create the bootstrap teacher if absent; never overwrite its password."""
+    email = normalize_email(email)
+    row = db.execute('SELECT id FROM teachers WHERE email=?', (email,)).fetchone()
+    if row is not None:
+        return row['id'] if hasattr(row, 'keys') else row[0]
+    return create_teacher(db, email, password, display_name)
 
 
-def version(record, expected, column='version'):
-    if record[column] != expected:
-        fail(409, 'stale_version', 'Dati cambiati: rileggi la risorsa', current_version=record[column])
+def find_teacher(db, email: str) -> dict | None:
+    email = normalize_email(email)
+    row = db.execute('SELECT * FROM teachers WHERE email=?', (email,)).fetchone()
+    return _row_dict(row)
+
+
+def authenticate(db, email: str, password: str | None) -> dict | None:
+    teacher = find_teacher(db, email)
+    if teacher is None or not teacher.get('active', True) or not verify_password(password, teacher['password_hash']):
+        return None
+    return {key: teacher[key] for key in ('id', 'email', 'display_name', 'created_at')}
+
+
+def list_teachers(db) -> list[dict]:
+    result = []
+    for row in db.execute(
+            'SELECT id,email,display_name,created_at FROM teachers ORDER BY email'):
+        item = _row_dict(row)
+        if item is not None:
+            result.append(item)
+    return result
+
+
+def set_password(db, email: str, password: str) -> int:
+    teacher = find_teacher(db, email)
+    if teacher is None:
+        raise ValueError('Docente non trovato')
+    encoded=hash_password(password)
+    db.execute('UPDATE teachers SET password_hash=? WHERE id=?',(encoded, teacher['id']))
+    link=db.execute('SELECT user_id FROM teacher_user_links WHERE teacher_id=?',(teacher['id'],)).fetchone()
+    if link:
+        db.execute('UPDATE users SET password_hash=? WHERE id=?',(encoded,link[0]))
+        db.execute('DELETE FROM sessions WHERE user_id=?',(link[0],))
+    return teacher['id']
+
+
+@dataclass
+class Auth:
+    secret: bytes = b''
+    ttl: int = DEFAULT_TTL
+    cookie_secure: bool = False
+    failures: dict[str, list[float]] = field(default_factory=dict)
+    lock: threading.Lock = field(default_factory=threading.Lock)
+
+    def issue(self, teacher_id: int, email: str, now: float | None = None) -> str:
+        expires = int((now if now is not None else time.time()) + self.ttl)
+        payload = json.dumps({'exp': expires, 'tid': int(teacher_id), 'nonce': secrets.token_urlsafe(24),
+                              'email': normalize_email(email)},
+                             separators=(',', ':'), ensure_ascii=False).encode('utf-8')
+        body = _b64encode(payload)
+        signature = hmac.new(self.secret, body.encode('ascii'),
+                             hashlib.sha256).hexdigest()
+        return f'{body}.{signature}'
+
+    def decode(self, token: str | None, now: float | None = None) -> dict | None:
+        if not token:
+            return None
+        try:
+            body, signature = token.split('.', 1)
+            expected = hmac.new(self.secret, body.encode('ascii'),
+                                hashlib.sha256).hexdigest()
+            if not hmac.compare_digest(signature, expected):
+                return None
+            data = json.loads(_b64decode(body).decode('utf-8'))
+            expires = int(data['exp'])
+            if expires < int(now if now is not None else time.time()):
+                return None
+            teacher_id = int(data['tid'])
+            email = str(data['email'])
+        except (AttributeError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+            return None
+        if not teacher_id or not email:
+            return None
+        return {'teacher_id': teacher_id, 'email': email, 'expires': expires}
+
+    def valid(self, token: str | None, now: float | None = None) -> bool:
+        return self.decode(token, now) is not None
+
+    def session_from_request(self, request) -> dict | None:
+        return self.decode(request.cookies.get(COOKIE_NAME))
+
+    def login_allowed(self, key: str, now: float | None = None) -> bool:
+        now = now if now is not None else time.time()
+        with self.lock:
+            attempts = [stamp for stamp in self.failures.get(key, [])
+                        if now - stamp < FAILURE_WINDOW]
+            self.failures[key] = attempts
+            if len(attempts) < MAX_FAILURES:
+                return True
+            return now - attempts[-1] >= LOCKOUT_SECONDS
+
+    def record_failure(self, key: str, now: float | None = None) -> None:
+        now = now if now is not None else time.time()
+        with self.lock:
+            attempts = [stamp for stamp in self.failures.get(key, [])
+                        if now - stamp < FAILURE_WINDOW]
+            attempts.append(now)
+            self.failures[key] = attempts
+
+    def record_success(self, key: str) -> None:
+        with self.lock:
+            self.failures.pop(key, None)
+
+
+def build(base_dir: Path, secret: str | bytes | None = None,
+          cookie_secure: bool | None = None) -> Auth:
+    """Create the session configuration, reading the environment as a fallback."""
+    if secret is not None:
+        secret_bytes = secret.encode('utf-8') if isinstance(secret, str) else secret
+    else:
+        env_secret = os.environ.get('TORNEO_SECRET', '').strip()
+        secret_bytes = (env_secret.encode('utf-8') if env_secret
+                        else load_or_create_secret(base_dir / 'data' / 'session.secret'))
+
+    try:
+        hours = float(os.environ.get('TORNEO_SESSION_HOURS', '12'))
+    except ValueError:
+        hours = 12.0
+    ttl = max(1, int(hours * 3600))
+
+    if cookie_secure is None:
+        cookie_secure = _truthy(os.environ.get('TORNEO_COOKIE_SECURE'))
+
+    return Auth(secret=secret_bytes, ttl=ttl, cookie_secure=cookie_secure)

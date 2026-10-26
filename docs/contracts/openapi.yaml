@@ -358,6 +358,40 @@
         "title": "BracketStage",
         "type": "object"
       },
+      "Bulk": {
+        "additionalProperties": false,
+        "properties": {
+          "csv": {
+            "anyOf": [
+              {
+                "maxLength": 200000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Csv"
+          },
+          "rows": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PlayerInput"
+                },
+                "maxItems": 1000,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rows"
+          }
+        },
+        "title": "Bulk",
+        "type": "object"
+      },
       "ClearInput": {
         "additionalProperties": false,
         "properties": {
@@ -768,6 +802,16 @@
             "title": "Availability",
             "type": "array"
           },
+          "availability_note": {
+            "default": "",
+            "title": "Availability Note",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -871,52 +915,6 @@
           "sport_variant_ids"
         ],
         "title": "FieldEdit",
-        "type": "object"
-      },
-      "FieldInput": {
-        "additionalProperties": false,
-        "properties": {
-          "availability": {
-            "items": {
-              "$ref": "#/components/schemas/Availability"
-            },
-            "maxItems": 100,
-            "title": "Availability",
-            "type": "array"
-          },
-          "name": {
-            "maxLength": 60,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
-          },
-          "sport_variant_ids": {
-            "items": {
-              "type": "string"
-            },
-            "maxItems": 20,
-            "minItems": 1,
-            "title": "Sport Variant Ids",
-            "type": "array"
-          },
-          "venue_id": {
-            "anyOf": [
-              {
-                "minimum": 1.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Venue Id"
-          }
-        },
-        "required": [
-          "name",
-          "sport_variant_ids"
-        ],
-        "title": "FieldInput",
         "type": "object"
       },
       "FieldRef": {
@@ -1181,6 +1179,27 @@
         "title": "InviteValidation",
         "type": "object"
       },
+      "LinkStudent": {
+        "additionalProperties": false,
+        "properties": {
+          "user_id": {
+            "minimum": 1.0,
+            "title": "User Id",
+            "type": "integer"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "user_id"
+        ],
+        "title": "LinkStudent",
+        "type": "object"
+      },
       "Login": {
         "additionalProperties": false,
         "properties": {
@@ -1197,6 +1216,30 @@
           "csrf_token"
         ],
         "title": "Login",
+        "type": "object"
+      },
+      "LoginInput": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "maxLength": 200,
+            "minLength": 3,
+            "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "LoginInput",
         "type": "object"
       },
       "Match": {
@@ -1575,7 +1618,32 @@
         "title": "OfficialBrief",
         "type": "object"
       },
-      "Order": {
+      "Order-Input": {
+        "additionalProperties": false,
+        "properties": {
+          "team_ids": {
+            "items": {
+              "minimum": 1.0,
+              "type": "integer"
+            },
+            "maxItems": 32,
+            "title": "Team Ids",
+            "type": "array"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "team_ids",
+          "version"
+        ],
+        "title": "Order",
+        "type": "object"
+      },
+      "Order-Output": {
         "additionalProperties": false,
         "properties": {
           "ordered_team_ids": {
@@ -1927,6 +1995,81 @@
         "title": "PenaltyInput",
         "type": "object"
       },
+      "Performance": {
+        "additionalProperties": false,
+        "properties": {
+          "player_id": {
+            "minimum": 1.0,
+            "title": "Player Id",
+            "type": "integer"
+          },
+          "points": {
+            "maximum": 999.0,
+            "minimum": 0.0,
+            "title": "Points",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "player_id",
+          "points"
+        ],
+        "title": "Performance",
+        "type": "object"
+      },
+      "Performances": {
+        "additionalProperties": false,
+        "properties": {
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/Performance"
+            },
+            "maxItems": 64,
+            "title": "Players",
+            "type": "array"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "players"
+        ],
+        "title": "Performances",
+        "type": "object"
+      },
+      "PlayerInput": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "shirt_number": {
+            "anyOf": [
+              {
+                "maximum": 99.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shirt Number"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "PlayerInput",
+        "type": "object"
+      },
       "PointsScore": {
         "additionalProperties": false,
         "properties": {
@@ -2008,7 +2151,7 @@
           "review": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/Review"
+                "$ref": "#/components/schemas/Review-Output"
               },
               {
                 "type": "null"
@@ -2378,7 +2521,91 @@
         "title": "ResultMutation",
         "type": "object"
       },
-      "Review": {
+      "Review-Input": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "approve",
+              "reject",
+              "correct"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "away_score": {
+            "anyOf": [
+              {
+                "maximum": 999.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Away Score"
+          },
+          "home_score": {
+            "anyOf": [
+              {
+                "maximum": 999.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Home Score"
+          },
+          "invalidate": {
+            "default": false,
+            "title": "Invalidate",
+            "type": "boolean"
+          },
+          "match_version": {
+            "minimum": 1.0,
+            "title": "Match Version",
+            "type": "integer"
+          },
+          "reason": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Reason",
+            "type": "string"
+          },
+          "sets": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SetPoints"
+                },
+                "maxItems": 7,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sets"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "action",
+          "version",
+          "match_version"
+        ],
+        "title": "Review",
+        "type": "object"
+      },
+      "Review-Output": {
         "additionalProperties": false,
         "properties": {
           "created_at": {
@@ -2565,6 +2792,29 @@
           "standings_criteria"
         ],
         "title": "RulesSchema",
+        "type": "object"
+      },
+      "SetPoints": {
+        "additionalProperties": false,
+        "properties": {
+          "away": {
+            "maximum": 999.0,
+            "minimum": 0.0,
+            "title": "Away",
+            "type": "integer"
+          },
+          "home": {
+            "maximum": 999.0,
+            "minimum": 0.0,
+            "title": "Home",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "home",
+          "away"
+        ],
+        "title": "SetPoints",
         "type": "object"
       },
       "SetScore": {
@@ -3830,16 +4080,39 @@
             ],
             "title": "Random Seed"
           },
+          "scoring_system": {
+            "default": "points",
+            "enum": [
+              "points",
+              "sets",
+              "time"
+            ],
+            "title": "Scoring System",
+            "type": "string"
+          },
           "sport": {
             "default": "Calcio",
             "enum": [
               "Calcio",
-              "Calcio a 5",
               "Basket",
-              "Pallamano"
+              "Pallavolo",
+              "Badminton",
+              "Ping pong",
+              "Biliardino"
             ],
             "title": "Sport",
             "type": "string"
+          },
+          "sport_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sport Id"
           },
           "team_names": {
             "items": {
@@ -3850,6 +4123,39 @@
             "maxItems": 32,
             "title": "Team Names",
             "type": "array"
+          },
+          "tie_breaker": {
+            "default": "goal_difference",
+            "enum": [
+              "goal_difference",
+              "head_to_head",
+              "goals_for",
+              "wins"
+            ],
+            "title": "Tie Breaker",
+            "type": "string"
+          },
+          "tournament_type": {
+            "default": "general",
+            "enum": [
+              "general",
+              "championship",
+              "cup"
+            ],
+            "title": "Tournament Type",
+            "type": "string"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant"
           },
           "win_points": {
             "default": 3,
@@ -3863,6 +4169,252 @@
           "name"
         ],
         "title": "TournamentInput",
+        "type": "object"
+      },
+      "TournamentUpdate": {
+        "additionalProperties": false,
+        "description": "Partial update. Structural fields are accepted only while the tournament is a draft.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "draw_points": {
+            "anyOf": [
+              {
+                "maximum": 10.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draw Points"
+          },
+          "format": {
+            "anyOf": [
+              {
+                "enum": [
+                  "round_robin",
+                  "knockout",
+                  "groups"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
+          },
+          "group_count": {
+            "anyOf": [
+              {
+                "maximum": 8.0,
+                "minimum": 2.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Count"
+          },
+          "legs": {
+            "anyOf": [
+              {
+                "maximum": 2.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legs"
+          },
+          "loss_points": {
+            "anyOf": [
+              {
+                "maximum": 10.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loss Points"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "participant_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "team",
+                  "individual"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Kind"
+          },
+          "qualifiers": {
+            "anyOf": [
+              {
+                "maximum": 2.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qualifiers"
+          },
+          "random_seed": {
+            "anyOf": [
+              {
+                "maximum": 2147483647.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Random Seed"
+          },
+          "scoring_system": {
+            "anyOf": [
+              {
+                "enum": [
+                  "points",
+                  "sets",
+                  "time"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scoring System"
+          },
+          "sport": {
+            "anyOf": [
+              {
+                "enum": [
+                  "Calcio",
+                  "Basket",
+                  "Pallavolo",
+                  "Badminton",
+                  "Ping pong",
+                  "Biliardino"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sport"
+          },
+          "sport_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sport Id"
+          },
+          "tie_breaker": {
+            "anyOf": [
+              {
+                "enum": [
+                  "goal_difference",
+                  "head_to_head",
+                  "goals_for",
+                  "wins"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tie Breaker"
+          },
+          "tournament_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "general",
+                  "championship",
+                  "cup"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tournament Type"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant"
+          },
+          "win_points": {
+            "anyOf": [
+              {
+                "maximum": 10.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Win Points"
+          }
+        },
+        "title": "TournamentUpdate",
         "type": "object"
       },
       "User": {
@@ -4001,25 +4553,123 @@
         "title": "VersionInput",
         "type": "object"
       },
+      "frontend_api__FieldInput": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "availability": {
+            "default": "",
+            "maxLength": 160,
+            "title": "Availability",
+            "type": "string"
+          },
+          "availability_intervals": {
+            "items": {
+              "$ref": "#/components/schemas/Availability"
+            },
+            "maxItems": 100,
+            "title": "Availability Intervals",
+            "type": "array"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 400,
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "sports": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Sports",
+            "type": "array"
+          },
+          "venue": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Venue",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "name",
+          "sports"
+        ],
+        "title": "FieldInput",
+        "type": "object"
+      },
       "schemas__ResultInput": {
         "additionalProperties": false,
         "properties": {
           "away_score": {
-            "maximum": 999.0,
-            "minimum": 0.0,
-            "title": "Away Score",
-            "type": "integer"
+            "anyOf": [
+              {
+                "maximum": 999.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Away Score"
           },
           "home_score": {
-            "maximum": 999.0,
-            "minimum": 0.0,
-            "title": "Home Score",
-            "type": "integer"
+            "anyOf": [
+              {
+                "maximum": 999.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Home Score"
           },
           "invalidate": {
             "default": false,
             "title": "Invalidate",
             "type": "boolean"
+          },
+          "sets": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SetPoints"
+                },
+                "maxItems": 7,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sets"
           },
           "version": {
             "minimum": 1.0,
@@ -4028,8 +4678,6 @@
           }
         },
         "required": [
-          "home_score",
-          "away_score",
           "version"
         ],
         "title": "ResultInput",
@@ -4039,11 +4687,29 @@
         "additionalProperties": false,
         "properties": {
           "duration": {
-            "default": 20,
-            "maximum": 240.0,
-            "minimum": 1.0,
-            "title": "Duration",
-            "type": "integer"
+            "anyOf": [
+              {
+                "maximum": 240.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration"
+          },
+          "field_id": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Id"
           },
           "location": {
             "default": "",
@@ -4063,6 +4729,11 @@
             ],
             "title": "Scheduled At"
           },
+          "timezone": {
+            "default": "Europe/Rome",
+            "title": "Timezone",
+            "type": "string"
+          },
           "version": {
             "minimum": 1.0,
             "title": "Version",
@@ -4073,6 +4744,52 @@
           "version"
         ],
         "title": "ScheduleInput",
+        "type": "object"
+      },
+      "v1_schemas__FieldInput": {
+        "additionalProperties": false,
+        "properties": {
+          "availability": {
+            "items": {
+              "$ref": "#/components/schemas/Availability"
+            },
+            "maxItems": 100,
+            "title": "Availability",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "sport_variant_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Sport Variant Ids",
+            "type": "array"
+          },
+          "venue_id": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Venue Id"
+          }
+        },
+        "required": [
+          "name",
+          "sport_variant_ids"
+        ],
+        "title": "FieldInput",
         "type": "object"
       },
       "v1_schemas__ResultInput": {
@@ -4182,21 +4899,57 @@
     "securitySchemes": {
       "APIKeyCookie": {
         "in": "cookie",
-        "name": "open_score_session",
+        "name": "open_score_platform_session",
         "type": "apiKey"
       }
     }
   },
   "info": {
-    "description": "API V1 autenticata e demo locale compatibile. Nessun collegamento alle API di Score7.",
-    "title": "Open Score API",
-    "version": "0.3.0"
+    "description": "Applicazione originale per i tornei scolastici. Nessun collegamento alle API di Score7.",
+    "title": "Open Score · API",
+    "version": "0.9.0"
   },
   "openapi": "3.1.0",
   "paths": {
-    "/api/demo": {
+    "/api/auth/login": {
       "post": {
-        "operationId": "examples_api_demo_post",
+        "operationId": "login_api_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login"
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "operationId": "logout_api_auth_logout_post",
         "responses": {
           "200": {
             "content": {
@@ -4207,7 +4960,324 @@
             "description": "Successful Response"
           }
         },
-        "summary": "Examples"
+        "summary": "Logout"
+      }
+    },
+    "/api/auth/session": {
+      "get": {
+        "operationId": "session_info_api_auth_session_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Session Info"
+      }
+    },
+    "/api/calendar": {
+      "get": {
+        "operationId": "calendar_api_calendar_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tournament",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tournament"
+            }
+          },
+          {
+            "in": "query",
+            "name": "team",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Team"
+            }
+          },
+          {
+            "in": "query",
+            "name": "day",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Day"
+            }
+          },
+          {
+            "in": "query",
+            "name": "field",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Field"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Calendar",
+        "tags": [
+          "Team B integration"
+        ]
+      }
+    },
+    "/api/dashboard": {
+      "get": {
+        "operationId": "dashboard_api_dashboard_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "mine",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Mine",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Dashboard",
+        "tags": [
+          "Team B integration"
+        ]
+      }
+    },
+    "/api/fields": {
+      "get": {
+        "operationId": "fields_api_fields_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Fields",
+        "tags": [
+          "Team B integration"
+        ]
+      },
+      "post": {
+        "operationId": "add_field_api_fields_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/frontend_api__FieldInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Field",
+        "tags": [
+          "Team B integration"
+        ]
+      }
+    },
+    "/api/fields/{fid}": {
+      "delete": {
+        "operationId": "deactivate_field_api_fields__fid__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fid",
+            "required": true,
+            "schema": {
+              "title": "Fid",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Deactivate Field",
+        "tags": [
+          "Team B integration"
+        ]
+      },
+      "patch": {
+        "operationId": "edit_field_api_fields__fid__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fid",
+            "required": true,
+            "schema": {
+              "title": "Fid",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/frontend_api__FieldInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Edit Field",
+        "tags": [
+          "Team B integration"
+        ]
       }
     },
     "/api/health": {
@@ -4224,6 +5294,136 @@
           }
         },
         "summary": "Health"
+      }
+    },
+    "/api/invites/{token}": {
+      "get": {
+        "operationId": "invitation_api_invites__token__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Invitation",
+        "tags": [
+          "Team B integration"
+        ]
+      }
+    },
+    "/api/invites/{token}/join": {
+      "post": {
+        "operationId": "join_api_invites__token__join_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join",
+        "tags": [
+          "Team B integration"
+        ]
+      }
+    },
+    "/api/proposals/{pid}": {
+      "patch": {
+        "operationId": "review_api_proposals__pid__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Review-Input"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review",
+        "tags": [
+          "Team B integration"
+        ]
       }
     },
     "/api/public/{token}": {
@@ -4263,9 +5463,10 @@
         "summary": "Public Tournament"
       }
     },
-    "/api/tournaments": {
+    "/api/sports": {
       "get": {
-        "operationId": "list_tournaments_api_tournaments_get",
+        "description": "Canonical catalog read from the database, so UI and validation agree.",
+        "operationId": "list_sports_api_sports_get",
         "responses": {
           "200": {
             "content": {
@@ -4274,6 +5475,182 @@
               }
             },
             "description": "Successful Response"
+          }
+        },
+        "summary": "List Sports"
+      }
+    },
+    "/api/sports/{sport_name}": {
+      "get": {
+        "operationId": "get_sport_info_api_sports__sport_name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sport_name",
+            "required": true,
+            "schema": {
+              "title": "Sport Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Sport Info"
+      }
+    },
+    "/api/sports/{sport_name}/variants/{variant_slug}": {
+      "get": {
+        "operationId": "get_variant_info_api_sports__sport_name__variants__variant_slug__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sport_name",
+            "required": true,
+            "schema": {
+              "title": "Sport Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "variant_slug",
+            "required": true,
+            "schema": {
+              "title": "Variant Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Variant Info"
+      }
+    },
+    "/api/teachers/{teacher_id}/deactivate": {
+      "post": {
+        "operationId": "deactivate_api_teachers__teacher_id__deactivate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "teacher_id",
+            "required": true,
+            "schema": {
+              "title": "Teacher Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Deactivate",
+        "tags": [
+          "Team B integration"
+        ]
+      }
+    },
+    "/api/tournaments": {
+      "get": {
+        "operationId": "list_tournaments_api_tournaments_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "archived",
+            "required": false,
+            "schema": {
+              "default": "exclude",
+              "enum": [
+                "exclude",
+                "include",
+                "only"
+              ],
+              "title": "Archived",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "mine",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Mine",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "List Tournaments"
@@ -4348,6 +5725,88 @@
           }
         },
         "summary": "Get Tournament"
+      },
+      "patch": {
+        "operationId": "update_tournament_api_tournaments__tid__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tid",
+            "required": true,
+            "schema": {
+              "title": "Tid",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TournamentUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Tournament"
+      }
+    },
+    "/api/tournaments/{tid}/archive": {
+      "post": {
+        "operationId": "archive_tournament_api_tournaments__tid__archive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tid",
+            "required": true,
+            "schema": {
+              "title": "Tid",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Archive Tournament"
       }
     },
     "/api/tournaments/{tid}/export.csv": {
@@ -4424,6 +5883,56 @@
         "summary": "Generate"
       }
     },
+    "/api/tournaments/{tid}/invites": {
+      "post": {
+        "operationId": "invite_api_tournaments__tid__invites_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tid",
+            "required": true,
+            "schema": {
+              "title": "Tid",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Invite",
+        "tags": [
+          "Team B integration"
+        ]
+      }
+    },
     "/api/tournaments/{tid}/matches/{mid}": {
       "patch": {
         "operationId": "result_api_tournaments__tid__matches__mid__patch",
@@ -4478,6 +5987,124 @@
           }
         },
         "summary": "Result"
+      }
+    },
+    "/api/tournaments/{tid}/matches/{mid}/performances": {
+      "put": {
+        "operationId": "performances_api_tournaments__tid__matches__mid__performances_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tid",
+            "required": true,
+            "schema": {
+              "title": "Tid",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "mid",
+            "required": true,
+            "schema": {
+              "title": "Mid",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Performances"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Performances",
+        "tags": [
+          "Team B integration"
+        ]
+      }
+    },
+    "/api/tournaments/{tid}/matches/{mid}/proposals": {
+      "post": {
+        "operationId": "propose_api_tournaments__tid__matches__mid__proposals_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tid",
+            "required": true,
+            "schema": {
+              "title": "Tid",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "mid",
+            "required": true,
+            "schema": {
+              "title": "Mid",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/schemas__ResultInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Propose",
+        "tags": [
+          "Team B integration"
+        ]
       }
     },
     "/api/tournaments/{tid}/matches/{mid}/result": {
@@ -4592,6 +6219,291 @@
         "summary": "Schedule"
       }
     },
+    "/api/tournaments/{tid}/player-statistics": {
+      "get": {
+        "operationId": "player_statistics_api_tournaments__tid__player_statistics_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tid",
+            "required": true,
+            "schema": {
+              "title": "Tid",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Player Statistics",
+        "tags": [
+          "Team B integration"
+        ]
+      }
+    },
+    "/api/tournaments/{tid}/proposals": {
+      "get": {
+        "operationId": "proposals_api_tournaments__tid__proposals_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tid",
+            "required": true,
+            "schema": {
+              "title": "Tid",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "pending",
+              "title": "Status",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Proposals",
+        "tags": [
+          "Team B integration"
+        ]
+      }
+    },
+    "/api/tournaments/{tid}/restore": {
+      "post": {
+        "operationId": "restore_tournament_api_tournaments__tid__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tid",
+            "required": true,
+            "schema": {
+              "title": "Tid",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restore Tournament"
+      }
+    },
+    "/api/tournaments/{tid}/students": {
+      "get": {
+        "operationId": "students_api_tournaments__tid__students_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tid",
+            "required": true,
+            "schema": {
+              "title": "Tid",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Students",
+        "tags": [
+          "Team B integration"
+        ]
+      }
+    },
+    "/api/tournaments/{tid}/students/{sid}": {
+      "patch": {
+        "operationId": "link_student_api_tournaments__tid__students__sid__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tid",
+            "required": true,
+            "schema": {
+              "title": "Tid",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sid",
+            "required": true,
+            "schema": {
+              "title": "Sid",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkStudent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Link Student",
+        "tags": [
+          "Team B integration"
+        ]
+      }
+    },
+    "/api/tournaments/{tid}/students/{sid}/team": {
+      "patch": {
+        "operationId": "assign_api_tournaments__tid__students__sid__team_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tid",
+            "required": true,
+            "schema": {
+              "title": "Tid",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sid",
+            "required": true,
+            "schema": {
+              "title": "Sid",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamAssignment"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Assign",
+        "tags": [
+          "Team B integration"
+        ]
+      }
+    },
     "/api/tournaments/{tid}/teams": {
       "post": {
         "operationId": "add_team_api_tournaments__tid__teams_post",
@@ -4639,6 +6551,56 @@
         "summary": "Add Team"
       }
     },
+    "/api/tournaments/{tid}/teams/order": {
+      "patch": {
+        "operationId": "order_api_tournaments__tid__teams_order_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tid",
+            "required": true,
+            "schema": {
+              "title": "Tid",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Order-Input"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Order",
+        "tags": [
+          "Team B integration"
+        ]
+      }
+    },
     "/api/tournaments/{tid}/teams/{team_id}": {
       "delete": {
         "operationId": "delete_team_api_tournaments__tid__teams__team_id__delete",
@@ -4678,6 +6640,50 @@
           }
         },
         "summary": "Delete Team"
+      },
+      "get": {
+        "operationId": "get_team_api_tournaments__tid__teams__team_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tid",
+            "required": true,
+            "schema": {
+              "title": "Tid",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Team"
       },
       "patch": {
         "operationId": "rename_team_api_tournaments__tid__teams__team_id__patch",
@@ -4732,6 +6738,215 @@
           }
         },
         "summary": "Rename Team"
+      }
+    },
+    "/api/tournaments/{tid}/teams/{team_id}/players": {
+      "get": {
+        "operationId": "list_players_api_tournaments__tid__teams__team_id__players_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tid",
+            "required": true,
+            "schema": {
+              "title": "Tid",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Players"
+      },
+      "post": {
+        "operationId": "add_player_api_tournaments__tid__teams__team_id__players_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tid",
+            "required": true,
+            "schema": {
+              "title": "Tid",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlayerInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Player"
+      }
+    },
+    "/api/tournaments/{tid}/teams/{team_id}/players/import": {
+      "post": {
+        "operationId": "import_players_api_tournaments__tid__teams__team_id__players_import_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tid",
+            "required": true,
+            "schema": {
+              "title": "Tid",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Bulk"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Players",
+        "tags": [
+          "Team B integration"
+        ]
+      }
+    },
+    "/api/tournaments/{tid}/teams/{team_id}/players/{player_id}": {
+      "delete": {
+        "operationId": "remove_player_api_tournaments__tid__teams__team_id__players__player_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tid",
+            "required": true,
+            "schema": {
+              "title": "Tid",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "player_id",
+            "required": true,
+            "schema": {
+              "title": "Player Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Player"
       }
     },
     "/api/v1/auth/csrf": {
@@ -5416,7 +7631,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/FieldInput"
+                "$ref": "#/components/schemas/v1_schemas__FieldInput"
               }
             }
           },
@@ -11559,7 +13774,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Order"
+                  "$ref": "#/components/schemas/Order-Output"
                 }
               }
             },
@@ -12506,6 +14721,43 @@
         "tags": [
           "Platform V1"
         ]
+      }
+    },
+    "/api/variants/{variant_slug}": {
+      "get": {
+        "operationId": "get_variant_shortcut_api_variants__variant_slug__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "variant_slug",
+            "required": true,
+            "schema": {
+              "title": "Variant Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Variant Shortcut"
       }
     }
   }

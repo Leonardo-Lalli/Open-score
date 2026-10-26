@@ -4,19 +4,28 @@ import os
 import secrets
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, Security
+from fastapi import (
+    APIRouter,
+    Depends,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    Security,
+)
 from fastapi.security import APIKeyCookie
 
-import auth
-from auth import fail, version
-from db import database
-import services as svc
+import platform_auth as auth
+import platform_services as svc
 import sports
 import v1_domain as domain
+import v1_dto as dto
 import v1_resources as resources
 import v1_results as results
 import v1_schemas as schema
-import v1_dto as dto
+from db import database
+from platform_auth import fail, version
 
 Cursor = Annotated[int, Query(ge=0)]
 Limit = Annotated[int, Query(ge=1, le=100)]
@@ -63,7 +72,7 @@ def create_router(path, secure_cookies=False, public_origin=None):
                  (data.email, data.display_name, auth.password_hash(data.password.get_secret_value()), 'student')).lastrowid
             token = auth.new_session(db, response, secure_cookies, uid, old)
             user = db.execute('SELECT * FROM users WHERE id=?', (uid,)).fetchone()
-            return dict(user=auth.public_user(user), csrf_token=token)
+            return {'user': auth.public_user(user), 'csrf_token': token}
 
     @router.post('/auth/login', tags=['Auth'], response_model=dto.Login)
     def login(request: Request, response: Response, data: schema.Credentials,
@@ -78,15 +87,21 @@ def create_router(path, secure_cookies=False, public_origin=None):
             valid = auth.verify_password(data.password.get_secret_value(), user['password_hash'] if user else dummy)
             if not user or not valid:
                 fail(401, 'invalid_credentials', 'Credenziali non valide')
+            inactive = db.execute('SELECT 1 FROM teacher_user_links l JOIN teachers t ON t.id=l.teacher_id WHERE l.user_id=? AND t.active=0',(user['id'],)).fetchone()
+            if inactive:
+                fail(401, 'invalid_credentials', 'Credenziali non valide')
             token = auth.new_session(db, response, secure_cookies, user['id'], old)
-            return dict(user=auth.public_user(user), csrf_token=token)
+            return {'user': auth.public_user(user), 'csrf_token': token}
 
     @router.post('/auth/logout', status_code=204, tags=['Auth'])
     def logout_session(request: Request, ctx=Depends(context)):
         db, user = ctx
+        from auth import COOKIE_NAME
         db.execute('DELETE FROM sessions WHERE token_hash=?', (auth.digest(request.cookies.get(auth.COOKIE, '')),))
+        db.execute('DELETE FROM sessions WHERE token_hash=?',(auth.digest(request.cookies.get(COOKIE_NAME,'')),))
         response = Response(status_code=204)
         response.delete_cookie(auth.COOKIE, path='/', secure=secure_cookies, httponly=True, samesite='lax')
+        response.delete_cookie(COOKIE_NAME,path='/')
         return response
 
     @router.get('/users/me', tags=['Auth'], response_model=dto.User)
@@ -102,9 +117,9 @@ def create_router(path, secure_cookies=False, public_origin=None):
 
     @router.get('/sports', tags=['Sports'])
     def catalog(ctx=Depends(context)):
-        items = [dict(id=vid, sport=value[0], name=value[1], score_type=value[2], preset='school', defaults=sports.configuration(vid))
+        items = [{'id': vid, 'sport': value[0], 'name': value[1], 'score_type': value[2], 'preset': 'school', 'defaults': sports.configuration(vid)}
                  for vid, value in sports.VARIANTS.items()]
-        return dict(items=items, next_cursor=None)
+        return {'items': items, 'next_cursor': None}
 
     @router.get('/sports/variants/{vid}/rules-schema', tags=['Sports'], response_model=dto.RulesSchema)
     def rules_schema(vid: str, ctx=Depends(context)):
@@ -150,7 +165,7 @@ def create_router(path, secure_cookies=False, public_origin=None):
     def get_rules(tid: int, ctx=Depends(context)):
         db, user = ctx
         t = auth.access(db, user, tid)
-        return dict(variant_id=t['variant_id'], config=json.loads(t['rules_json']) if t['rules_json'] else None, version=t['version'])
+        return {'variant_id': t['platform_variant_id'], 'config': json.loads(t['rules_json']) if t['rules_json'] else None, 'version': t['version']}
 
     @router.patch('/tournaments/{tid}/rules', response_model=dto.Rules)
     def change_rules(tid: int, data: schema.RulesInput, ctx=Depends(context)):
@@ -160,11 +175,13 @@ def create_router(path, secure_cookies=False, public_origin=None):
         if svc.games(db, tid):
             fail(409, 'rules_locked', 'Le regole si cambiano soltanto prima della generazione')
         config = domain.rules(data.variant_id, data.config)
-        db.execute('UPDATE tournaments SET variant_id=?,rules_json=?,sport=?,win_points=?,draw_points=?,loss_points=?,version=version+1 WHERE id=?',
+        db.execute('UPDATE tournaments SET platform_variant_id=?,rules_json=?,sport=?,win_points=?,draw_points=?,loss_points=?,version=version+1 WHERE id=?',
                    (data.variant_id, json.dumps(config), sports.VARIANTS[data.variant_id][0], config.get('win_points', 3),
                     config.get('draw_points', 0), config.get('loss_points', 0), tid))
         domain.audit(db, user, tid, 'rules_updated', {'variant_id': data.variant_id})
-        return dict(variant_id=data.variant_id, config=config, version=data.version+1)
+        from identity_bridge import sync_platform_tournament
+        sync_platform_tournament(db, tid)
+        return {'variant_id': data.variant_id, 'config': config, 'version': data.version+1}
 
     @router.get('/tournaments/{tid}/teams', response_model=dto.TeamsPage)
     def teams(tid: int, cursor: Cursor = 0, limit: Limit = 50, q: str = '', ctx=Depends(context)):
@@ -205,7 +222,7 @@ def create_router(path, secure_cookies=False, public_origin=None):
                    (team_id, data.points, data.reason))
         db.execute('UPDATE teams SET version=version+1 WHERE id=?', (team_id,))
         domain.audit(db, user, tid, 'team_penalty_changed', {'team_id': team_id, 'points': data.points, 'reason': data.reason})
-        return dict(team_id=team_id, points=data.points, version=data.version+1)
+        return {'team_id': team_id, 'points': data.points, 'version': data.version+1}
 
     @router.get('/tournaments/{tid}/students', response_model=dto.Page[dto.Student])
     def students(tid: int, cursor: Cursor = 0, limit: Limit = 50, q: str = '', team_id: int | None = None, ctx=Depends(context)):
@@ -254,7 +271,7 @@ def create_router(path, secure_cookies=False, public_origin=None):
     def generate(tid: int, ctx=Depends(context)):
         db, user = ctx
         t = auth.access(db, user, tid, True)
-        if not t['variant_id']:
+        if not t['platform_variant_id'] and not t['variant_id']:
             fail(409, 'rules_required', 'Configurare una variante prima della generazione')
         outcome = svc.generate(db, tid)
         domain.audit(db, user, tid, 'fixtures_generated', {})
@@ -275,8 +292,8 @@ def create_router(path, secure_cookies=False, public_origin=None):
         db, user = ctx
         state = domain.detail(db, user, tid)
         variant = state['tournament']['variant_id']
-        return dict(rows=state['standings'], groups=state['groups'],
-                    criteria=sports.metadata(variant)['standings_criteria'] if variant else ['points', 'goal_difference', 'goals_for', 'name', 'team_id'])
+        return {'rows': state['standings'], 'groups': state['groups'],
+                    'criteria': sports.metadata(variant)['standings_criteria'] if variant else ['points', 'goal_difference', 'goals_for', 'name', 'team_id']}
 
     @router.get('/tournaments/{tid}/bracket', response_model=dto.Bracket, response_model_exclude_unset=True)
     def bracket(tid: int, ctx=Depends(context)):
@@ -326,7 +343,7 @@ def create_router(path, secure_cookies=False, public_origin=None):
         slug = t['public_slug'] or secrets.token_urlsafe(12)
         db.execute('UPDATE tournaments SET published=?,public_slug=?,version=version+1 WHERE id=?', (int(data.published), slug, tid))
         domain.audit(db, user, tid, 'publication_changed', {'published': data.published})
-        return dict(published=data.published, public_slug=slug, public_url=origin(request)+'/api/v1/public/tournaments/'+slug, version=data.version+1)
+        return {'published': data.published, 'public_slug': slug, 'public_url': origin(request)+'/api/v1/public/tournaments/'+slug, 'version': data.version+1}
 
     @router.get('/public/tournaments/{slug}', response_model=dto.Detail, response_model_exclude_unset=True)
     def public_detail(slug: str):
@@ -373,8 +390,8 @@ def create_router(path, secure_cookies=False, public_origin=None):
             item = resources.find_invite(db, data.token)
             tournament = svc.required(db, item['tournament_id'])
             team = resources.get_team(db, tournament['id'], item['team_id']) if item['team_id'] else None
-            return dict(valid=True, tournament_name=tournament['name'], team_name=team['name'] if team else None,
-                        expires_at=item['expires_at'], requires_login=True)
+            return {'valid': True, 'tournament_name': tournament['name'], 'team_name': team['name'] if team else None,
+                        'expires_at': item['expires_at'], 'requires_login': True}
 
     @router.post('/invites/accept', status_code=201, response_model=dto.Enrollment)
     def accept(data: schema.TokenInput, ctx=Depends(context)):

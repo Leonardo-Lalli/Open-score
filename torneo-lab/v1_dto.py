@@ -290,6 +290,8 @@ class Field(Venue):
     availability: list[dict[str, str]]
     archived: bool
     version: int
+    description: str = ''
+    availability_note: str = ''
 
 
 class Invite(Output):

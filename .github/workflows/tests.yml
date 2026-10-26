@@ -1,4 +1,4 @@
-name: Demo tests
+name: Open Score tests
 on: [push, pull_request]
 permissions:
   contents: read

@@ -1,14 +1,14 @@
 # Schede funzionali
 
-Perimetro: demo 0.2 e funzioni future chiaramente distinte. Le regole della demo sono scelte originali, non una ricostruzione certa del backend di Score7. Fonti e link completi in [REFERENCE_ANALYSIS.md](REFERENCE_ANALYSIS.md); stato di copertura in [FEATURE_MATRIX.md](FEATURE_MATRIX.md). P0 = nucleo della demo, P1 = passo vicino o prerequisito per uso pubblico, P2 = evoluzione.
+Perimetro: 0.8 e funzioni future chiaramente distinte. Le regole sono scelte originali, non una ricostruzione certa del backend di Score7. Fonti e link completi in [REFERENCE_ANALYSIS.md](REFERENCE_ANALYSIS.md); stato di copertura in [FEATURE_MATRIX.md](FEATURE_MATRIX.md). P0 = nucleo della demo, P1 = passo vicino o prerequisito per uso pubblico, P2 = evoluzione.
 
 ## 01. Creazione, elenco e gestione tornei
 
 | Campo | Specifica |
 | --- | --- |
 | Descrizione | Impostare una competizione persistente. |
-| Input | Nome, sport, formato, partecipanti, descrizione. |
-| Regole di business | Scelta originale: 2–32 partecipanti alla generazione; nomi validati; nessuna modifica del formato dopo la generazione. |
+| Input | Nome, sport, variante, formato, partecipanti, descrizione. |
+| Regole di business | Scelta originale: 2–32 partecipanti alla generazione; nomi validati; la variante determina tipo partecipante, durata e regole; nessuna modifica della struttura dopo la generazione. |
 | Output | Torneo con ID e token di consultazione. |
 | Entità database | tournaments, teams, audit_logs |
 | Stati | draft → active → completed |
@@ -23,9 +23,9 @@ Perimetro: demo 0.2 e funzioni future chiaramente distinte. Le regole della demo
 | Campo | Specifica |
 | --- | --- |
 | Descrizione | Definire regole iniziali leggibili. |
-| Input | Punti V/N/P, andata/ritorno, gruppi, promossi, tipo partecipante. |
-| Regole di business | Scelta demo: regole fissate alla creazione; nome/descrizione iniziali, niente temi o loghi. |
-| Output | Configurazione usata da motore e interfaccia. |
+| Input | Variante, punti V/N/P, andata/ritorno, gruppi, promossi, tipo partecipante. |
+| Regole di business | Scelta demo: regole fissate alla creazione e congelate in snapshot; nome/descrizione iniziali, niente temi o loghi. La variante propone i valori, che restano modificabili in bozza. |
+| Output | Configurazione usata da motore, durata e interfaccia; regolamento consultabile. |
 | Entità database | tournaments |
 | Stati | Configurata; poi usata durante la competizione. |
 | Errori e casi limite | Numero di gironi incompatibile; knockout con andata/ritorno. |
@@ -54,17 +54,17 @@ Perimetro: demo 0.2 e funzioni future chiaramente distinte. Le regole della demo
 
 | Campo | Specifica |
 | --- | --- |
-| Descrizione | Gestire le rose. |
-| Input | Futuri: squadra, giocatore, appartenenza. |
-| Regole di business | Proposta futura: distinguere persona e squadra; non creare tabelle prima di scegliere i dati necessari. |
-| Output | Rose e statistiche attribuibili. |
-| Entità database | Candidati: players, team_memberships; non esistono nella demo. |
-| Stati | Da definire. |
-| Errori e casi limite | Duplicati e cambi di appartenenza da definire. |
-| Dipendenze | Partecipanti. |
-| Priorità | P2 |
-| Fonte | Indice KB: gestione giocatori |
-| Grado di certezza | Funzione individuata; dettagli di business non verificati. |
+| Descrizione | Gestire le rose delle squadre. |
+| Input | Squadra, nome del giocatore e numero di maglia opzionale. |
+| Regole di business | Solo per varianti a squadre; nome unico per squadra; massimo da `max_roster` della variante; il minimo in campo è mostrato ma non blocca la creazione della rosa. |
+| Output | Rosa ordinata, conteggio giocatori e scheda squadra. |
+| Entità database | team_players, teams |
+| Stati | Modificabile anche a torneo generato; bloccata solo per tornei archiviati o storici. |
+| Errori e casi limite | Duplicati (409), superamento del massimo o variante individuale (422). |
+| Dipendenze | Partecipanti e variante. |
+| Priorità | P1 |
+| Fonte | Indice KB: gestione giocatori; richiesta del committente |
+| Grado di certezza | Implementata e testata; statistiche individuali restano future. |
 
 ## 05. Girone all’italiana
 
@@ -119,12 +119,12 @@ Perimetro: demo 0.2 e funzioni future chiaramente distinte. Le regole della demo
 | Campo | Specifica |
 | --- | --- |
 | Descrizione | Salvare e correggere senza incoerenze. |
-| Input | Punteggi, versione e conferma invalidate. |
-| Regole di business | Interi rigorosi; nulla prima di giocare; cambio vincitore azzera discendenti, con conferma se si perdono risultati. |
-| Output | Classifica/tabellone aggiornati e storico prima/dopo. |
-| Entità database | matches, audit_logs |
+| Input | Punteggi numerici oppure elenco di set, versione e conferma invalidate. |
+| Regole di business | Interi rigorosi; varianti a set con numero massimo, punti minimi, scarto e limite; nulla prima di giocare; cambio vincitore azzera discendenti, con conferma se si perdono risultati. |
+| Output | Classifica/tabellone aggiornati, set salvati e storico prima/dopo. |
+| Entità database | matches, match_sets, audit_logs |
 | Stati | ready → completed; correzioni possono riaprire la competizione. |
-| Errori e casi limite | 409 per versione/confirme; 422 per risultato invalido; rollback atomico. |
+| Errori e casi limite | 409 per versione/confirme; 422 per risultato o set invalido; rollback atomico. |
 | Dipendenze | Incontri e dipendenze. |
 | Priorità | P0 |
 | Fonte | Indice KB; scelta originale per l’invalidazione |
@@ -135,13 +135,13 @@ Perimetro: demo 0.2 e funzioni future chiaramente distinte. Le regole della demo
 | Campo | Specifica |
 | --- | --- |
 | Descrizione | Derivare una graduatoria dai risultati. |
-| Input | Risultati validi e regole V/N/P. |
-| Regole di business | Demo: punti, differenza, fatti, nome, ID; 0–0 conta, punteggi NULL no. Niente penalità o scontri diretti. |
+| Input | Risultati validi, regole V/N/P e profilo della variante. |
+| Regole di business | Demo: punti, differenza, fatti, nome, ID; 0–0 conta, punteggi NULL no. Nei tornei a set i gol sono i set vinti/persi; in Pallavolo 6v6 il 3-2 vale 2/1. Scontri diretti opzionali. |
 | Output | Giocate/V/N/P/fatti/subiti/differenza/punti. |
-| Entità database | Calcolata da teams e matches; nessuna copia salvata. |
+| Entità database | Calcolata da teams, matches e match_sets; nessuna copia salvata. |
 | Stati | Provvisoria; definitiva quando tutti gli incontri sono completi. |
 | Errori e casi limite | Risultati mancanti e parità residue. |
-| Dipendenze | Gironi e risultati. |
+| Dipendenze | Gironi, risultati e regole della variante. |
 | Priorità | P0 |
 | Fonte | Pagina campionati e calcolo classifiche KB |
 | Grado di certezza | Criteri Score7 più ampi; criteri demo espliciti, test e browser. |
@@ -247,8 +247,8 @@ Perimetro: demo 0.2 e funzioni future chiaramente distinte. Le regole della demo
 | Campo | Specifica |
 | --- | --- |
 | Descrizione | Collocare un incontro in un orario e campo. |
-| Input | Data con fuso, campo testuale, durata, versione. |
-| Regole di business | UTC in archivio; no sovrapposizioni note per campo o avversari; ordine tra dipendenze già programmate. |
+| Input | Data con fuso, campo testuale, durata facoltativa, versione. |
+| Regole di business | UTC in archivio; durata predefinita dalla variante; no sovrapposizioni note per campo o avversari; ordine tra dipendenze già programmate. |
 | Output | Programmazione persistente visibile. |
 | Entità database | matches |
 | Stati | Senza orario → pianificato → ripianificato. |
@@ -328,7 +328,7 @@ Perimetro: demo 0.2 e funzioni future chiaramente distinte. Le regole della demo
 | --- | --- |
 | Descrizione | Spostare dati in formati utilizzabili. |
 | Input | Demo: ID torneo per export. Futuro: CSV validato. |
-| Regole di business | CSV incontri con zero conservato e testi formula neutralizzati; import non presente. |
+| Regole di business | CSV incontri con zero conservato, dettaglio dei set e testi formula neutralizzati; import non presente. |
 | Output | Download CSV effettivo; nessun PDF implementato. |
 | Entità database | Lettura matches e teams. |
 | Stati | Esportato; import da progettare. |
@@ -358,17 +358,17 @@ Perimetro: demo 0.2 e funzioni future chiaramente distinte. Le regole della demo
 
 | Campo | Specifica |
 | --- | --- |
-| Descrizione | Collaborare online con accessi diversi. |
-| Input | Futuri: account, appartenenza al torneo e ruolo. |
-| Regole di business | Proposta: verificare permessi su ogni operazione; nessun login fittizio nella demo. |
-| Output | Futuro spazio protetto e link spettatore. |
-| Entità database | Candidati: users, sessions, tournament_members. |
-| Stati | Da progettare. |
-| Errori e casi limite | Accessi ad altri tornei, sessioni scadute, CSRF. |
-| Dipendenze | Modello utenti e hosting. |
-| Priorità | P1 prima del pubblico |
-| Fonte | Master prompt; indice KB |
-| Grado di certezza | Non implementato; controlli Host/Origin locali non sono autenticazione. |
+| Descrizione | Proteggere le scritture sulla LAN, consentire la consultazione senza accesso e isolare i tornei per docente. |
+| Input | Gate iniziale **Sono un prof** / **Sono uno studente**; login docente con email e password. |
+| Regole di business | Lo studente è sempre in sola lettura. Ogni scrittura `/api` richiede una sessione docente; ogni scrittura su un torneo richiede che appartenga al docente autenticato. Limite di 5 errori in 5 minuti per IP, blocco di 60 secondi. |
+| Output | Cookie firmato `open_score_session` con `teacher_id` ed email; `401` per scritture anonime, `403` per tornei altrui, `429` per troppi tentativi. |
+| Entità database | `teachers` (email unica, hash PBKDF2, nome) e `tournaments.teacher_id`; nessuna tabella sessioni server-side. |
+| Stati | Anonimo/studente in sola lettura; docente autenticato; sessione scaduta; torneo storico o demo non assegnato. |
+| Errori e casi limite | Email o password errate, sessione scaduta, host non ammesso (400), Origin diverso (403), logout che non revoca un cookie già copiato. |
+| Dipendenze | Configurazione del server, database e rete interna. |
+| Priorità | P1 |
+| Fonte | Master prompt; indice KB; scelta originale |
+| Grado di certezza | Implementato e testato; mancano ruoli amministrativi aggiuntivi, revoca centralizzata e disattivazione account dalla UI. |
 
 ## 24. Persistenza e migrazioni
 
@@ -376,7 +376,7 @@ Perimetro: demo 0.2 e funzioni future chiaramente distinte. Le regole della demo
 | --- | --- |
 | Descrizione | Ritrovare i dati dopo il riavvio. |
 | Input | SQLite locale o TORNEO_DB_PATH. |
-| Regole di business | Transazioni atomiche, FK attive, versioni schema 1→2; ID incontri mai riciclati; niente conversione legacy implicita. |
+| Regole di business | Transazioni atomiche, FK attive, versioni schema 1→6; ID incontri mai riciclati; niente conversione legacy implicita; sport rimossi conservati in sola lettura. |
 | Output | Dati e audit persistenti. |
 | Entità database | Tutte le tabelle; PRAGMA user_version. |
 | Stati | Schema aggiornato o errore esplicito. |
@@ -385,3 +385,19 @@ Perimetro: demo 0.2 e funzioni future chiaramente distinte. Le regole della demo
 | Priorità | P0 |
 | Fonte | Starter e scelte originali |
 | Grado di certezza | Riavvio e migrazione testati; PostgreSQL futuro. |
+
+## 25. Catalogo sport, varianti e schermate dedicate
+
+| Campo | Specifica |
+| --- | --- |
+| Descrizione | Scegliere uno dei sei sport e la variante che porta con sé regole, durata e composizione. |
+| Input | Sport padre e variante; nella UI anche un deep link `#/sport/{sport}/{variante}`. |
+| Regole di business | Sei sport e sedici varianti lette dal database; la variante determina `participant_kind`, durata, punteggio, classifica, rosa e regolamento. Sport e variante sono bloccati dopo la generazione. |
+| Output | Catalogo navigabile, scheda regolamento, wizard precompilato, tab Regolamento nel torneo e URL condivisibile. |
+| Entità database | sport_configs, sport_variants, tournaments.rules_snapshot/regulation_snapshot |
+| Stati | Catalogo letto dal server; tornei esistenti adottano la variante predefinita in migrazione. |
+| Errori e casi limite | Variante di un altro sport, variante incompatibile con il tipo partecipante, sport storico rimosso (sola lettura). |
+| Dipendenze | Database, servizi e SPA. |
+| Priorità | P0 |
+| Fonte | Richiesta del committente; catalogo scolastico |
+| Grado di certezza | Implementato, testato e verificato nel browser; regolamenti da confermare con il professore. |

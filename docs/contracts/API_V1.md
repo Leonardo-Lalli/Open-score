@@ -1,8 +1,9 @@
-# Contratto API V1 — backend 0.3
+# Contratto API V1 — integrazione 0.9.0
 
 26 ottobre 2026, branch **leo-develop**, baseline della prima specifica `4e15385`.
-Implementazione locale richiesta dall'utente, senza push. Revisione Team B e
-integrazione in main non avvenute. Le schermate V1 e QR restano al Team B.
+Implementazione locale richiesta dall'utente, senza push. Integrato `max-develop`
+@ `0896096` in `leo-develop`; nessuna integrazione in main.
+Adapter e UI collegati descritti nel [report integrazione](../TEAM_B_INTEGRATION_REPORT.md).
 
 ## Specifica autorevole
 
@@ -25,10 +26,11 @@ regole e dei form risultato sono dinamici per definizione.
 
 ## Compatibilità, dati e concorrenza
 
-Modalità **demo**: vecchia UI e `/api` funzionano per tornei non assegnati.
-I tornei V1 non sono raggiungibili dalle route anonime legacy, neppure con il
-vecchio public_token. Modalità **service**: vecchie route disabilitate eccetto
-`/api/health`; solo API V1 protette e proiezioni pubblicate. Nessun frontend modificato.
+Modalità **demo**: frontend `/api` autenticato per le modifiche, letture limitate
+ai tornei pubblicati o accessibili per proprietà/iscrizione. I tornei V1 privati
+non sono accessibili anonimamente attraverso le API storiche, CSV inclusi.
+Modalità **service**: frontend disponibile con le stesse autorizzazioni e con
+HTTPS/host espliciti. Nessun dataset demo inserito. Database schema **8**.
 
 ID interi JSON, snake_case, date ISO 8601 con offset e UTC in risposta. Gli ID
 non attribuiscono permessi. Null significa assenza, non uno 0–0. Campi extra
@@ -59,7 +61,7 @@ GET `/organizations/current` restituisce `{organization:null|{id,name}}`.
 Lo studente accede per iscrizione anche senza organizzazione amministrativa globale.
 
 Password 12–128 caratteri, PBKDF2-HMAC-SHA256, 600000 iterazioni e salt per account.
-Cookie open_score_session HttpOnly/SameSite=Lax, Secure in service; 8 ore assolute,
+Cookie V1 open_score_platform_session HttpOnly/SameSite=Lax, Secure in service; 8 ore assolute,
 pre-sessione 30 minuti; nel DB solo hash del token. Rate limit per 15 minuti:
 login 30/IP e 10/account+IP, register 10/IP, CSRF 120/IP, validate invite 60/IP.
 Le chiavi sono hash; niente password/token grezzi in audit. Il proxy deve aggiungere

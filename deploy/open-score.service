@@ -1,0 +1,26 @@
+[Unit]
+Description=Open Score - server tornei scolastici
+Documentation=file:/opt/open-score/docs/DEPLOY.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=openscore
+Group=openscore
+WorkingDirectory=/opt/open-score/torneo-lab
+EnvironmentFile=/etc/open-score/open-score.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/open-score/torneo-lab/.venv/bin/python -m uvicorn app:app --host 0.0.0.0 --port 8000 --workers 1 --proxy-headers
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/open-score/torneo-lab/data /opt/open-score/torneo-lab/backup
+
+[Install]
+WantedBy=multi-user.target

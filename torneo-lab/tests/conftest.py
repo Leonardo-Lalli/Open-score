@@ -1,17 +1,28 @@
 import pytest
 from fastapi.testclient import TestClient
+
 from app import create_app
+
+TEACHER_EMAIL = 'prof@test.local'
+TEACHER_PASSWORD = 'password-di-test'
 
 
 @pytest.fixture
 def client(tmp_path):
-    with TestClient(create_app(tmp_path/'test.sqlite3',seed=False)) as instance:
+    app = create_app(tmp_path / 'test.sqlite3',
+                     admin_email=TEACHER_EMAIL, admin_password=TEACHER_PASSWORD,
+                     session_secret='test-secret-lungo-abbastanza')
+    with TestClient(app) as instance:
+        response = instance.post('/api/auth/login', json={
+            'email': TEACHER_EMAIL, 'password': TEACHER_PASSWORD})
+        assert response.status_code == 200, response.text
         yield instance
 
 
 def make(client, fmt='round_robin', n=4, **options):
-    payload=dict(name='Torneo di prova',sport='Calcio',format=fmt,
-                 team_names=[f'Squadra {i+1:02}' for i in range(n)],**options)
+    payload={'name': 'Torneo di prova','sport': 'Calcio','format': fmt,
+             'team_names': [f'Squadra {i+1:02}' for i in range(n)]}
+    payload.update(options)
     response=client.post('/api/tournaments',json=payload)
     assert response.status_code==201,response.text
     tid=response.json()['id']

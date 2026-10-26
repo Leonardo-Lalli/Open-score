@@ -1,4 +1,13 @@
-# Handoff backend → Team B — versione 0.3
+# Handoff backend → Team B
+
+> Aggiornamento 0.9.0, 26 ottobre 2026: integrazione locale di `max-develop`
+> @ `0896096` in `leo-develop`, schema 8. Gli adapter frontend sono ora attivi.
+> Il documento operativo corrente è [TEAM_B_INTEGRATION_REPORT.md](../TEAM_B_INTEGRATION_REPORT.md).
+> Nessun push o deploy. Il testo 0.3 seguente è conservato come riferimento storico;
+> le affermazioni su frontend non integrato, schema 4 e route disabilitate in service
+> sono superate dal report corrente.
+
+## Consegna storica 0.3
 
 26 ottobre 2026, branch **leo-develop**, partenza `4e15385`.
 Commit backend da integrare dopo revisione: **`00a4d20`**.
