@@ -75,6 +75,7 @@ let list = [],
   studentTeamId = null,
   studentSearch = "",
   bulkState = null,
+  approvalsCache = [],
   toastTimer;
 const sportFor = (name) => sports.find((s) => s.name === name);
 const variantFor = (slug) => {
@@ -166,13 +167,15 @@ async function api(path, options = {}) {
       renderAuthControl();
       showRoleGate("login");
     }
-    throw new Error(
+    const error = new Error(
       typeof body.detail === "string"
         ? body.detail
         : Array.isArray(body.detail)
           ? body.detail.map((d) => d.msg).join(" · ")
           : "Operazione non riuscita (" + res.status + ")",
     );
+    error.status = res.status;
+    throw error;
   }
   return res.status === 204 ? null : res.json();
 }
@@ -180,6 +183,11 @@ async function safely(fn) {
   try {
     await fn();
   } catch (e) {
+    if (e.status === 401) {
+      auth = { role: null, authenticated: false, teacher: null };
+      renderAuthControl();
+      showRoleGate("login");
+    }
     const box = $("#form-error");
     if ($("#modal").open && box) {
       box.textContent = e.message;
@@ -200,6 +208,61 @@ function moveItem(items, from, to) {
   const [item] = next.splice(from, 1);
   next.splice(to, 0, item);
   return next;
+}
+const resultProposalsAdapter = {
+  // Team A: esporre le proposte e la revisione. Finché `ready` è false
+  // l'interfaccia resta in attesa e non simula alcun salvataggio.
+  ready: false,
+  async list(tournamentId) {
+    if (!this.ready) return [];
+    const response = await fetch(
+      `/api/tournaments/${tournamentId}/proposals?status=pending`,
+      { headers: { Accept: "application/json" } },
+    );
+    if (!response.ok) throw await proposalError(response);
+    const body = await response.json().catch(() => ({}));
+    return body.proposals || [];
+  },
+  async propose(tournamentId, matchId, payload) {
+    if (!this.ready) throw new Error("Invio proposte non ancora disponibile.");
+    const response = await fetch(
+      `/api/tournaments/${tournamentId}/matches/${matchId}/proposals`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+    );
+    if (!response.ok) throw await proposalError(response);
+    return response.json();
+  },
+  async decide(proposalId, action, payload = {}) {
+    if (!this.ready)
+      throw new Error("Revisione delle proposte non ancora disponibile.");
+    const response = await fetch(`/api/proposals/${proposalId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, ...payload }),
+    });
+    if (!response.ok) throw await proposalError(response);
+    return response.json();
+  },
+};
+async function proposalError(response) {
+  const body = await response.json().catch(() => ({}));
+  const messages = {
+    401: "Sessione scaduta. Accedi di nuovo.",
+    403: "Non hai i permessi per questa azione.",
+    404: "Partita o proposta non trovata.",
+    409: "La proposta è già stata revisionata o modificata da un altro utente.",
+  };
+  const error = new Error(
+    messages[response.status] ||
+      body.detail ||
+      `Operazione non riuscita (${response.status})`,
+  );
+  error.status = response.status;
+  return error;
 }
 const teamOrderAdapter = {
   // Team A: esporre PATCH /api/tournaments/{id}/teams/order {team_ids:[...]}.
@@ -683,13 +746,19 @@ function renderTournament() {
   if (t.format !== "round_robin") tabs.push(["bracket", "Tabellone"]);
   const teamMode = t.participant_kind === "team";
   if (teamMode && canEdit()) tabs.splice(2, 0, ["students", "Studenti"]);
+  if (canManage()) {
+    const at = tabs.findIndex(([key]) => key === "matches") + 1;
+    tabs.splice(at, 0, ["approvals", "Da verificare"]);
+  }
   const variant = currentVariant();
   let body =
     tab === "participants"
       ? participants()
       : tab === "students"
         ? studentsView()
-        : tab === "matches"
+        : tab === "approvals"
+          ? approvalsView()
+          : tab === "matches"
         ? matchesView()
         : tab === "standings"
           ? standingsView()
@@ -703,6 +772,7 @@ function renderTournament() {
     `${!publicToken ? `<button class="back-link" data-action="dashboard">${icon("back")} Tutti i tornei</button>` : '<p class="eyebrow">SEGUI IL TORNEO · SOLA LETTURA</p>'}<div class="tournament-heading"><div><p class="eyebrow">${h(t.sport)} <span>/</span> ${h(variant?.name || "Sport storico")} <span>/</span> ${label(t.format)} ${t.archived_at ? '<span class="tag archived"><i></i>Archiviato</span>' : legacy ? '<span class="tag archived"><i></i>Solo lettura</span>' : `<span class="tag ${data.status}">${stateLabel(data.status)}</span>${!canManage() ? '<span class="tag archived"><i></i>Solo lettura</span>' : ''}`}</p><h1>${h(t.name)}</h1><p>${h(t.description || "Ogni partita, un passo verso una nuova sfida.")}</p></div><div class="toolbar">${publicToken ? button("Aggiorna", "refresh", "", "check") : `${t.archived_at && canManage() ? button("Ripristina", "restore", "primary", "refresh") : ""}${!t.archived_at && !legacy && canManage() ? button("Modifica", "edit", "", "edit") : ""}${button("Condividi", "share", "", "share")}<a class="button" href="/api/tournaments/${t.id}/export.csv" download>${icon("download")}Esporta</a>${!t.archived_at && !legacy && canManage() ? button("Archivia", "archive", "danger") : ""}`}</div></div><div class="tabs" role="tablist" aria-label="Sezioni torneo">${tabs.map(([v, l]) => `<button class="tab ${tab === v ? "active" : ""}" role="tab" id="tab-${v}" aria-controls="tournament-panel" tabindex="${tab === v ? 0 : -1}" aria-selected="${tab === v}" data-tab="${v}">${l}</button>`).join("")}</div><div id="tournament-panel" role="tabpanel" aria-labelledby="tab-${tab}">${champion()}${body}</div>`;
   $("#content").setAttribute("aria-busy", "false");
   if (tab === "students") safely(() => loadStudentsDetail());
+  if (tab === "approvals") safely(() => loadApprovals());
   if (tab === "participants")
     enableReorder(
       $("#team-order-body"),
@@ -733,7 +803,7 @@ function matchRow(m) {
   const ready = m.status === "ready" || m.status === "completed";
   const group = data.groups.find((g) => g.id === m.group_id);
   const setDetail = (m.sets || []).map((s) => `${s.home}-${s.away}`).join(" · ");
-  return `<div class="match-row"><div class="match-round">${group ? h(group.name) + "<br>" : ""}${h(roundName(m))}</div><div class="match-players"><div class="match-player">${avatar(teamName(m.home_team_id), m.home_team_id)}<span>${h(m.home_team_id ? teamName(m.home_team_id) : m.is_bye ? "Riposo" : "Da definire")}</span></div><span class="score">${m.home_score ?? "–"} : ${m.away_score ?? "–"}</span><div class="match-player"><span>${h(m.away_team_id ? teamName(m.away_team_id) : m.is_bye ? "Riposo" : "Da definire")}</span>${avatar(teamName(m.away_team_id), m.away_team_id)}</div></div><div class="match-actions">${!publicToken && canManage() && ready ? `<button class="button ${m.status === "ready" ? "primary" : ""}" data-result="${m.id}">${m.status === "ready" ? "Risultato" : "Modifica"}</button>` : `<span class="tag">${m.is_bye ? "BYE" : m.status === "waiting" ? "In attesa" : m.status === "completed" ? "Giocata" : "Da giocare"}</span>`}</div></div>${setDetail ? `<p class="match-note">${icon("chart")}Set: ${h(setDetail)}</p>` : ""}${m.scheduled_at || m.location ? `<p class="match-note">${icon("clock")}${m.scheduled_at ? h(dateText(m.scheduled_at)) : "Orario da definire"}${m.location ? " · " + h(m.location) : ""}</p>` : ""}`;
+  return `<div class="match-row"><div class="match-round">${group ? h(group.name) + "<br>" : ""}${h(roundName(m))}</div><div class="match-players"><div class="match-player">${avatar(teamName(m.home_team_id), m.home_team_id)}<span>${h(m.home_team_id ? teamName(m.home_team_id) : m.is_bye ? "Riposo" : "Da definire")}</span></div><span class="score">${m.home_score ?? "–"} : ${m.away_score ?? "–"}</span><div class="match-player"><span>${h(m.away_team_id ? teamName(m.away_team_id) : m.is_bye ? "Riposo" : "Da definire")}</span>${avatar(teamName(m.away_team_id), m.away_team_id)}</div></div><div class="match-actions">${!publicToken && canManage() && ready ? `<button class="button ${m.status === "ready" ? "primary" : ""}" data-result="${m.id}">${m.status === "ready" ? "Risultato" : "Modifica"}</button>` : `<span class="tag">${m.is_bye ? "BYE" : m.status === "waiting" ? "In attesa" : m.status === "completed" ? "Giocata" : "Da giocare"}</span>`}${!publicToken && auth.role === "student" && resultProposalsAdapter.ready && m.status === "ready" ? `<button class="button compact" data-action="propose-result" data-match="${m.id}">Proponi</button>` : ""}</div></div>${setDetail ? `<p class="match-note">${icon("chart")}Set: ${h(setDetail)}</p>` : ""}${m.scheduled_at || m.location ? `<p class="match-note">${icon("clock")}${m.scheduled_at ? h(dateText(m.scheduled_at)) : "Orario da definire"}${m.location ? " · " + h(m.location) : ""}</p>` : ""}`;
 }
 function matchesView() {
   let fixtures = data.matches
@@ -996,6 +1066,124 @@ function regulationView() {
     rules.substitutions || rules.notes || "",
   ].filter(Boolean);
   return `<div class="section-header"><div><h2>Le regole scendono in campo.</h2><p class="section-sub">${h(t.sport)} · ${h(v.name)}. Il regolamento è congelato alla creazione del torneo.</p></div><button class="button ghost" data-action="print">${icon("download")}Stampa</button></div><div class="stat-grid">${summary.map(([label, value]) => stat(label, value, "", "ball")).join("")}</div><div class="catalog-detail-grid"><section class="panel"><h2>Regolamento applicato</h2><div class="regulation-copy">${(data.regulation || "").split(/\n\n+/).map((p) => `<p>${h(p)}</p>`).join("")}</div></section><section class="panel"><h2>Dettagli</h2><ul class="rule-list">${details.map((d) => `<li>${h(d)}</li>`).join("")}</ul><p class="field-help">Punti in classifica: vittoria ${t.win_points}, pareggio ${t.draw_points}, sconfitta ${t.loss_points}. A parità: ${tieLabel(t.tie_breaker)}.</p></section></div>`;
+}
+function approvalsView() {
+  if (!resultProposalsAdapter.ready) {
+    return `<div class="panel"><div class="section-header"><div><h2>Risultati da verificare</h2><p class="section-sub">Proposte degli studenti in attesa di approvazione.</p></div><span class="tag archived"><i></i>In attesa API</span></div><p class="muted">Il backend non espone ancora le proposte di risultato né l'identità degli studenti. Questa sezione è pronta: quando l'API sarà attiva compariranno partita, squadre, risultato proposto, autore, data, conflitti e azioni.</p><p class="field-help">Contratto proposto: <code>GET /api/tournaments/{id}/proposals?status=pending</code> e <code>PATCH /api/proposals/{id}</code> con azione <code>approve</code>, <code>reject</code> o <code>correct</code>.</p></div>`;
+  }
+  return `<div class="section-header"><div><h2>Risultati da verificare</h2><p class="section-sub">Approva, respingi o correggi le proposte degli studenti.</p></div></div><div id="approvals-list"><p class="muted">Caricamento proposte…</p></div>`;
+}
+function proposalErrorMessage(error) {
+  if (!error) return "Operazione non riuscita.";
+  if (error.status === 401) return "Sessione scaduta. Accedi di nuovo.";
+  if (error.status === 403) return "Non hai i permessi per questa azione.";
+  if (error.status === 404) return "Partita o proposta non trovata.";
+  if (error.status === 409)
+    return "La proposta è già stata revisionata o modificata da un altro utente.";
+  if (!error.status) return error.message || "Server non raggiungibile.";
+  return error.message || "Operazione non riuscita.";
+}
+function handleProposalError(error) {
+  if (error?.status === 401) {
+    auth = { role: null, authenticated: false, teacher: null };
+    renderAuthControl();
+    showRoleGate("login");
+  }
+  notify(proposalErrorMessage(error), true);
+}
+function proposalRow(proposal) {
+  const score = proposal.proposed_sets?.length
+    ? proposal.proposed_sets.map((set) => `${set.home}-${set.away}`).join(" · ")
+    : `${proposal.proposed_home_score ?? "–"} : ${proposal.proposed_away_score ?? "–"}`;
+  const conflicts = proposal.conflicts?.length
+    ? `<span class="tag archived"><i></i>${proposal.conflicts.length} proposte contrastanti</span>`
+    : "";
+  return `<tr><td>${h(proposal.tournament_name || data.tournament.name)}</td><td>${h(proposal.home_name || "–")} – ${h(proposal.away_name || "–")}</td><td><strong>${h(score)}</strong></td><td>${proposal.author ? h(proposal.author) : "–"}</td><td>${proposal.created_at ? h(dateText(proposal.created_at)) : "–"}</td><td><span class="tag">${h(proposal.status || "pending")}</span>${conflicts}</td><td><div class="proposal-actions"><button type="button" class="button compact primary" data-action="approve-proposal" data-proposal="${proposal.id}">Approva</button><button type="button" class="button compact danger" data-action="reject-proposal" data-proposal="${proposal.id}">Respingi</button><button type="button" class="button compact ghost" data-action="correct-proposal" data-proposal="${proposal.id}">Correggi</button></div></td></tr>`;
+}
+async function loadApprovals() {
+  const box = $("#approvals-list");
+  if (!box || !resultProposalsAdapter.ready) return;
+  try {
+    approvalsCache = await resultProposalsAdapter.list(selectedId);
+    box.innerHTML = approvalsCache.length
+      ? `<div class="table-wrap"><table><thead><tr><th>Torneo</th><th>Partita</th><th>Risultato proposto</th><th>Autore</th><th>Data</th><th>Stato</th><th>Azioni</th></tr></thead><tbody>${approvalsCache.map(proposalRow).join("")}</tbody></table></div>`
+      : '<div class="panel empty">Nessuna proposta in attesa.</div>';
+  } catch (e) {
+    box.innerHTML = `<div class="panel empty">${h(proposalErrorMessage(e))}</div>`;
+    if (e.status === 401) handleProposalError(e);
+  }
+}
+function proposalScoreFields(match, proposal = null) {
+  const variant = currentVariant();
+  const setMode = !!variant?.supports_sets;
+  const maxSets = variant?.max_sets || 5;
+  if (!setMode) {
+    return `<div class="result-inputs"><label>${avatar(teamName(match.home_team_id), match.home_team_id)}<span>${h(teamName(match.home_team_id))}</span><input name="home_score" aria-label="${h(scoreLabel())} ${h(teamName(match.home_team_id))}" type="number" min="0" max="999" step="1" value="${proposal?.proposed_home_score ?? ""}" required></label><span>:</span><label>${avatar(teamName(match.away_team_id), match.away_team_id)}<span>${h(teamName(match.away_team_id))}</span><input name="away_score" aria-label="${h(scoreLabel())} ${h(teamName(match.away_team_id))}" type="number" min="0" max="999" step="1" value="${proposal?.proposed_away_score ?? ""}" required></label></div>`;
+  }
+  return `<div class="set-inputs">${Array.from({ length: maxSets }, (_, index) => {
+    const number = index + 1;
+    const existing = (proposal?.proposed_sets || []).find(
+      (set) => set.set === number,
+    );
+    return `<div class="set-row"><span>Set ${number}</span><input name="home_set_${number}" aria-label="Punti ${h(teamName(match.home_team_id))} set ${number}" type="number" min="0" max="999" step="1" value="${existing?.home ?? ""}" placeholder="–"><b>:</b><input name="away_set_${number}" aria-label="Punti ${h(teamName(match.away_team_id))} set ${number}" type="number" min="0" max="999" step="1" value="${existing?.away ?? ""}" placeholder="–"></div>`;
+  }).join("")}</div>`;
+}
+function readProposalPayload(form) {
+  const fd = new FormData(form);
+  const variant = currentVariant();
+  if (variant?.supports_sets) {
+    const sets = [];
+    for (let index = 1; index <= (variant.max_sets || 5); index++) {
+      const home = fd.get(`home_set_${index}`);
+      const away = fd.get(`away_set_${index}`);
+      if ((home === "" || home === null) && (away === "" || away === null)) continue;
+      if (home === "" || away === "" || home === null || away === null)
+        throw new Error(`Completa il set ${index} con entrambi i punteggi.`);
+      const hScore = Number(home);
+      const aScore = Number(away);
+      if (!Number.isInteger(hScore) || !Number.isInteger(aScore) || hScore < 0 || aScore < 0 || hScore > 999 || aScore > 999)
+        throw new Error(`Punteggi non validi nel set ${index}.`);
+      sets.push({ home: hScore, away: aScore });
+    }
+    if (!sets.length) throw new Error("Inserisci almeno un set.");
+    return { sets };
+  }
+  const home = Number(fd.get("home_score"));
+  const away = Number(fd.get("away_score"));
+  if (!Number.isInteger(home) || !Number.isInteger(away) || home < 0 || away < 0 || home > 999 || away > 999)
+    throw new Error("Inserisci due punteggi validi.");
+  return { home_score: home, away_score: away };
+}
+function proposeResultModal(matchId) {
+  if (!resultProposalsAdapter.ready) {
+    notify("Le proposte di risultato non sono ancora disponibili.", true);
+    return;
+  }
+  const match = data.matches.find((item) => item.id === Number(matchId));
+  if (!match || publicToken || match.status !== "ready") {
+    notify("Partita non disponibile per una proposta.", true);
+    return;
+  }
+  const variant = currentVariant();
+  modal(
+    "Proponi il risultato.",
+    `<div class="proposal-banner"><span class="tag archived"><i></i>PROPOSTA · NON UFFICIALE</span><p class="field-help">La classifica ufficiale non cambierà finché il professore non approva.</p></div><form id="proposal-form" data-match="${match.id}">${proposalScoreFields(match)}<p class="field-help">${variant?.supports_sets ? "Inserisci solo i set giocati." : variant?.draw_allowed === false ? "Questa variante non ammette pareggi." : "Inserisci il punteggio finale."}</p></form>`,
+    `${button("Annulla", "close", "ghost")}<button type="submit" form="proposal-form" class="button primary">${icon("check")}Invia proposta</button>`,
+    h(roundName(match)),
+  );
+}
+function proposalCorrectModal(proposal) {
+  const match = data.matches.find((item) => item.id === Number(proposal.match_id));
+  if (!match) {
+    notify("Partita non trovata.", true);
+    return;
+  }
+  modal(
+    "Correggi la proposta.",
+    `<div class="proposal-banner"><span class="tag archived"><i></i>PROPOSTA · NON UFFICIALE</span><p class="field-help">La correzione resta una proposta finché non viene approvata.</p></div><form id="proposal-correct-form" data-proposal="${proposal.id}" data-match="${match.id}">${proposalScoreFields(match, proposal)}</form>`,
+    `${button("Annulla", "close", "ghost")}<button type="submit" form="proposal-correct-form" class="button primary">${icon("check")}Salva correzione</button>`,
+    h(roundName(match)),
+  );
 }
 function bracket() {
   const fixtures = data.matches.filter((m) => m.kind === "knockout");
@@ -1544,6 +1732,34 @@ const actions = {
       chip.setAttribute("aria-pressed", String(active));
     });
   },
+  "propose-result": (el) => proposeResultModal(el.dataset.match),
+  "approve-proposal": async (el) => {
+    try {
+      await resultProposalsAdapter.decide(el.dataset.proposal, "approve");
+      await openTournament(selectedId, true);
+      notify("Risultato approvato. Classifica e tabellone aggiornati.");
+    } catch (e) {
+      if (e.status !== 401) await loadApprovals();
+      throw e;
+    }
+  },
+  "reject-proposal": async (el) => {
+    try {
+      await resultProposalsAdapter.decide(el.dataset.proposal, "reject");
+      await loadApprovals();
+      notify("Proposta respinta.");
+    } catch (e) {
+      if (e.status !== 401) await loadApprovals();
+      throw e;
+    }
+  },
+  "correct-proposal": (el) => {
+    const proposal = approvalsCache.find(
+      (item) => String(item.id) === String(el.dataset.proposal),
+    );
+    if (proposal) proposalCorrectModal(proposal);
+    else notify("Proposta non trovata.", true);
+  },
   "team-order-move": (el) => {
     const tbody = $("#team-order-body");
     if (!tbody) return;
@@ -1868,6 +2084,27 @@ document.addEventListener("submit", (e) => {
         notify("Torneo aggiornato.");
       }
 
+      if (form.id === "proposal-form") {
+        const match = data.matches.find(
+          (item) => item.id === Number(form.dataset.match),
+        );
+        if (!match) throw new Error("Partita non trovata.");
+        const payload = { ...readProposalPayload(form), version: match.version };
+        await resultProposalsAdapter.propose(selectedId, match.id, payload);
+        close();
+        notify("Proposta inviata. Il risultato non è ancora ufficiale.");
+      }
+      if (form.id === "proposal-correct-form") {
+        const payload = readProposalPayload(form);
+        await resultProposalsAdapter.decide(
+          form.dataset.proposal,
+          "correct",
+          payload,
+        );
+        close();
+        await openTournament(selectedId, true);
+        notify("Proposta corretta; resta in attesa di approvazione.");
+      }
       if (form.id === "result-form" || form.id === "schedule-form") {
         const m = data.matches.find((m) => m.id === Number(form.dataset.id));
         const schedule = form.id === "schedule-form";

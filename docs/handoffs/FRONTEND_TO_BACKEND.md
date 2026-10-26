@@ -120,6 +120,11 @@ Prima del contratto ufficiale, lavoro su attività indipendenti o con mock isola
    - *Serve*: elenco studenti non assegnati, spostamento atomico tra squadre, import massivo con esito per riga ed eventuale import Excel.
    - *Oggi*: le rose usano `GET/POST/DELETE /api/tournaments/{id}/teams/{team_id}/players`; il frontend offre anteprima CSV e salvataggio sequenziale, dichiarato come non atomico. Un endpoint bulk/assign renderebbe l'import sicuro e più veloce.
 
+11. **Proposte di risultato e approvazione**.
+   - *Contratto proposto*: `GET /api/tournaments/{id}/proposals?status=pending`; `POST /api/tournaments/{id}/matches/{match_id}/proposals` con punteggi o set e `version`; `PATCH /api/proposals/{id}` con `action` `approve`, `reject` o `correct`.
+   - *Oggi*: `resultProposalsAdapter.ready` è `false`; la scheda “Da verificare” mostra lo stato di attesa e il pulsante studente è nascosto. Nessun dato finto.
+   - *Serve*: identità studente, modello proposte, autore con visibilità, conflitti, cronologia e aggiornamento ufficiale dopo l'approvazione.
+
 Per QR, infografiche lato client e GitHub Pages **non serve** alcuna nuova API. Il drag & drop del wizard usa già `team_names`; servono API per il riordino post-creazione (punto 1) e per gli aggregati dashboard (punto 7).
 
 ---

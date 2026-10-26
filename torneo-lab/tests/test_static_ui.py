@@ -127,6 +127,20 @@ def test_wizard_reorder_is_accessible_and_uses_existing_contract(client):
     assert 'touch-action: none' in css
 
 
+def test_result_proposal_interfaces_are_prepared(client):
+    script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
+    for marker in ('resultProposalsAdapter', 'approvalsView', 'loadApprovals',
+                   'proposeResultModal', 'proposalCorrectModal',
+                   'proposal-form', 'proposal-correct-form',
+                   'propose-result', 'approve-proposal', 'reject-proposal',
+                   'correct-proposal', 'proposalErrorMessage', 'approvals-list'):
+        assert marker in script
+    assert '/proposals' in script
+    css = (BASE / 'static' / 'styles.css').read_text(encoding='utf-8')
+    assert '.proposal-banner' in css
+    assert '.proposal-actions' in css
+
+
 def test_team_order_table_is_accessible_and_has_save_adapter(client):
     script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
     for marker in ('teamOrderPanel', 'team-order-body', 'team-order-move',
