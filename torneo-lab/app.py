@@ -15,7 +15,6 @@ import sport_rules
 from auth import COOKIE_NAME, authenticate, ensure_teacher
 from auth import build as build_auth
 from db import BASE, database, initialize
-from demo import load_examples
 from schemas import (
     ClearInput,
     LoginInput,
@@ -28,29 +27,24 @@ from schemas import (
 )
 
 
-def create_app(db_path: str | Path | None = None, seed: bool = True, *,
+def create_app(db_path: str | Path | None = None, *,
                admin_email: str | None = None,
                admin_password: str | None = None,
                session_secret: str | bytes | None = None,
                allowed_hosts: list[str] | None = None,
                cookie_secure: bool | None = None) -> FastAPI:
     path = Path(db_path or os.environ.get('TORNEO_DB_PATH', str(BASE/'data/open_score.sqlite3')))
-    fresh = initialize(path)
+    initialize(path)
     auth = build_auth(BASE, secret=session_secret, cookie_secure=cookie_secure)
 
     bootstrap_email = (admin_email if admin_email is not None
                        else os.environ.get('TORNEO_ADMIN_EMAIL', '')).strip()
     bootstrap_password = (admin_password if admin_password is not None
                           else os.environ.get('TORNEO_ADMIN_PASSWORD', '')).strip()
-    bootstrap_id = None
     if bootstrap_password:
         with database(path, True) as db:
-            bootstrap_id = ensure_teacher(db, bootstrap_email or 'admin@open-score.local',
-                                          bootstrap_password, 'Amministratore')
-            # Existing demo rows become manageable by the bootstrap teacher.
-            db.execute('UPDATE tournaments SET teacher_id=? '
-                       'WHERE teacher_id IS NULL AND demo_key IS NOT NULL',
-                       (bootstrap_id,))
+            ensure_teacher(db, bootstrap_email or 'admin@open-score.local',
+                           bootstrap_password, 'Amministratore')
 
     default_hosts = ['127.0.0.1', 'localhost', 'testserver']
     configured = allowed_hosts
@@ -59,7 +53,7 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
                       os.environ.get('TORNEO_ALLOWED_HOSTS', '').split(',') if host.strip()]
     hosts = list(dict.fromkeys(default_hosts + list(configured)))
 
-    api = FastAPI(title='Open Score · API', version='0.7.0',
+    api = FastAPI(title='Open Score · API', version='0.8.0',
                   description='Applicazione originale per i tornei scolastici. Nessun collegamento alle API di Score7.')
     api.state.db_path = path
     api.state.auth = auth
@@ -125,7 +119,7 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
 
     @api.get('/api/health')
     def health():
-        return {'status':'ok','version':'0.7.0',
+        return {'status':'ok','version':'0.8.0',
                 'mode':'school-lan','auth':'teacher-login'}
 
     @api.get('/api/auth/session')
@@ -253,12 +247,6 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
             detail['can_manage'] = False
             return detail
 
-    @api.post('/api/demo')
-    def examples(request: Request):
-        session = teacher(request)
-        with database(path,True) as db:
-            return load_examples(db, teacher_id=session['teacher_id'])
-
     @api.post('/api/tournaments/{tid}/teams',status_code=201)
     def add_team(tid: int,data: TeamInput, request: Request):
         session = teacher(request)
@@ -267,7 +255,7 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
             if svc.games(db,tid):
                 raise HTTPException(409,'Partecipanti bloccati dopo la generazione degli incontri')
             if len(svc.teams(db,tid)) >= 32:
-                raise HTTPException(422,'La demo supporta al massimo 32 partecipanti')
+                raise HTTPException(422,'Il torneo supporta al massimo 32 partecipanti')
             if any(t['name'].casefold()==data.name.casefold() for t in svc.teams(db,tid)):
                 raise HTTPException(409,'Questo nome è già presente')
             cur = db.execute('INSERT INTO teams(tournament_id,name) VALUES (?,?)',(tid,data.name))
@@ -397,9 +385,6 @@ def create_app(db_path: str | Path | None = None, seed: bool = True, *,
             raise HTTPException(404, 'Variante non trovata')
         return sport_rules.variant_detail(variant)
 
-    if seed and fresh:
-        with database(path,True) as db:
-            load_examples(db, teacher_id=bootstrap_id)
     return api
 
 

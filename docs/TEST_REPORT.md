@@ -1,4 +1,4 @@
-# Report di verifica — 25 ottobre 2026
+# Report di verifica — 26 ottobre 2026
 
 ## Esecuzione automatica effettiva
 
@@ -14,6 +14,7 @@ Ambiente: Windows, Python 3.14.3; FastAPI 0.162.0, Pydantic 2.14.1, Uvicorn 0.54
 - Dopo la pulizia dei mockup legacy e il cache-busting 0.5.0: **184 passed, 1 warning**, 6.60 secondi nell'ultima esecuzione locale.
 - Dopo l'ottimizzazione mobile 0.6.0 (safe area, touch target, drawer e modali): **185 passed, 1 warning**, 6.65 secondi nell'ultima esecuzione locale.
 - Dopo l'introduzione di account docenti, gate prof/studente e isolamento per torneo 0.7.0: **189 passed, 1 warning**, 15.80 secondi nell'ultima esecuzione locale.
+- Dopo la rimozione dei dati mock 0.8.0: **190 passed, 1 warning**, 64.72 secondi nell'ultima esecuzione locale.
 - Il warning è la deprecazione Starlette relativa all'uso di httpx nel TestClient; non indica un fallimento dei test. L'ambiente di sviluppo contiene ancora httpx per compatibilità con il test client usato.
 - Il sandbox impediva le richieste del TestClient. I test sono stati eseguiti realmente con il terminale autorizzato; non si è sostituito il risultato con un output simulato.
 
@@ -23,7 +24,7 @@ Comando dalla cartella `torneo-lab`: `python -m pytest -q`, dopo `python -m pip 
 
 Dopo la consegna 0.7.0 il language server segnalava 9 errori e 42 warning. Sono stati risolti tutti:
 
-- errori: `demo.py` usava una stringa per il campo `format` (ora tipizzato con `Format`) e i test di persistenza passavano un dizionario non tipizzato a `create_app` (ora usano keyword esplicite);
+- errori: `demo.py` (poi rimosso nella 0.8.0) usava una stringa per il campo `format` (ora tipizzato con `Format`) e i test di persistenza passavano un dizionario non tipizzato a `create_app` (ora usano keyword esplicite);
 - warning: import riordinati, `Optional` sostituito con `X | None`, `dict()` letterali, `min()` al posto di `sorted()[0]`, import `Optional` inutilizzato rimosso;
 - `pyproject.toml` configura ruff con `target-version = "py310"` e `src = [".", "tests"]`: evita il falso positivo su `datetime.UTC` (non disponibile in Python 3.10) e riconosce `conftest` come modulo del progetto.
 
@@ -46,7 +47,7 @@ Comando: `python -m ruff check --select I,C4,UP .` → **All checks passed**. Di
 | Richieste obsolete | Versione precedente rifiutata, due scritture concorrenti danno 200/409, ID non riciclati dopo ricostruzione delle finali |
 | Validazione | Spazi nel nome, duplicati, sport o varianti non supportati, variante di un altro sport, punteggi booleani/decimali/stringhe/negativi, risultato incompatibile con la variante e rollback |
 | Calendario | Conversione UTC, fuso obbligatorio, sovrapposizione campo, appuntamenti adiacenti consentiti, durata predefinita dalla variante |
-| Dati | Riapertura database, migrazione schema 1→6 senza perdita di risultato, rimappatura di Calcio a 5, verifica FK, fixture utente e seed idempotente |
+| Dati | Riapertura database, migrazione schema 1→6 senza perdita di risultato, rimappatura di Calcio a 5, verifica FK, installazione nuova senza tornei e senza endpoint demo |
 | Confini locali | Incontro di altro torneo rifiutato, Origin esterno rifiutato, Host inatteso rifiutato, endpoint spettatore solo GET |
 | Modifica e archivio | Nome/descrizione sempre modificabili, formato e sport modificabili in bozza con opzioni gironi dinamiche, campi strutturali bloccati dopo la generazione, payload della modale senza `format` che conserva la struttura, `null` espliciti rifiutati con 422, archivio in sola lettura e ripristino, persistenza dopo riavvio, scritture 409 sui tornei di sport rimossi |
 | Scheda squadra e spareggi | Girone, posizione, classifica e incontri del partecipante; giocatori in campo, lineup minima e rosa massima dalla variante; 404 per squadra di altro torneo; mini-classifica `head_to_head`; default `goal_difference` conservato dalla migrazione 005 |
@@ -59,6 +60,8 @@ Comando: `python -m ruff check --select I,C4,UP .` → **All checks passed**. Di
 
 ## Verifica browser effettiva
 
+Le prove seguenti sono state eseguite quando il database conteneva i quattro esempi dimostrativi, rimossi nella versione 0.8.0. Restano come storico della verifica manuale.
+
 Browser integrato, anteprima locale `127.0.0.1:8000`, viewport osservata circa 690 px. Eseguite operazioni tramite interfaccia:
 
 1. Dashboard caricata con quattro tornei e contatori reali.
@@ -68,7 +71,7 @@ Browser integrato, anteprima locale `127.0.0.1:8000`, viewport osservata circa 6
 5. Correzione semifinale 0–2: errore senza conferma; con conferma la finale perde il risultato, cambia avversario e il campione scompare.
 6. Campionato: inserito 0–0; il numero delle partite completate passa da 6 a 7. La classifica mostra giocate e pareggi aggiornati.
 7. Apertura del link spettatore in una scheda separata: stessi dati, nessun pulsante per inserire/modificare risultati.
-8. Ricaricamento dell'app: il torneo creato e il pareggio sono ancora presenti. La finale corretta viene rigiocata e il tabellone concluso è salvato in [anteprima](images/demo-bracket.png).
+8. Ricaricamento dell'app: il torneo creato e il pareggio sono ancora presenti. La finale corretta viene rigiocata e il tabellone concluso resta salvato.
 
 La copertura end-to-end indicata nella matrice si riferisce a queste prove manuali assistite dal browser. Non esiste ancora una suite Playwright autonoma nel repository. Il percorso multifase completo è stato eseguito nei test API, non tramite 31 inserimenti nel browser.
 

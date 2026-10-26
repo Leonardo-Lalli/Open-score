@@ -1,6 +1,6 @@
 # Database e conservazione dei dati
 
-Default: `torneo-lab/data/open_score.sqlite3`. Percorso configurabile con `TORNEO_DB_PATH`. Il file, i database di test e l'ambiente Python sono esclusi da Git. I quattro esempi vengono creati al primo avvio di un database nuovo. `POST /api/demo` aggiunge gli esempi mancanti senza azzerare i risultati esistenti.
+Default: `torneo-lab/data/open_score.sqlite3`. Percorso configurabile con `TORNEO_DB_PATH`. Il file, i database di test e l'ambiente Python sono esclusi da Git. Il database parte vuoto: non vengono creati tornei dimostrativi e l'app mostra solo i dati inseriti dagli utenti.
 
 ## Schema effettivo (versione 7)
 
@@ -9,7 +9,7 @@ Default: `torneo-lab/data/open_score.sqlite3`. Percorso configurabile con `TORNE
 | teachers | PK id; email unica (case-insensitive) | Account docente: email, hash PBKDF2-SHA256 della password, nome visualizzato e data di creazione |
 | sport_configs | PK id; nome unico | Sport padre del catalogo: nome, descrizione, sistema di punteggio, regole JSON e `sort_order` |
 | sport_variants | PK id; FK sport_configs; slug unico; UNIQUE(sport, nome) | Varianti selezionabili: descrizione, tipo team/individual, ordine, regole JSON e regolamento testuale |
-| tournaments | PK id; FK sport_configs, sport_variants e teachers; public_token e demo_key unici | Formato enumerato, nome non vuoto, sport testuale e `sport_id`, variante e `variant_id`, `teacher_id` proprietario (NULL per tornei storici/demo), snapshot di regole e regolamento, tipo team/individual, regole dei punti, gironi e qualificate, andata/ritorno, seed, tipo torneo, sistema di punteggio, `archived_at`, `updated_at`, `tie_breaker` |
+| tournaments | PK id; FK sport_configs, sport_variants e teachers; public_token unico | Formato enumerato, nome non vuoto, sport testuale e `sport_id`, variante e `variant_id`, `teacher_id` proprietario (NULL per tornei storici), snapshot di regole e regolamento, tipo team/individual, regole dei punti, gironi e qualificate, andata/ritorno, seed, tipo torneo, sistema di punteggio, `archived_at`, `updated_at`, `tie_breaker`; `demo_key` è una colonna legacy non più popolata |
 | stages | PK id; FK torneo; UNIQUE(torneo,ordinal) | Una fase round_robin o knockout; source_id opzionale per provenienza |
 | groups | PK id; FK fase; UNIQUE(fase,nome) | Gironi della prima fase |
 | teams | PK id; FK torneo e girone opzionale; UNIQUE(torneo,nome) | Partecipanti; il tipo squadra/individuale è definito dalla variante; source_id opzionale |

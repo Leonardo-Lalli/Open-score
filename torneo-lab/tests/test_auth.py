@@ -13,7 +13,7 @@ SECRET = 'segreto-di-test-lungo-abbastanza'
 
 @pytest.fixture
 def client(tmp_path):
-    with TestClient(create_app(tmp_path / 'auth.sqlite3', seed=False,
+    with TestClient(create_app(tmp_path / 'auth.sqlite3',
                                admin_email=EMAIL, admin_password=PASSWORD,
                                session_secret=SECRET)) as instance:
         yield instance
@@ -85,7 +85,7 @@ def test_login_is_throttled_after_repeated_failures(client):
 
 
 def test_without_a_bootstrap_teacher_the_app_stays_read_only(tmp_path):
-    with TestClient(create_app(tmp_path / 'open.sqlite3', seed=False,
+    with TestClient(create_app(tmp_path / 'open.sqlite3',
                                session_secret=SECRET)) as local:
         assert local.get('/api/health').json()['auth'] == 'teacher-login'
         assert local.get('/api/auth/session').json()['role'] == 'student'

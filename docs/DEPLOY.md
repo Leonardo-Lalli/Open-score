@@ -57,6 +57,9 @@ notepad C:\OpenScore\deploy\open-score.env
 Il file `open-score.env` contiene segreti: non va versionato né condiviso. La
 cartella `torneo-lab/data/` e `torneo-lab/backup/` sono escluse da Git.
 
+Il database nuovo parte vuoto: non vengono creati tornei dimostrativi. I tornei
+visibili a studenti e docenti sono solo quelli inseriti dall'applicazione.
+
 ### Trovare l'indirizzo IP
 
 Windows:

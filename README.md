@@ -51,4 +51,4 @@ Apri [http://127.0.0.1:8000](http://127.0.0.1:8000). I dati restano in `torneo-l
 
 Al primo avvio serve un account docente: imposta `TORNEO_ADMIN_EMAIL` e `TORNEO_ADMIN_PASSWORD` in `deploy/open-score.env` (oppure crea un docente con `python manage.py create-teacher`). Chi non accede resta in sola lettura.
 
-Funzioni complete, guida alla demo, hosting sulla LAN e documentazione tecnica: [torneo-lab/README.md](torneo-lab/README.md).
+Funzioni complete, hosting sulla LAN e documentazione tecnica: [torneo-lab/README.md](torneo-lab/README.md).

@@ -9,7 +9,7 @@ TEACHER_PASSWORD = 'password-di-test'
 
 @pytest.fixture
 def client(tmp_path):
-    app = create_app(tmp_path / 'test.sqlite3', seed=False,
+    app = create_app(tmp_path / 'test.sqlite3',
                      admin_email=TEACHER_EMAIL, admin_password=TEACHER_PASSWORD,
                      session_secret='test-secret-lungo-abbastanza')
     with TestClient(app) as instance:

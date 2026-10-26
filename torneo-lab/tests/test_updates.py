@@ -1,5 +1,3 @@
-import sqlite3
-
 from fastapi.testclient import TestClient
 
 from app import create_app
@@ -165,7 +163,7 @@ def test_archive_hides_tournament_and_blocks_writes(client):
 def test_data_survives_application_restart(tmp_path):
     path = tmp_path / 'restart.sqlite3'
     admin_email, admin_password = 'prof@test.local', 'password-lunga'
-    with TestClient(create_app(path, seed=False, admin_email=admin_email,
+    with TestClient(create_app(path, admin_email=admin_email,
                                admin_password=admin_password)) as client:
         client.post('/api/auth/login', json={
             'email': 'prof@test.local', 'password': 'password-lunga'})
@@ -176,7 +174,7 @@ def test_data_survives_application_restart(tmp_path):
         assert score(client, tid, match, 3, 0).status_code == 200
         client.patch(f'/api/tournaments/{tid}', json={'name': 'Coppa persistente'})
 
-    with TestClient(create_app(path, seed=False, admin_email=admin_email,
+    with TestClient(create_app(path, admin_email=admin_email,
                                admin_password=admin_password)) as client:
         client.post('/api/auth/login', json={
             'email': 'prof@test.local', 'password': 'password-lunga'})
@@ -186,17 +184,3 @@ def test_data_survives_application_restart(tmp_path):
         assert any(m['home_score'] == 3 and m['away_score'] == 0 for m in detail['matches'])
         assert len(detail['matches']) == 3
 
-
-def test_documented_online_backup_copies_every_tournament(tmp_path):
-    path = tmp_path / 'source.sqlite3'
-    backup = tmp_path / 'backup.sqlite3'
-    with TestClient(create_app(path, seed=True)):
-        pass
-
-    with sqlite3.connect(path) as db:
-        db.execute('VACUUM INTO ?', (str(backup),))
-
-    with sqlite3.connect(backup) as db:
-        assert db.execute('PRAGMA user_version').fetchone()[0] == 7
-        assert db.execute('SELECT count(*) FROM tournaments').fetchone()[0] == 4
-        assert db.execute('PRAGMA foreign_key_check').fetchall() == []

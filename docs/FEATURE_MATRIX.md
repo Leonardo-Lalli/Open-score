@@ -1,4 +1,4 @@
-# Matrice funzionale — demo 0.7
+# Matrice funzionale — 0.8
 
 Stati ammessi: **Non analizzata**, **Documentata**, **Progettata**, **Implementata**, **Testata**, **Verificata end-to-end**. Lo stato indica il livello massimo raggiunto per il perimetro scritto nella riga. Una funzione parziale non diventa completa per la presenza di una schermata. `tests/` e i file applicativi sono nella cartella `torneo-lab`.
 

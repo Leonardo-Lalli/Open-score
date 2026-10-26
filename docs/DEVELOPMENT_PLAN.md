@@ -76,6 +76,19 @@ Obiettivo: separare nettamente consultazione e gestione, con account docente ind
 | Verifica | Testata | `test_auth`, `test_teacher_isolation`, `test_static_ui`; suite a **189 passed** |
 | Qualità statica | Implementata | `pyproject.toml` per ruff (target Python 3.10); 0 errori e 0 warning nel progetto |
 
+## Incremento 0.8.0 — rimozione dei dati mock
+
+Obiettivo: lasciare nel database solo i tornei reali, senza dati dimostrativi visibili a studenti o docenti.
+
+| Milestone | Stato in questa consegna | Criterio di completamento |
+| --- | --- | --- |
+| Seed automatico | Rimosso | `create_app` non carica esempi; un database nuovo contiene zero tornei |
+| Endpoint demo | Rimosso | `POST /api/demo` risponde 404 |
+| Dataset | Rimosso | `demo.py` e la fixture JSON sono eliminati |
+| Database locale | Pulito | Eliminati i quattro tornei con `demo_key`; i tornei reali restano |
+| UI | Pulita | Nessun pulsante o etichetta demo; il database vuoto invita a creare il primo torneo |
+| Verifica | Testata | Suite aggiornata a **190 passed**; installazione nuova senza tornei e endpoint demo assente |
+
 ## Verifica di conformità alla specifica
 
 | Requisito | Implementazione | Verifica |

@@ -154,7 +154,7 @@ def _apply_variant_defaults(values: dict, fields_set: set[str], variant) -> None
         values['tie_breaker'] = variant.default_tie_breaker
 
 
-def create(db, data: TournamentInput, demo_key=None, teacher_id: int | None = None):
+def create(db, data: TournamentInput, teacher_id: int | None = None):
     values = data.model_dump(exclude={'team_names'})
     fields_set = set(data.model_fields_set)
     sport_name = values.pop('sport')
@@ -170,7 +170,7 @@ def create(db, data: TournamentInput, demo_key=None, teacher_id: int | None = No
     values['participant_kind'] = kind
     values['teacher_id'] = teacher_id
     _apply_variant_defaults(values, fields_set, variant)
-    values.update(public_token=secrets.token_urlsafe(18), demo_key=demo_key)
+    values['public_token'] = secrets.token_urlsafe(18)
     cols = ','.join(values)
     tid = db.execute(f'INSERT INTO tournaments({cols}) VALUES ({",".join("?" for _ in values)})',
                      list(values.values())).lastrowid
@@ -218,7 +218,7 @@ def update_tournament(db, tid, data: TournamentUpdate):
         values.pop('variant', None)
 
     if values.get('format', tournament['format']) == 'knockout' and values.get('legs', tournament['legs']) != 1:
-        raise HTTPException(422, 'La demo knockout prevede una sola gara per incontro')
+        raise HTTPException(422, 'Il formato knockout prevede una sola gara per incontro')
     if not values:
         return {'ok': True, 'changed': 0}
     assignments = ','.join(f'{column}=?' for column in values)
@@ -457,7 +457,7 @@ def generate(db, tid):
     if t['format'] == 'groups':
         count = t['group_count']
         if len(ids) % count or len(ids)//count < max(2, t['qualifiers']):
-            raise HTTPException(422, 'Per questa demo servono gironi uguali con almeno 2 squadre e abbastanza qualificate')
+            raise HTTPException(422, 'Per questo formato servono gironi uguali con almeno 2 squadre e abbastanza qualificate')
     variant = _variant_for_tournament(db, t)
     duration = variant.match_duration if variant else 20
     kind = 'knockout' if t['format'] == 'knockout' else 'round_robin'

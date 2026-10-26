@@ -1,4 +1,4 @@
-# Architettura della demo 0.2
+# Architettura dell'applicazione
 
 Questa è l'architettura originale di Open Score, non l'architettura interna di Score7.
 
@@ -10,7 +10,6 @@ flowchart TD
   Service --> Engine[engine.py: algoritmi puri]
   HTTP --> DB[db.py: transazioni SQLite]
   DB --> Data[(data/open_score.sqlite3)]
-  Seed[demo.py + fixture JSON] --> Service
 ```
 
 ## Responsabilità
@@ -20,7 +19,6 @@ flowchart TD
 - `services.py`: creazione, generazione, qualificazioni, avanzamenti, correzioni, calendario e diario.
 - `engine.py`: metodo del cerchio per i gironi, albero knockout con seeding e BYE, classifica derivata.
 - `db.py` e `migrations/001_initial.sql`: schema versionato e transazione per operazione.
-- `demo.py`: quattro esempi persistenti e caricamento idempotente. Nessuna richiesta a Score7.
 - `static/`: interfaccia italiana responsive, finestre native `dialog`, tabellone SVG/HTML con collegamenti reali.
 
 ## Una modifica attraversa il sistema

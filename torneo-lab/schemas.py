@@ -44,7 +44,7 @@ class TournamentInput(Input):
         if len({n.casefold() for n in self.team_names}) != len(self.team_names):
             raise ValueError('Nomi dei partecipanti duplicati')
         if self.format == 'knockout' and self.legs != 1:
-            raise ValueError('La demo knockout prevede una sola gara per incontro')
+            raise ValueError('Il formato knockout prevede una sola gara per incontro')
         return self
 
 
@@ -84,7 +84,7 @@ class TournamentUpdate(Input):
         if self.name is not None and len(self.name) < 2:
             raise ValueError('Il nome del torneo è troppo corto')
         if self.format == 'knockout' and self.legs not in (None, 1):
-            raise ValueError('La demo knockout prevede una sola gara per incontro')
+            raise ValueError('Il formato knockout prevede una sola gara per incontro')
         return self
 
 

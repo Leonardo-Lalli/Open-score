@@ -427,7 +427,7 @@ FodyWeavers.xsd
 # Official VS Code C# Dev Kit Extension exclusion
 #*.lscache
 
-# Local Python demo, runtime data and incoming source archive
+# Local Python runtime, data and incoming source archive
 .venv/
 __pycache__/
 .pytest_cache/

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.0 — 26 ottobre 2026
+
+- Rimosso ogni dato dimostrativo preinstallato: niente seed automatico all'avvio, niente `POST /api/demo`, eliminati `demo.py` e la fixture JSON.
+- Il database parte vuoto; studenti e docenti vedono solo i tornei creati e persistiti.
+- Rimossi i comandi **Esplora la demo** e **Carica esempi**, le etichette dimostrative e l'anteprima basata sui dati finti.
+- Versione applicativa 0.8.0 e asset a `v=0.8.0`.
+
 ## 0.7.0 — 25 ottobre 2026
 
 - Nuovo ingresso con due scelte: **Sono un prof** (login email/password) e **Sono uno studente** (sola lettura). La scelta studente nasconde i comandi di modifica; il backend rifiuta comunque ogni scrittura senza sessione docente con 401.
@@ -8,7 +15,7 @@
 - Bootstrap del primo docente con `TORNEO_ADMIN_EMAIL`/`TORNEO_ADMIN_PASSWORD`; CLI `manage.py` per creare docenti, elencarli e reimpostare la password. Rimosso il Bearer token globale.
 - UI: gate iniziale con card verde per il prof e secondaria per lo studente, login dedicato, topbar con identità/ruolo, tag **Solo lettura** e azioni nascoste per studenti e tornei non propri.
 - Versione applicativa 0.7.0, asset a `v=0.7.0` e **189 test**.
-- Avvio con Docker tramite `Dockerfile` e `docker-compose.yml`; README root snellito, con dettagli, demo e hosting spostati in `torneo-lab/README.md`.
+- Avvio con Docker tramite `Dockerfile` e `docker-compose.yml`; README root snellito, con dettagli e hosting spostati in `torneo-lab/README.md`.
 
 ## 0.6.0 — 25 ottobre 2026
 

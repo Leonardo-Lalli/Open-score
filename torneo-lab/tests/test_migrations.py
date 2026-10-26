@@ -134,18 +134,15 @@ def test_version_five_remaps_calcio_a_5_and_preserves_removed_sports(tmp_path):
         assert db.execute('PRAGMA foreign_key_check').fetchall() == []
 
 
-def test_fresh_install_seeds_examples_with_sport_and_variant_links(tmp_path):
-    path = tmp_path / 'seed.sqlite3'
-    with TestClient(create_app(path, seed=True)) as client:
-        tournaments = client.get('/api/tournaments').json()
-        assert len(tournaments) == 4
-        assert all(tournament['sport_id'] for tournament in tournaments)
-        assert all(tournament['variant'] for tournament in tournaments)
+def test_fresh_install_starts_without_tournaments(tmp_path):
+    path = tmp_path / 'empty.sqlite3'
+    with TestClient(create_app(path)) as client:
+        assert client.get('/api/tournaments').json() == []
 
 
 def test_create_tournament_resolves_sport_id_and_rejects_mismatch(tmp_path):
     path = tmp_path / 'create.sqlite3'
-    with TestClient(create_app(path, seed=False, admin_email='prof@test.local',
+    with TestClient(create_app(path, admin_email='prof@test.local',
                                admin_password='password-lunga')) as client:
         assert client.post('/api/auth/login', json={
             'email': 'prof@test.local', 'password': 'password-lunga'}).status_code == 200

@@ -28,7 +28,8 @@ Server di sviluppo: `http://127.0.0.1:8000`. Sulla LAN l'indirizzo è quello del
 | PATCH | /api/tournaments/{id}/matches/{match_id}/schedule | Data/ora con fuso, campo e durata |
 | GET | /api/tournaments/{id}/export.csv | Esportazione degli incontri con mitigazione formule nei testi |
 | GET | /api/public/{token} | Dati spettatore, senza diario o metadati privati del torneo |
-| POST | /api/demo | Caricamento idempotente dei quattro esempi |
+
+Non esiste un endpoint di seed o di caricamento di dati dimostrativi: il database parte vuoto e i tornei nascono solo dalle richieste dei docenti.
 
 `/public/{token}` serve l'interfaccia spettatore. Non esistono endpoint di scrittura sotto `/api/public`. Ogni metodo diverso da `GET`/`HEAD`/`OPTIONS` sotto `/api` richiede una sessione docente, tranne `login` e `logout`: studenti e anonimi ricevono `401`. Ogni scrittura su un torneo richiede inoltre che il torneo appartenga al docente autenticato, altrimenti `403`. Le letture restano pubbliche. Dettagli e limiti in [SECURITY.md](SECURITY.md).
 

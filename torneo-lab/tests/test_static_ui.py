@@ -24,6 +24,15 @@ def test_legacy_urls_redirect_to_the_spa(client):
         assert 'url=/' in static_page.text
 
 
+def test_no_demo_content_in_the_shell(client):
+    markers = ('Esplora la demo', 'Carica esempi', 'Torneo dimostrativo',
+               'DEMO SCOLASTICA', 'demo_key', '/demo')
+    for path in (BASE / 'static' / 'index.html', BASE / 'static' / 'app.js'):
+        text = path.read_text(encoding='utf-8')
+        for marker in markers:
+            assert marker not in text, f'{marker!r} trovato in {path.name}'
+
+
 def test_static_ui_has_no_out_of_catalog_sports(client):
     assets = [*(BASE / 'static').glob('*.html'), BASE / 'static' / 'app.js']
     for path in assets:
@@ -35,8 +44,8 @@ def test_static_ui_has_no_out_of_catalog_sports(client):
 def test_index_references_versioned_assets_and_disables_cache(client):
     response = client.get('/')
     assert response.status_code == 200
-    assert 'app.js?v=0.7.0' in response.text
-    assert 'styles.css?v=0.7.0' in response.text
+    assert 'app.js?v=0.8.0' in response.text
+    assert 'styles.css?v=0.8.0' in response.text
     assert 'no-cache' in response.headers['cache-control']
 
 

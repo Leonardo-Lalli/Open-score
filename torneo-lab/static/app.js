@@ -153,7 +153,7 @@ async function api(path, options = {}) {
     });
   } catch {
     throw new Error(
-      "Il server non risponde. Verifica che la demo sia avviata.",
+      "Il server non risponde. Verifica che sia avviato.",
     );
   }
   if (!res.ok) {
@@ -348,7 +348,7 @@ function renderDashboard() {
     done = active.reduce((a, t) => a + t.progress.completed, 0);
   $("#content").innerHTML =
     `<div class="page-heading"><div><p class="eyebrow"><span class="line"></span> MENO ORGANIZZAZIONE, PIÙ GIOCO</p><h1>Ogni torneo comincia qui.</h1><p>Metti in campo le tue idee. Noi teniamo il punteggio.</p></div><span class="date-note">Uno spazio, tutte le tue sfide.</span></div>
- <section class="hero" aria-label="Inizia a organizzare"><div class="hero-copy"><p class="eyebrow">IL PROSSIMO FISCHIO D’INIZIO</p><h2>Lo sport unisce.<br><em>Organizzarlo è semplice.</em></h2><p>Dalle partite in palestra alla coppa d’istituto: squadre, incontri e risultati, tutti nello stesso posto.</p><div class="hero-buttons">${canEdit() ? button("Crea il tuo torneo", "new", "primary", "plus") : button("Accedi per organizzare", "login", "primary", "check")}${button("Esplora la demo", "explore", "ghost", "arrow")}</div></div><div class="hero-art" aria-hidden="true"><div class="court"><div class="court-circle"></div></div><div class="hero-score"><div class="score-kicker">IL TUO PROSSIMO TORNEO <span>● SI GIOCA</span></div><div class="score-line">${avatar("A", 2)}La tua squadra <b>—</b></div><div class="score-line">${avatar("B", 1)}Una nuova sfida <b>—</b></div></div><div class="hero-sticker">${icon("trophy")}</div></div></section>
+ <section class="hero" aria-label="Inizia a organizzare"><div class="hero-copy"><p class="eyebrow">IL PROSSIMO FISCHIO D’INIZIO</p><h2>Lo sport unisce.<br><em>Organizzarlo è semplice.</em></h2><p>Dalle partite in palestra alla coppa d’istituto: squadre, incontri e risultati, tutti nello stesso posto.</p><div class="hero-buttons">${canEdit() ? button("Crea il tuo torneo", "new", "primary", "plus") : button("Accedi per organizzare", "login", "primary", "check")}${button("Sport e regole", "catalog", "ghost", "ball")}</div></div><div class="hero-art" aria-hidden="true"><div class="court"><div class="court-circle"></div></div><div class="hero-score"><div class="score-kicker">IL TUO PROSSIMO TORNEO <span>● SI GIOCA</span></div><div class="score-line">${avatar("A", 2)}La tua squadra <b>—</b></div><div class="score-line">${avatar("B", 1)}Una nuova sfida <b>—</b></div></div><div class="hero-sticker">${icon("trophy")}</div></div></section>
  <div class="stat-grid">${stat("Tornei creati", active.length, "Tutte le tue competizioni", "trophy")}${stat("Partecipanti", totalTeams, "Pronti a scendere in campo", "users")}${stat("Tornei in corso", active.filter((t) => t.status === "active").length, "Il gioco continua", "ball")}${stat("Risultati registrati", done, "Ogni partita conta", "check")}</div>
  <section><div class="section-header"><div><h2>I tuoi tornei <span class="muted">${active.length.toString().padStart(2, "0")}</span></h2><p class="section-sub">Scegli una competizione e porta avanti il gioco.</p></div><div class="filters" aria-label="Filtra tornei">${[
    ["all", "Tutti"],
@@ -361,15 +361,15 @@ function renderDashboard() {
        `<button class="filter ${filter === v ? "active" : ""}" data-filter="${v}" aria-pressed="${filter === v}">${l}</button>`,
    )
    .join("")}</div></div>
- <div class="tournament-grid">${shown.map(eventCard).join("") || `<div class="panel empty">${icon("trophy")}<h2>Il campo è libero.</h2><p>${filter === "archived" ? "Nessun torneo archiviato, per ora." : list.length ? "Nessun torneo con questo filtro." : "Crea il primo torneo oppure carica gli esempi per iniziare."}</p>${filter === "archived" ? "" : canEdit() ? button("Nuovo torneo", "new", "primary") + button("Carica esempi", "seed", "ghost") : button("Accedi per organizzare", "login", "primary", "check")}</div>`}</div></section>
- <div class="note-banner">${icon("spark")}<div><strong>Un progetto aperto, anche alle tue idee.</strong><p>Questa è la nostra prima demo. Il prossimo passo lo scegliamo insieme.</p></div><button class="text-button" data-action="project">Il progetto ${icon("arrow")}</button></div>`;
+ <div class="tournament-grid">${shown.map(eventCard).join("") || `<div class="panel empty">${icon("trophy")}<h2>Il campo è libero.</h2><p>${filter === "archived" ? "Nessun torneo archiviato, per ora." : list.length ? "Nessun torneo con questo filtro." : "Crea il primo torneo per iniziare."}</p>${filter === "archived" ? "" : canEdit() ? button("Nuovo torneo", "new", "primary") : button("Accedi per organizzare", "login", "primary", "check")}</div>`}</div></section>
+ <div class="note-banner">${icon("spark")}<div><strong>Un progetto aperto, anche alle tue idee.</strong><p>Il prossimo passo lo scegliamo insieme.</p></div><button class="text-button" data-action="project">Il progetto ${icon("arrow")}</button></div>`;
   $("#content").setAttribute("aria-busy", "false");
 }
 function eventCard(t, i) {
   const progress = t.progress.total
     ? Math.round((t.progress.completed / t.progress.total) * 100)
     : 0;
-  return `<article class="event-card ${t.archived_at ? "archived" : ""}"><div class="event-card-top"><div class="sport-symbol ${["", "gold", "blue", "rose"][i % 4]}">${icon(t.format === "knockout" ? "trophy" : t.format === "groups" ? "grid" : "ball")}</div>${t.archived_at ? '<span class="tag archived"><i></i>Archiviato</span>' : `<span class="tag ${t.status}"><i></i>${stateLabel(t.status)}</span>`}${!t.can_manage && canEdit() ? '<span class="tag archived"><i></i>Solo lettura</span>' : ""}</div><h3>${h(t.name)}</h3><p class="event-format">${h(t.sport)}${t.variant ? ` · ${h(variantFor(t.variant)?.name || t.variant)}` : ""} <span aria-hidden="true">/</span> ${label(t.format)}</p><div class="event-meta"><span>${icon("users")}${t.team_count} ${t.participant_kind === "team" ? "squadre" : "giocatori"}</span><span>${icon("calendar")}${t.progress.total} incontri${t.format === "groups" ? " · gironi" : ""}</span></div><div class="progress-track" role="progressbar" aria-label="Incontri completati" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100"><span style="width:${progress}%"></span></div><div class="progress-copy"><span>${t.progress.completed} di ${t.progress.total} incontri completati</span><span>${progress}%</span></div><div class="event-card-footer"><div class="avatar-stack"><span>${h(t.sport.slice(0, 1))}</span><span>OS</span><small>${t.demo_key ? "Torneo dimostrativo" : "Il nostro torneo"}</small></div><div class="card-actions"><button class="text-button" data-open="${t.id}">Apri ${icon("arrow")}</button>${t.archived_at && t.can_manage ? `<button class="text-button" data-restore="${t.id}">Ripristina ${icon("refresh")}</button>` : ""}</div></div></article>`;
+  return `<article class="event-card ${t.archived_at ? "archived" : ""}"><div class="event-card-top"><div class="sport-symbol ${["", "gold", "blue", "rose"][i % 4]}">${icon(t.format === "knockout" ? "trophy" : t.format === "groups" ? "grid" : "ball")}</div>${t.archived_at ? '<span class="tag archived"><i></i>Archiviato</span>' : `<span class="tag ${t.status}"><i></i>${stateLabel(t.status)}</span>`}${!t.can_manage && canEdit() ? '<span class="tag archived"><i></i>Solo lettura</span>' : ""}</div><h3>${h(t.name)}</h3><p class="event-format">${h(t.sport)}${t.variant ? ` · ${h(variantFor(t.variant)?.name || t.variant)}` : ""} <span aria-hidden="true">/</span> ${label(t.format)}</p><div class="event-meta"><span>${icon("users")}${t.team_count} ${t.participant_kind === "team" ? "squadre" : "giocatori"}</span><span>${icon("calendar")}${t.progress.total} incontri${t.format === "groups" ? " · gironi" : ""}</span></div><div class="progress-track" role="progressbar" aria-label="Incontri completati" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100"><span style="width:${progress}%"></span></div><div class="progress-copy"><span>${t.progress.completed} di ${t.progress.total} incontri completati</span><span>${progress}%</span></div><div class="event-card-footer"><div class="avatar-stack"><span>${h(t.sport.slice(0, 1))}</span><span>OS</span><small>Il nostro torneo</small></div><div class="card-actions"><button class="text-button" data-open="${t.id}">Apri ${icon("arrow")}</button>${t.archived_at && t.can_manage ? `<button class="text-button" data-restore="${t.id}">Ripristina ${icon("refresh")}</button>` : ""}</div></div></article>`;
 }
 function hashRoute() {
   const parts = location.hash
@@ -1025,7 +1025,7 @@ async function wizardSubmit() {
 function project() {
   modal(
     "Un campo aperto alle idee.",
-    `<p class="project-intro">Open Score è un progetto di Leonardo e del suo collaboratore per organizzare tornei a scuola. Nome e direzione si scelgono insieme al professore.</p><ol class="project-list"><li><strong>Oggi:</strong> una webapp con gironi, tabelloni, risultati, qualificazioni e account docenti separati.</li><li><strong>Il prossimo incontro:</strong> scegliere lo sport, le regole e il primo torneo da provare in palestra.</li><li><strong>Poi:</strong> pianificazione automatica, statistiche e nuovi formati.</li></ol><p class="field-help">Il codice è indipendente. Gli esempi sono dimostrativi; non è ancora un servizio pubblico su Internet.</p><p class="field-help"><a href="https://github.com/Leonardo-Lalli/Open-score" target="_blank" rel="noopener">Codice, roadmap e report su GitHub ↗</a></p>`,
+    `<p class="project-intro">Open Score è un progetto di Leonardo e del suo collaboratore per organizzare tornei a scuola. Nome e direzione si scelgono insieme al professore.</p><ol class="project-list"><li><strong>Oggi:</strong> una webapp con gironi, tabelloni, risultati, qualificazioni e account docenti separati.</li><li><strong>Il prossimo incontro:</strong> scegliere lo sport, le regole e il primo torneo da provare in palestra.</li><li><strong>Poi:</strong> pianificazione automatica, statistiche e nuovi formati.</li></ol><p class="field-help">Il codice è indipendente. I dati restano sul server della scuola; non è ancora un servizio pubblico su Internet.</p><p class="field-help"><a href="https://github.com/Leonardo-Lalli/Open-score" target="_blank" rel="noopener">Codice, roadmap e report su GitHub ↗</a></p>`,
     `${button("Torna in campo", "close", "primary")}`,
     "IL PROGETTO",
   );
@@ -1034,7 +1034,7 @@ async function share() {
   const url = location.origin + "/public/" + data.tournament.public_token;
   modal(
     "Il torneo è più bello insieme.",
-    `<p class="project-intro">Condividi calendario, risultati e tabellone con chi segue il torneo. Questa vista è di sola lettura.</p><div class="share-url"><input id="share-url" aria-label="Link del torneo" value="${h(url)}" readonly><button class="button primary" data-action="copy">Copia link</button></div><p class="field-help">La demo è sul tuo computer: il link funziona sui browser che possono raggiungere questo server locale. Per condividerla online servirà l’hosting previsto nella roadmap.</p>`,
+    `<p class="project-intro">Condividi calendario, risultati e tabellone con chi segue il torneo. Questa vista è di sola lettura.</p><div class="share-url"><input id="share-url" aria-label="Link del torneo" value="${h(url)}" readonly><button class="button primary" data-action="copy">Copia link</button></div><p class="field-help">L'app è sul tuo computer: il link funziona sui browser che possono raggiungere questo server locale. Per condividerla online servirà l’hosting previsto nella roadmap.</p>`,
     `<a class="button primary" href="${h(url)}" target="_blank" rel="noopener">Apri vista spettatore ${icon("arrow")}</a>`,
     "CONDIVIDI IL GIOCO",
   );
@@ -1091,25 +1091,6 @@ const actions = {
     await api("/tournaments/" + selectedId + "/generate", { method: "POST" });
     await openTournament(selectedId, true);
     notify("Incontri generati. Si gioca!");
-  },
-  seed: async () => {
-    if (!canEdit()) return loginModal();
-    await api("/demo", { method: "POST" });
-    await dashboard();
-    notify("Gli esempi sono pronti.");
-  },
-  explore: async () => {
-    if (!list.length && canEdit()) await actions.seed();
-    const t =
-      list.find((t) => !t.archived_at && t.demo_key === "school-cup") ||
-      list.find((t) => !t.archived_at);
-    if (t) {
-      await openTournament(t.id);
-      tab = "bracket";
-      renderTournament();
-    } else {
-      notify("Nessun torneo disponibile da esplorare.", true);
-    }
   },
   copy: async () => {
     const el = $("#share-url");
@@ -1479,7 +1460,7 @@ async function init() {
       $("#sidebar").classList.add("hidden");
       $(".app-shell").style.marginLeft = "0";
       $(".top-actions").innerHTML =
-        '<span class="demo-label">VISTA SPETTATORE · SOLA LETTURA</span>';
+        '<span class="context-label">VISTA SPETTATORE · SOLA LETTURA</span>';
       $("#mobile-menu").classList.add("hidden");
       await openTournament(null);
       setInterval(() => {

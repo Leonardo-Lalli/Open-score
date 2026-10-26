@@ -4,7 +4,7 @@ Open Score è un'applicazione originale per organizzare tornei sportivi a scuola
 
 Progetto di **Leonardo Lalli e Maximiliam Cichello**, da discutere con il professore di scienze motorie. Nome e scelte di prodotto restano provvisori. La proposta iniziale è conservata in [docs/PROPOSTA_PROGETTO.md](../docs/PROPOSTA_PROGETTO.md). Torna alla [vetrina del progetto](../README.md).
 
-## Avvio della demo
+## Avvio dell'applicazione
 
 Richiede **Python 3.10 o successivo** e un browser moderno. Scarica la repository da **Code → Download ZIP**, estraila e apri PowerShell nella cartella `torneo-lab` contenuta al suo interno. In alternativa:
 
@@ -45,20 +45,22 @@ docker compose up -d --build
 
 Il servizio risponde su [http://127.0.0.1:8000](http://127.0.0.1:8000) e conserva il database in `torneo-lab/data/`. `docker compose down` ferma il container senza cancellare i dati. Dopo un aggiornamento del codice, `docker compose up -d --build` ricostruisce l'immagine.
 
-## Cosa mostrare al professore in cinque minuti
+## Primi passi
 
-1. **Knockout Bracket of Football:** il caso fornito, Team #1 contro Team #2. Apri il tabellone e inserisci un risultato per proclamare il campione.
-2. **Coppa della palestra:** otto squadre, quarti già iniziati, semifinali e finale collegate. I vincitori avanzano automaticamente.
-3. **Campionato d'istituto:** sei squadre, calendario e classifica. Inserisci un risultato e osserva punti e partite giocate.
-4. **Giornata dello sport:** sedici squadre in quattro gironi. Completati tutti i gironi, le prime due di ciascuno passano ai quarti.
-5. **Sport e regole:** apri il catalogo, scegli Pallavolo 6v6 e mostra come la variante imposta durata, set e classifica; poi crea un torneo a 2 squadre e inserisci un risultato set per set.
-6. **Nuovo torneo:** crea un knockout a tre partecipanti per mostrare il passaggio automatico per BYE. Il wizard raccoglie sport, variante, nomi e regole e mostra un riepilogo prima della creazione.
+Il database parte vuoto: non ci sono tornei dimostrativi. Dopo il primo accesso come prof:
 
-I quattro esempi vengono salvati al primo avvio. I nomi, gli incontri e i risultati si possono cambiare; i dati persistono dopo il riavvio. Non c'è una scadenza di 24 ore. Gli esempi aggiuntivi sono sintetici; il campione JSON fornito è conservato come fixture con i relativi ID di provenienza.
+1. Apri **Sport e regole** e scegli sport e variante; la scheda mostra composizione, durata e regolamento.
+2. Crea un torneo dal wizard, indica i partecipanti e genera gli incontri.
+3. Registra un risultato: classifica, tabellone e avanzamenti si aggiornano.
+4. Prova la modifica di un risultato, l'archiviazione e il link spettatore.
+5. Crea gli altri account docente con `python manage.py create-teacher`.
 
-## Funzioni della versione 0.7.0
+I dati restano in `data/open_score.sqlite3` e sopravvivono al riavvio. Non ci sono dati preinstallati né una scadenza.
+
+## Funzioni della versione 0.8.0
 
 - Dashboard e interfaccia italiana responsive, procedura guidata, partecipanti rinominabili.
+- Nessun dato dimostrativo preinstallato: il database parte vuoto e mostra solo i tornei creati dagli utenti.
 - Interfaccia unica SPA: le vecchie pagine mockup sono state rimosse e i relativi URL reindirizzano alla dashboard; gli asset sono versionati per evitare cache stantia.
 - Ottimizzazione mobile iPhone/Android: safe area, viewport con notch, topbar sticky, drawer con scrim, touch target da 44 px, modali full-screen e input a 16 px.
 - Ingresso con due scelte: **Sono un prof** (login email/password) e **Sono uno studente** (sola lettura). Gli studenti non possono creare, modificare o eliminare tornei né da UI né da API.
@@ -81,7 +83,7 @@ I quattro esempi vengono salvati al primo avvio. I nomi, gli incontri e i risult
 - Accesso docenti con email e password, sessioni firmate, scritture protette, host della LAN ammessi e limite ai tentativi di accesso.
 - Database SQLite persistente, backup consistenti, avvio automatico e API documentate.
 
-**È un'applicazione per la LAN scolastica, non l'intera piattaforma del master prompt.** Non ci sono ruoli amministrativi oltre ai docenti, statistiche individuali, rigori, doppia eliminazione, Swiss, consolazione o scheduler automatico. Gli sport non più in catalogo restano leggibili solo per i tornei storici ma non sono selezionabili. I regolamenti delle varianti sono scelte della demo e vanno confermati con il professore.
+**È un'applicazione per la LAN scolastica, non l'intera piattaforma del master prompt.** Non ci sono ruoli amministrativi oltre ai docenti, statistiche individuali, rigori, doppia eliminazione, Swiss, consolazione o scheduler automatico. Gli sport non più in catalogo restano leggibili solo per i tornei storici ma non sono selezionabili. I regolamenti delle varianti sono scelte del progetto e vanno confermati con il professore.
 
 Con `TORNEO_ADMIN_EMAIL` e `TORNEO_ADMIN_PASSWORD` viene creato il primo account docente; altri account si aggiungono con `python manage.py create-teacher`. Chi non accede resta in sola lettura, come gli studenti. Ogni docente può gestire solo i tornei della propria utenza; il link spettatore è di sola lettura. Il server può essere raggiunto dalla LAN, ma non è destinato a Internet: installazione, firewall, backup e limiti sono in [DEPLOY.md](../docs/DEPLOY.md) e [SECURITY.md](../docs/SECURITY.md).
 
@@ -188,9 +190,3 @@ Sono verificati algoritmi, avanzamenti, multifase, correzioni, concorrenza, pers
 | [Changelog](../docs/CHANGELOG.md) | Incrementi 0.4 → 0.7 |
 
 Il codice è originale e non dipende dai server di Score7. La licenza per il rilascio open source stabile va concordata tra gli autori; non è ancora stata assegnata. Database, credenziali e ambienti locali non sono inclusi nella repository.
-
-## Anteprima reale
-
-Tabellone della prova eseguita dal browser, dopo inserimento e correzione dei risultati:
-
-![Tabellone Open Score con BYE, semifinale, finale e campione](../docs/images/demo-bracket.png)
