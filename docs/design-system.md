@@ -167,6 +167,8 @@ Input su mobile: `font-size: 16px` per evitare lo zoom iOS; touch target ≥44px
 | Elenco dettagli | `.details-list` | coppie dt/dd |
 | Classifica | tabella dentro `.panel` | posizione, punti, differenza |
 | Bracket | `.bracket-scroll`, `.bracket-tree`, `.round-title`, `.tree-help` | scroll orizzontale; su mobile `.bracket-mobile-nav`, `.bracket-rounds`, `.bracket-round-chip` | 
+| Card bracket | `.bracket-card`, `.bracket-team`, `.bracket-status`, `.bracket-card.bye` | coordinate e linee da `static/bracket-layout.js`; stati scritti, non solo colore |
+| Campione | `.champion-card`, `.bracket-trophy`, `.champion-name` | ultima colonna dopo la finale; vuoto dichiarato “Da decidere” |
 | Regolamento | `.regulation-copy`, `.rule-list`, `.rule-pills`, `.rules-preview` | testo + pillole |
 | Punteggio a set | `.set-inputs`, `.set-row` | input per set |
 | Diario | `.timeline-item` | storico modifiche |

@@ -1580,6 +1580,29 @@ td .avatar {
   font-size: 7px;
   color: #7f9173;
 }
+.bracket-card.champion-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  text-align: center;
+  border-color: #cfe0a8;
+  background: #fbfdf5;
+}
+.bracket-card.champion-card .bracket-status {
+  position: static;
+  margin-top: 1px;
+}
+.bracket-trophy .icon {
+  width: 22px;
+  height: 22px;
+  color: #6d8f32;
+}
+.champion-name {
+  font-size: 12px;
+  font-weight: 750;
+}
 .tree-help {
   font-size: 10px;
   color: var(--muted);
@@ -4903,6 +4926,13 @@ textarea {
   .bracket-scroll {
     padding: 18px 14px;
     scroll-padding-inline: 14px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .bracket-team {
+    font-size: 11px;
+  }
+  .bracket-status {
+    font-size: 8px;
   }
   .champion-banner {
     align-items: flex-start;

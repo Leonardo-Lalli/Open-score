@@ -69,6 +69,7 @@ Stato globale: `list`, `sports`, `auth {role, authenticated, teacher}`, `selecte
 - Pagina **Campi** (`#/fields`, solo docenti) con elenco, scheda, creazione/modifica/disattivazione predisposte e campi citati negli incontri.
 - Pagina **Calendario** (`#/calendar`) con partite per giorno, filtri per torneo/squadra/giorno/campo/stato e conflitti visibili.
 - Form di configurazione sport/regole guidati dai metadati della variante, condivisi tra wizard e modifica torneo, con validazione live e avviso sui tornei già iniziati.
+- Tabellone a eliminazione con relazioni reali `source_home`/`source_away`, risultati ufficiali, BYE, colonna Campione, chip dei turni su mobile e test geometrici per 4/8/16 squadre.
 - Riordino dei partecipanti nel wizard con drag & drop (mouse/touch) e tastiera; l'ordine viene inviato al backend in `team_names`.
 - Vista spettatore (`/public/{token}`) in sola lettura con auto-refresh.
 
@@ -153,7 +154,7 @@ Prima del contratto ufficiale, lavoro su attività indipendenti o con mock isola
    - *Oggi*: senza `config_schema` il frontend usa come fallback il contratto di `TournamentInput` (punti, criterio a parità, gare, gironi, qualificate). Durata, tempi, set e regole di pareggio restano derivati da `variant.rules` in sola lettura.
    - *Vincolo*: il payload resta limitato ai campi accettati dal backend; il frontend non inventa chiavi e non forza un salvataggio quando il server risponde `409` o `422`.
 
-Per QR, infografiche lato client e GitHub Pages **non serve** alcuna nuova API. Il drag & drop del wizard usa già `team_names`; servono API per il riordino post-creazione (punto 1) e per gli aggregati dashboard (punto 7).
+Per QR, infografiche lato client, tabellone e GitHub Pages **non serve** alcuna nuova API. Il tabellone usa già `source_home`/`source_away`, `winner_team_id` e `champion_team_id`; chiediamo solo che restino stabili nel contratto. Il drag & drop del wizard usa già `team_names`; servono API per il riordino post-creazione (punto 1) e per gli aggregati dashboard (punto 7).
 
 ---
 

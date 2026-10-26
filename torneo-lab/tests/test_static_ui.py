@@ -264,6 +264,36 @@ def test_fields_and_calendar_do_not_fake_saves_or_conflicts(client):
     assert 'Conflitto di calendario' in script
 
 
+def test_knockout_bracket_uses_real_sources_and_champion(client):
+    html = client.get('/').text
+    assert '/static/bracket-layout.js?v=0.8.0' in html
+    assert html.index('bracket-layout.js') < html.index('/static/app.js')
+
+    script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
+    for marker in ('BracketLayout.layout', 'bracketSourceLabel', 'bracketStatus',
+                   'champion-card', 'source_home', 'source_away',
+                   'Il tabellone usa solo i risultati confermati',
+                   'aria-label="Tabellone del torneo"', 'bracket-round'):
+        assert marker in script, f'{marker!r} mancante in app.js'
+
+    layout = (BASE / 'static' / 'bracket-layout.js').read_text(encoding='utf-8')
+    for marker in ('source_home', 'source_away', 'champion', 'module.exports'):
+        assert marker in layout, f'{marker!r} mancante in bracket-layout.js'
+
+    css = (BASE / 'static' / 'styles.css').read_text(encoding='utf-8')
+    for selector in ('.bracket-card.champion-card', '.bracket-trophy',
+                     '.champion-name', '.bracket-card.bye'):
+        assert selector in css, f'{selector!r} mancante in styles.css'
+
+
+def test_bracket_layout_probe_is_versioned_with_the_suite(client):
+    probe = BASE / 'tests' / 'bracket_layout_probe.js'
+    assert probe.exists()
+    text = probe.read_text(encoding='utf-8')
+    assert 'planFor' in text
+    assert 'scoreInvariant' in text
+
+
 def test_sport_rule_forms_are_metadata_driven(client):
     script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
     for marker in ('variantRuleSchema', 'fallbackRuleSchema', 'ruleFieldsetHtml',

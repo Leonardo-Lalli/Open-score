@@ -2282,48 +2282,62 @@ function proposalCorrectModal(proposal) {
     h(roundName(match)),
   );
 }
+function bracketSourceLabel(sourceId) {
+  if (!sourceId) return "Turno precedente";
+  const source = data.matches.find((match) => match.id === Number(sourceId));
+  if (!source) return "Turno precedente";
+  return `Vincente ${roundName(source)} ${Number(source.position) + 1}`;
+}
+function bracketStatus(match) {
+  if (match.is_bye) return "PASSAGGIO AUTOMATICO";
+  if (match.status === "completed") return "RISULTATO CONFERMATO";
+  if (match.status === "ready") return "DA GIOCARE";
+  return "IN ATTESA DEGLI INCONTRI PRECEDENTI";
+}
 function bracket() {
   const fixtures = data.matches.filter((m) => m.kind === "knockout");
   if (!fixtures.length)
     return `<div class="panel empty">${icon("trophy")}<h2>La finale si conquista.</h2><p>${data.tournament.format === "groups" ? "Completa tutti i gironi. Le squadre qualificate riempiranno automaticamente il tabellone." : "Genera gli incontri per vedere il percorso verso la coppa."}</p>${button("Vai alle partite", "matches", "primary")}</div>`;
-  const rounds = Math.max(...fixtures.map((m) => m.round_no));
-  const first = fixtures.filter((m) => m.round_no === 1).length;
-  const roundList = Array.from({ length: rounds }, (_, i) => ({
-    number: i + 1,
-    name: roundName(fixtures.find((m) => m.round_no === i + 1)),
+  if (typeof BracketLayout === "undefined")
+    return `<div class="panel empty">${icon("trophy")}<h2>Tabellone non disponibile.</h2><p>Ricarica la pagina per caricare il componente del tabellone.</p></div>`;
+  const view = BracketLayout.layout(fixtures);
+  const championTeam = data.champion_team_id
+    ? teamName(data.champion_team_id)
+    : null;
+  const roundList = view.roundNumbers.map((number, index) => ({
+    number,
+    name: view.labels[index],
   }));
-  const coords = Object.fromEntries(
-    fixtures.map((m) => [
-      m.id,
-      {
-        x: (m.round_no - 1) * 295,
-        y: 40 + 2 ** (m.round_no - 1) * 128 * (m.position + 0.5),
-      },
-    ]),
-  );
-  let lines = "";
-  for (const m of fixtures) {
-    const end = coords[m.id];
-    for (const source of [m.source_home, m.source_away])
-      if (source) {
-        const a = coords[source];
-        lines += `<path d="M${a.x + 246},${a.y}H${a.x + 270}V${end.y}H${end.x}"/>`;
-      }
-  }
-  return `<div class="section-header"><div><h2>La strada verso la coppa.</h2><p class="section-sub">${publicToken ? "Segui ogni passaggio del torneo." : "Seleziona un incontro per registrare o correggere il risultato."}</p></div></div><div class="bracket-mobile-nav" role="group" aria-label="Vai a un turno"><p class="bracket-mobile-hint">${icon("link")} Scorri il tabellone o scegli un turno.</p><div class="bracket-rounds">${roundList.map((round, i) => `<button type="button" class="bracket-round-chip ${i === 0 ? "active" : ""}" data-action="bracket-round" data-round="${round.number}" aria-pressed="${i === 0}">${h(round.name)}</button>`).join("")}</div></div><div class="bracket-scroll" tabindex="0" role="region" aria-label="Tabellone del torneo"><div class="bracket-tree" style="width:${rounds * 295 - 48}px;height:${Math.max(210, first * 128 + 60)}px"><svg width="${rounds * 295 - 48}" height="${first * 128 + 60}" aria-hidden="true"><g fill="none" stroke="#c5d1b5" stroke-width="1.5">${lines}</g></svg>${Array.from({ length: rounds }, (_, i) => `<div class="bracket-title" style="left:${i * 295}px;top:0">${h(roundName(fixtures.find((m) => m.round_no === i + 1)))}</div>`).join("")}${fixtures
+  const championCard = view.champion
+    ? `<div class="bracket-title" style="left:${view.champion.x}px;top:0">Campione</div><div class="bracket-card champion-card ${championTeam ? "completed" : "waiting"}" style="left:${view.champion.x}px;top:${view.champion.y - view.cardHeight / 2}px" role="group" aria-label="${championTeam ? `Campione: ${h(championTeam)}` : "Campione ancora da decidere"}"><span class="bracket-trophy">${icon("trophy")}</span><span class="champion-name">${championTeam ? h(championTeam) : "Da decidere"}</span><span class="bracket-status">${championTeam ? "CAMPIONE" : "LA FINALE DECIDE"}</span></div>`
+    : "";
+  return `<div class="section-header"><div><h2>La strada verso la coppa.</h2><p class="section-sub">${publicToken ? "Segui ogni passaggio del torneo." : "Seleziona un incontro per registrare o correggere il risultato."}</p></div></div><div class="bracket-mobile-nav" role="group" aria-label="Vai a un turno"><p class="bracket-mobile-hint">${icon("link")} Scorri il tabellone o scegli un turno.</p><div class="bracket-rounds">${roundList.map((round, i) => `<button type="button" class="bracket-round-chip ${i === 0 ? "active" : ""}" data-action="bracket-round" data-round="${i + 1}" aria-pressed="${i === 0}">${h(round.name)}</button>`).join("")}${view.champion ? `<button type="button" class="bracket-round-chip" data-action="bracket-round" data-round="${view.roundNumbers.length + 1}" aria-pressed="false">Campione</button>` : ""}</div></div><div class="bracket-scroll" tabindex="0" role="region" aria-label="Tabellone del torneo"><div class="bracket-tree" style="width:${view.width}px;height:${view.height}px"><svg width="${view.width}" height="${view.height}" aria-hidden="true"><g fill="none" stroke="#c5d1b5" stroke-width="1.5">${view.paths.map((path) => `<path d="${path.d}"/>`).join("")}</g></svg>${view.roundNumbers.map((number, index) => `<div class="bracket-title" style="left:${index * view.columnWidth}px;top:0">${h(view.labels[index])}</div>`).join("")}${fixtures
     .map((m) => {
-      const pos = coords[m.id],
-        editable =
-          !publicToken &&
-          canManage() &&
-          !m.is_bye &&
-          ["ready", "completed"].includes(m.status),
-        el = editable ? "button" : "div";
-      return `<${el} class="bracket-card ${m.status}" style="left:${pos.x}px;top:${pos.y - 42}px" ${editable ? `data-result="${m.id}" aria-label="${h(teamName(m.home_team_id))} contro ${h(teamName(m.away_team_id))}, inserisci risultato"` : ""}>${["home", "away"].map((side) => `<span class="bracket-team ${m[side + "_team_id"] && m[side + "_team_id"] === m.winner_team_id ? "winner" : ""}">${avatar(m[side + "_team_id"] ? teamName(m[side + "_team_id"]) : "–", m[side + "_team_id"])}<span class="team-name">${h(m[side + "_team_id"] ? teamName(m[side + "_team_id"]) : m.is_bye ? "Riposo · BYE" : `Vincente incontro ${m["source_" + side] || "precedente"}`)}</span><strong>${m[side + "_score"] ?? "–"}</strong></span>`).join("")}<span class="bracket-status">${m.is_bye ? "PASSAGGIO AUTOMATICO" : m.status === "completed" ? "RISULTATO CONFERMATO" : m.status === "ready" ? "DA GIOCARE" : "IN ATTESA"}</span></${el}>`;
+      const pos = view.coords[String(m.id)];
+      if (!pos) return "";
+      const editable =
+        !publicToken &&
+        canManage() &&
+        !m.is_bye &&
+        ["ready", "completed"].includes(m.status);
+      const el = editable ? "button" : "div";
+      const status = bracketStatus(m);
+      const home = m.home_team_id
+        ? teamName(m.home_team_id)
+        : m.is_bye
+          ? "Riposo · BYE"
+          : bracketSourceLabel(m.source_home);
+      const away = m.away_team_id
+        ? teamName(m.away_team_id)
+        : m.is_bye
+          ? "Riposo · BYE"
+          : bracketSourceLabel(m.source_away);
+      const label = `${roundName(m)}: ${home} contro ${away}. ${status}`;
+      return `<${el} class="bracket-card ${m.status}" style="left:${pos.x}px;top:${pos.y - view.cardHeight / 2}px" ${editable ? `data-result="${m.id}" aria-label="${h(label)}. Inserisci risultato"` : `role="group" aria-label="${h(label)}"`}>${["home", "away"].map((side) => `<span class="bracket-team ${m[side + "_team_id"] && m[side + "_team_id"] === m.winner_team_id ? "winner" : ""}">${avatar(m[side + "_team_id"] ? teamName(m[side + "_team_id"]) : "–", m[side + "_team_id"])}<span class="team-name">${h(m[side + "_team_id"] ? teamName(m[side + "_team_id"]) : m.is_bye ? "Riposo · BYE" : bracketSourceLabel(m["source_" + side]))}</span><strong>${m[side + "_score"] ?? "–"}</strong></span>`).join("")}<span class="bracket-status">${status}</span></${el}>`;
     })
     .join(
       "",
-    )}</div></div><p class="tree-help">${icon("link")} I vincitori avanzano automaticamente. ${publicToken ? "Aggiorna la pagina per seguire i risultati." : "Le correzioni che cambiano il percorso richiedono una conferma."}</p>`;
+    )}${championCard}</div></div><p class="tree-help">${icon("link")} I vincitori avanzano automaticamente. ${publicToken ? "Aggiorna la pagina per seguire i risultati." : "Il tabellone usa solo i risultati confermati: le proposte non approvate non fanno avanzare nessuno."}</p>`;
 }
 async function teamModal(id) {
   const info = await api(`/tournaments/${selectedId}/teams/${id}`);
