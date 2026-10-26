@@ -11,10 +11,10 @@
 
 ## Stato corrente
 
-- Branch: `max-develop` (HEAD `c73d519`), working tree pulito.
+- Branch: `max-develop` (HEAD `5939873`), working tree pulito.
 - Base: `f0eedf9` (`main` / `origin/main`).
 - Backend, migrazioni, modelli e contratti API: **non modificati**.
-- Suite: **204 passed** (warning Starlette/httpx del TestClient, innocuo).
+- Suite: **214 passed** (warning Starlette/httpx del TestClient, innocuo).
 - Lint: `ruff check --select I,C4,UP,F .` pulito; `node --check static/app.js` OK.
 - Push: nessuno; il branch resta locale finché il team non lo richiede.
 
@@ -35,13 +35,14 @@
 | `1ef0152` | 26/10 13:10 | Condivisione QR completa e pagina inviti | `static/app.js`, `static/styles.css`, `tests/test_static_ui.py`, `docs/QR_SHARING.md`, `docs/design-system.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | Azioni download/stampa/condividi; `inviteAdapter` con `ready: false`; anteprima invito via `GET /api/public/{token}` | 200 passed |
 | `0f086ee` | 26/10 13:40 | Pagine campi e calendario | `static/app.js`, `static/styles.css`, `static/index.html`, `tests/test_static_ui.py`, `docs/FIELDS_AND_CALENDAR.md`, `docs/design-system.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | `fieldsAdapter` e `calendarAdapter` con `ready: false`; conflitti client dichiarati; aggregazione dai tornei reali | 202 passed |
 | `c73d519` | 26/10 14:15 | Form sport e regole guidati dai metadati | `static/app.js`, `static/styles.css`, `tests/test_static_ui.py`, `docs/SPORT_RULES_CONFIG.md`, `docs/design-system.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | `config_schema`/`tie_breakers` proposti; fallback su `TournamentInput`; regole della variante in sola lettura | 204 passed |
+| `5939873` | 26/10 14:45 | Tabellone a eliminazione completo e testato | `static/app.js`, `static/styles.css`, `static/index.html`, `static/bracket-layout.js`, `tests/test_bracket_layout.py`, `tests/bracket_layout_probe.js`, `tests/test_static_ui.py`, `docs/BRACKET.md`, `docs/design-system.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | Nessuna nuova API; usa `source_home`/`source_away`, `winner_team_id`, `champion_team_id` | 214 passed |
 
 ## File toccati da `f0eedf9`
 
-- SPA: `torneo-lab/static/app.js`, `index.html`, `styles.css`.
+- SPA: `torneo-lab/static/app.js`, `index.html`, `styles.css`, `bracket-layout.js`.
 - Vendor: `torneo-lab/static/vendor/qrcode.js` (+ `README.md` di provenienza e licenza MIT).
-- Test UI: `torneo-lab/tests/test_static_ui.py`.
-- Documentazione: `docs/design-system.md`, `docs/PROFESSOR_DASHBOARD.md`, `docs/STUDENT_DASHBOARD.md`, `docs/STUDENT_MANAGEMENT.md`, `docs/DRAG_DROP_ORDERING.md`, `docs/RESULT_APPROVALS.md`, `docs/QR_SHARING.md`, `docs/FIELDS_AND_CALENDAR.md`, `docs/SPORT_RULES_CONFIG.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md`, questo registro.
+- Test UI: `torneo-lab/tests/test_static_ui.py`, `test_bracket_layout.py`, `bracket_layout_probe.js`.
+- Documentazione: `docs/design-system.md`, `docs/PROFESSOR_DASHBOARD.md`, `docs/STUDENT_DASHBOARD.md`, `docs/STUDENT_MANAGEMENT.md`, `docs/DRAG_DROP_ORDERING.md`, `docs/RESULT_APPROVALS.md`, `docs/QR_SHARING.md`, `docs/FIELDS_AND_CALENDAR.md`, `docs/SPORT_RULES_CONFIG.md`, `docs/BRACKET.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md`, questo registro.
 
 Nessuna modifica a `app.py`, `services.py`, `schemas.py`, `db.py`, `migrations/`, `deploy/` o workflow CI.
 
@@ -70,6 +71,8 @@ Dettaglio e stati in [`FRONTEND_TO_BACKEND.md`](FRONTEND_TO_BACKEND.md), sezione
 10. CRUD campi docente (`GET/POST /api/fields`, `PATCH/DELETE /api/fields/{id}`) e aggregato calendario `GET /api/calendar` con conflitti. Dettaglio in [`../FIELDS_AND_CALENDAR.md`](../FIELDS_AND_CALENDAR.md).
 11. Metadati delle regole per variante (`config_schema`, `tie_breakers`) per generare i form senza regole hardcoded. Dettaglio in [`../SPORT_RULES_CONFIG.md`](../SPORT_RULES_CONFIG.md).
 
+Nessuna nuova API per il tabellone: usa `source_home`/`source_away`, `winner_team_id` e `champion_team_id` già presenti. Chiediamo solo che restino stabili nel contratto.
+
 ## Integrazione con `main`
 
 1. `git fetch` e verifica che `main`/`leo-develop` non abbiano modificato gli stessi file.
@@ -97,6 +100,8 @@ Dettaglio e stati in [`FRONTEND_TO_BACKEND.md`](FRONTEND_TO_BACKEND.md), sezione
 - Programmazione partita: il conflitto `409` viene mostrato come “Conflitto di calendario: …” dentro la modale, senza forzare il salvataggio. Il campo resta un testo con suggerimenti (`datalist`), compatibile con il contratto attuale.
 - Regole sport: wizard e modifica usano lo stesso `ruleFieldsetHtml`. Senza `config_schema` i campi modificabili sono solo quelli di `TournamentInput`; durata, tempi, set e pareggio sono mostrati in sola lettura da `variant.rules`. Gli avvisi live non sostituiscono il backend: `409`/`422` restano visibili e bloccano il salvataggio.
 - Tornei già avviati: la modifica non invia campi strutturali (solo nome e descrizione) e mostra il banner «Torneo già iniziato». Non si cerca di aggirare il `409` del backend.
+- Tabellone: geometria e linee vivono in `static/bracket-layout.js` (UMD, testabile con Node). Le relazioni vengono da `source_home`/`source_away`; la colonna Campione usa `champion_team_id`. Le proposte non approvate non modificano `matches` e quindi non fanno avanzare nessuno.
+- Test tabellone: `test_bracket_layout.py` copre 4/8/16 squadre, BYE (6 e 5 squadre), incontri incompleti e invarianza all’ordine dell’array; skip automatico se Node non è installato.
 
 ## Aggiornare il registro
 
