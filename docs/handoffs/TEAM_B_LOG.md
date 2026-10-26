@@ -11,12 +11,13 @@
 
 ## Stato corrente
 
-- Branch: `max-develop` (HEAD `c8eab18`), working tree con questo aggiornamento del registro.
+- Branch: `max-develop` (HEAD `abeb97a`), working tree con questo aggiornamento del registro.
 - Base: `f0eedf9` (`main` / `origin/main`).
 - Frontend, sito e documentazione: modificati dal Team B.
 - Backend: **eccezione autorizzata** dal committente. Tre correzioni in `app.py` e `services.py` descritte nella sezione 8 di `FRONTEND_TO_BACKEND.md`; migrazioni, schemi e contratti invariati.
-- Suite: **241 passed** (warning Starlette/httpx del TestClient, innocuo).
-- Lint: `ruff check --select I,C4,UP,F,E9 .` pulito; `node --check static/app.js` OK.
+- GitHub Pages: workflow pronto e verificato, **non ancora pubblicato** (manca Settings → Pages → Source: GitHub Actions).
+- Suite: **245 passed** (warning Starlette/httpx del TestClient, innocuo).
+- Lint: `ruff check --select I,C4,UP,F,E9 .` pulito; `node --check` su `static/app.js` e `website/script.js` OK.
 - Push: nessuno; il branch resta locale finché il team non lo richiede.
 
 ## Commit del Team B
@@ -45,6 +46,7 @@
 | `312a913` | 26/10 16:26 | Immagine Docker 0.8.0 | `docker-compose.yml` | — | — |
 | `3fcf4a2` | 26/10 16:30 | API e sicurezza: metadati privati | `docs/API.md`, `docs/SECURITY.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | Documenta la visibilità di `public_token`, `teacher_id`, `demo_key` e `audit` | — |
 | `c8eab18` | 26/10 16:30 | Falla cross-torneo, campi privati, elenco senza N+1 | `app.py`, `services.py`, `static/app.js`, `tests/test_players.py`, `tests/test_privacy.py`, `tests/test_summary.py`, `tests/test_static_ui.py` | `remove_player` restituisce 404 su una squadra di un altro torneo; metadati e diario solo al proprietario; «Condividi» solo a chi gestisce | 241 passed |
+| `abeb97a` | 26/10 16:35 | Workflow Pages con verifica e deploy da main | `.github/workflows/pages.yml`, `tests/test_website.py`, `website/README.md`, `README.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | Job `verify` (pip check, node --check, test statici) prima di `deploy`; `main` obbligatorio; permessi minimi; nessun secret | 245 passed |
 
 ## File toccati da `f0eedf9`
 
