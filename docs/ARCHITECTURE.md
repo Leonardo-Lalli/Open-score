@@ -1,5 +1,28 @@
 # Architettura della demo 0.2
 
+## Estensione backend 0.3
+
+La struttura sotto è la baseline conservata. Il backend attuale aggiunge
+`v1_api.py` (route), `v1_schemas.py` (input), `v1_dto.py` (risposte), `auth.py`
+(sessioni/CSRF/permessi), `v1_domain.py`, `v1_results.py`, `v1_resources.py`
+(operazioni transazionali) e `sports.py` (regole pure). `manage.py` gestisce
+account professore, migrazione/assegnazione legacy e backup/restore.
+
+Le route V1 riutilizzano engine e servizi esistenti con estensioni compatibili:
+classifiche sportive, score completo a set e invalidazione dei dati ufficiali.
+Ogni richiesta possiede una connessione; le scritture prendono il lock prima
+della lettura. Le approvazioni comprendono audit, risultato e progressione nella
+stessa transazione. Il calendario viene riverificato dopo l'avanzamento.
+
+La modalità demo mantiene la UI precedente su dati non assegnati; la modalità
+service esclude le API anonime. Le route legacy non possono leggere/modificare
+tornei assegnati. API pubbliche con whitelist separata, senza rose personali.
+Schema 4, nessun cambio framework/DB. Nessun frontend o deploy modificato.
+Dettagli: [contratto](contracts/API_V1.md), [database](DATABASE.md),
+[deployment](DEPLOYMENT_BACKEND.md), [report](CORE_ENGINE_REPORT.md).
+
+## Architettura storica della demo
+
 Questa è l'architettura originale di Open Score, non l'architettura interna di Score7.
 
 ```mermaid

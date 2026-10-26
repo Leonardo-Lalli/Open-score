@@ -1,5 +1,20 @@
 # Report di verifica — 24 ottobre 2026
 
+## Incremento backend 0.3 — 26 ottobre 2026
+
+Suite locale finale: **132 passed, 1 warning**, 103.27 secondi, Windows e Python
+3.14.3; comando `python -m pytest -q` da torneo-lab nell'ambiente virtuale.
+Include i precedenti 87 controlli e 45 nuovi test su account/ruoli/CSRF,
+isolamento, squadre/studenti/ordine, approvazioni, inviti, calendario/campi,
+sport a set, penalità, tavolino, storico multifase e backup/restore.
+OpenAPI generato e `scripts/export_openapi.py --check` passato. Database SQLite
+reali e identità sintetiche. Nessuna nuova prova browser o esecuzione CI remota.
+Il warning Starlette/httpx è quello già presente; i test sono stati eseguiti
+fuori dal sandbox con autorizzazione per le directory temporanee.
+Dettagli, limiti e avvio nel [report backend](CORE_ENGINE_REPORT.md).
+
+## Report storico demo 0.2
+
 ## Esecuzione automatica effettiva
 
 Ambiente: Windows, Python 3.14.3; FastAPI 0.162.0, Pydantic 2.14.1, Uvicorn 0.54.0, pytest 9.1.1, httpx 0.28.1. Dipendenze runtime fissate nel progetto.

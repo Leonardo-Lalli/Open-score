@@ -1,5 +1,10 @@
 # API effettive della demo
 
+> Questo documento descrive le route legacy. Dal backend 0.3 sono disponibili
+> anche le [API V1 autenticate](contracts/API_V1.md). Le route sotto rimangono
+> attive in modalità demo per tornei non assegnati; in modalità service sono
+> disabilitate, eccetto health. Health ora restituisce versione 0.3.0 e modalità.
+
 Server locale: `http://127.0.0.1:8000`. OpenAPI: `/openapi.json`; documentazione interattiva: `/docs`. Gli endpoint sotto `/api` sono originali. Non riproducono né chiamano l'API di Score7.
 
 | Metodo | Percorso | Operazione |

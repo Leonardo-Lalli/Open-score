@@ -1,6 +1,5 @@
 """Export the live FastAPI schema without opening the application's database."""
 import argparse
-import gc
 import json
 import os
 from pathlib import Path
@@ -20,21 +19,24 @@ def render(schema):
 def generate():
     # app.py creates its default app on import. Redirect that initialization too.
     previous = os.environ.get('TORNEO_DB_PATH')
+    previous_mode = os.environ.get('TORNEO_MODE')
     with TemporaryDirectory(prefix='open-score-contract-') as folder:
         os.environ['TORNEO_DB_PATH'] = str(Path(folder) / 'schema.sqlite3')
+        os.environ['TORNEO_MODE'] = 'demo'
         sys.path.insert(0, str(ROOT / 'torneo-lab'))
         try:
             from app import app
             return render(app.openapi())
         finally:
-            # sqlite's context manager commits but does not close the connection
-            # in the existing initializer. Release it before Windows cleanup.
-            gc.collect()
             sys.path.pop(0)
             if previous is None:
                 os.environ.pop('TORNEO_DB_PATH', None)
             else:
                 os.environ['TORNEO_DB_PATH'] = previous
+            if previous_mode is None:
+                os.environ.pop('TORNEO_MODE', None)
+            else:
+                os.environ['TORNEO_MODE'] = previous_mode
 
 
 def main():

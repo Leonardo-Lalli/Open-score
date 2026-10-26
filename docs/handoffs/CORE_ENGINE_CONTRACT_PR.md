@@ -1,5 +1,9 @@
 # Bozza PR — coordinamento A0/A1
 
+> Bozza storica dell'incremento `4e15385`, mai pubblicata. L'utente ha richiesto
+> di proseguire in locale senza push. La descrizione corrente da revisionare
+> è nel [report backend 0.3](../CORE_ENGINE_REPORT.md); questa non descrive il diff attuale.
+
 Stato: **preparata localmente, non aperta su GitHub**. Il push è subordinato
 all'autorizzazione esplicita prevista nel Prompt A, sezione 17. Nessun merge
 autorizzato. Head: `leo-develop`; base: `main`.

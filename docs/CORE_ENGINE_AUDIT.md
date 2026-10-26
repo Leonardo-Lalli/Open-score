@@ -1,5 +1,9 @@
 # Audit core engine — incremento A0/A1
 
+> Snapshot dell'audit iniziale al commit `4e15385`. L'utente ha successivamente
+> richiesto di proseguire in locale senza push. Stato attuale e implementazione
+> sono nel [report 0.3](CORE_ENGINE_REPORT.md), nella matrice e nel contratto aggiornati.
+
 Data: 26 ottobre 2026. Questa analisi aggiorna il perimetro backend rispetto
 all'[audit dello starter](AUDIT.md), che resta una registrazione storica.
 

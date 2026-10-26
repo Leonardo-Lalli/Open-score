@@ -38,7 +38,7 @@ def create(db, data: TournamentInput, demo_key=None):
 
 
 def teams(db, tid):
-    return rows(db, 'SELECT * FROM teams WHERE tournament_id=? ORDER BY id', (tid,))
+    return rows(db, 'SELECT * FROM teams WHERE tournament_id=? AND archived=0 ORDER BY id', (tid,))
 
 
 def games(db, tid):
@@ -52,6 +52,11 @@ def table(db, t, group_id=None):
     if group_id is not None:
         roster = [p for p in roster if p['group_id'] == group_id]
         fixtures = [m for m in fixtures if m['group_id'] == group_id]
+    if t.get('variant_id'):
+        from sports import standings
+        penalties = {r['team_id']: r['points'] for r in db.execute(
+            'SELECT p.* FROM team_penalties p JOIN teams t ON t.id=p.team_id WHERE t.tournament_id=?', (t['id'],))}
+        return standings(roster, fixtures, t['variant_id'], json.loads(t['rules_json']), penalties)
     return build_standings(roster, fixtures, t['win_points'], t['draw_points'], t['loss_points'])
 
 
@@ -96,6 +101,9 @@ def insert_bracket(db, tid, sid, ids, seed=None):
         mapping[i] = db.execute(f'INSERT INTO matches(tournament_id,stage_id,{cols}) '
                                f'VALUES (?,?,{",".join("?" for _ in m)})',
                                [tid, sid, *m.values()]).lastrowid
+    tournament = required(db, tid)
+    if tournament.get('rules_json'):
+        db.execute('UPDATE matches SET duration=? WHERE stage_id=?', (json.loads(tournament['rules_json'])['duration'], sid))
     progress_bracket(db, tid)
 
 
@@ -149,6 +157,8 @@ def generate(db, tid):
                 db.execute('INSERT INTO matches(tournament_id,stage_id,group_id,round_no,position,home_team_id,away_team_id) '
                            'VALUES (?,?,?,?,?,?,?)', (tid,sid,gid,turn,position,home,away))
                 position += 1
+    if t.get('rules_json'):
+        db.execute('UPDATE matches SET duration=? WHERE tournament_id=?', (json.loads(t['rules_json'])['duration'], tid))
     audit(db, tid, 'generated', {'participants':len(ids)})
     return {'created':len(games(db, tid))}
 
@@ -191,7 +201,7 @@ def descendants(fixtures, mid):
     return result
 
 
-def save_result(db, tid, mid, version, home=None, away=None, invalidate=False):
+def save_result(db, tid, mid, version, home=None, away=None, invalidate=False, score_payload=None):
     m = required_match(db, tid, mid, version)
     if m['is_bye'] or not m['home_team_id'] or not m['away_team_id']:
         raise HTTPException(409, 'Incontro non giocabile: attendi gli avversari o il passaggio per BYE')
@@ -204,7 +214,9 @@ def save_result(db, tid, mid, version, home=None, away=None, invalidate=False):
         affected = [g for g in fixtures if g['kind'] == 'knockout']
     elif winner != m['winner_team_id']:
         affected = descendants(fixtures, mid)
-    changed = (home,away) != (m['home_score'],m['away_score'])
+    encoded = json.dumps(score_payload) if score_payload is not None else None
+    changed = ((home,away) != (m['home_score'],m['away_score']) or
+               (score_payload is not None and encoded != m.get('score_json')))
     if changed and affected:
         if (m['kind'] == 'round_robin' or any(g['home_score'] is not None for g in affected)) and not invalidate:
             raise HTTPException(409, 'La correzione modifica le fasi successive. Conferma l’annullamento dei risultati dipendenti')
@@ -216,11 +228,12 @@ def save_result(db, tid, mid, version, home=None, away=None, invalidate=False):
             db.execute("DELETE FROM stages WHERE tournament_id=? AND ordinal=1", (tid,))
         else:
             for g in affected:
-                db.execute('UPDATE matches SET home_score=NULL,away_score=NULL,winner_team_id=NULL,'
-                           'scheduled_at=NULL,location=NULL,version=version+1 WHERE id=?', (g['id'],))
+                db.execute('UPDATE matches SET home_score=NULL,away_score=NULL,winner_team_id=NULL,score_json=NULL,'
+                           'scheduled_at=NULL,location=NULL,field_id=NULL,timezone=NULL,version=version+1 WHERE id=?', (g['id'],))
+                db.execute('DELETE FROM official_results WHERE match_id=?', (g['id'],))
     if changed:
-        db.execute('UPDATE matches SET home_score=?,away_score=?,winner_team_id=?,version=version+1 WHERE id=?',
-                   (home,away,winner,mid))
+        db.execute('UPDATE matches SET home_score=?,away_score=?,winner_team_id=?,score_json=?,version=version+1 WHERE id=?',
+                   (home,away,winner,encoded,mid))
         audit(db, tid, 'result_cleared' if home is None else 'result_saved',
               {'match_id':mid, 'before':[m['home_score'],m['away_score']], 'after':[home,away]})
     progress_bracket(db, tid)

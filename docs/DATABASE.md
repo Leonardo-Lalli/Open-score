@@ -1,5 +1,41 @@
 # Database e conservazione dei dati
 
+## Schema corrente 4 — backend 0.3
+
+Le tabelle della demo descritte sotto sono conservate. La migrazione
+`003_core_platform.sql` aggiunge organizations/users, sessions, auth_attempts,
+tournament_collaborators, students, invites, enrollments, result_proposals,
+official_results, result_reviews, venues, fields e administrative_audit.
+Le nuove colonne collegano tornei a owner/contesto/regole/pubblicazione/versioni,
+squadre a ordine/capienza/archiviazione, incontri a campo/timezone/score JSON,
+audit a un autore. `004_team_penalties.sql` aggiunge penalità persistenti con ragione.
+
+Foreign key, indici di ricerca, unicità utenti/membership/token e vincoli di stato
+sono nelle migrazioni. Sessioni/inviti salvano hash dei token, password con hash
+salato; nessun dato reale nei test. Le API verificano inoltre appartenenza delle
+FK al torneo/contesto, capienza e versioni prima della scrittura atomica.
+
+Le proposte restano distinte dai risultati. official_results rappresenta lo
+stato corrente; result_reviews e audit conservano le revisioni. Quando una finale
+viene ricostruita, le proposte conservano original_match_id e perdono la FK live
+(ON DELETE SET NULL); lo storico mantiene l'ID originale senza una FK che
+impedisca la ricostruzione. I risultati correnti dei nodi eliminati sono rimossi,
+i precedenti snapshot restano nell'audit. Il risultato aggregato in matches è
+usato dal motore; score_json conserva i singoli set. Classifiche sempre derivate.
+
+Ogni aggiornamento da schema precedente crea prima una copia SQLite consistente
+pre-v4 con timestamp. L'inizializzatore chiude esplicitamente la connessione.
+Nessuna assegnazione automatica dei tornei al primo utente: owner resta null.
+La CLI claim valida un preset esplicito e conserva ID/punteggi; approvatore legacy
+non inventato. DB senza versione non vuoto e schema futuro sono rifiutati.
+I backup contengono dati privati e restano esclusi da Git.
+
+I test verificano 1/2→4, FK, riapertura, backup e ripristino su nuovo file senza
+sovrascrivere l'originale. PostgreSQL non è implementato: richiede adapter SQL e
+migrazioni specifiche. Procedura operativa in [DEPLOYMENT_BACKEND](DEPLOYMENT_BACKEND.md).
+
+## Baseline storica 0.2
+
 Default: `torneo-lab/data/open_score.sqlite3`. Percorso configurabile con `TORNEO_DB_PATH`. Il file, i database di test e l'ambiente Python sono esclusi da Git. I quattro esempi vengono creati al primo avvio di un database nuovo. `POST /api/demo` aggiunge gli esempi mancanti senza azzerare i risultati esistenti.
 
 ## Schema effettivo

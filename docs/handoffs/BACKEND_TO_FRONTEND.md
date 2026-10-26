@@ -1,120 +1,106 @@
-# Handoff backend → Team B
+# Handoff backend → Team B — versione 0.3
 
-Data: 26 ottobre 2026. Branch **`leo-develop`**, baseline
-`b541824fbfaf96f43d67c3d1e2f17b53ae1b4c54`. Il commit di consegna è identificabile
-con `git log --oneline --grep="docs(api): define shared tournament contracts"`.
-Il messaggio individua questo incremento, non un commit futuro già pubblicato.
+26 ottobre 2026, branch **leo-develop**, partenza `4e15385`.
+L'utente ha richiesto implementazione locale e **nessun push**. Nessuna PR aperta,
+merge, pubblicazione o modifica del branch del Team B. Revisione congiunta ancora necessaria.
 
-## Consegna A0/A1
+## Implementato
 
-La demo usa FastAPI/SQLite e frontend statico senza React. Questo incremento
-aggiunge documentazione e un controllo OpenAPI; non cambia il comportamento
-di route, autenticazione, ID o JSON correnti. Nessuna modifica a `static/`,
-README principale, workflow o branch del Team B. Nessuna migrazione nuova.
+Account e sessioni server; professori creati da CLI, registrazione solo studenti;
+permessi per proprietario/contesto e collaboratori espliciti; squadre e alias
+studenti con capienza, spostamento e riordino versionato; richieste/iscrizioni;
+proposte discordanti, approvazione/rifiuto/correzione con risultato ufficiale,
+audit attribuibile, classifica e progressione atomici; inviti con hash, scadenza,
+revoca e usi; pubblicazione revocabile con whitelist; sedi/campi e calendario con
+conflitti tra tornei; calcio 11/7/5, basket e pallavolo indoor con regole custom,
+set, tavolino e penalità; bracket con next slot e statistiche ufficiali.
 
-- [Contratto API_V1](../contracts/API_V1.md): sezioni 1–5 disponibili, sezione 6
-  proposta e **non implementata**.
-- [OpenAPI generato](../contracts/openapi.yaml): solo endpoint effettivi `/api`.
-- [Audit](../CORE_ENGINE_AUDIT.md) e [matrice](../CORE_ENGINE_MATRIX.md): stato e lacune.
-- [Bozza PR](CORE_ENGINE_CONTRACT_PR.md): titolo, descrizione e checklist revisione.
+Schema DB 4, migrazioni additive 003 e 004. Nessun dato precedente assegnato al
+primo account. Backup automatico prima degli aggiornamenti di schema; comandi
+backup/restore creano copie verificate senza sovrascrivere l'originale.
 
-## Cosa si può integrare subito
+## Documenti da usare
 
-| UI / funzione | API disponibile | Note |
-| --- | --- | --- |
-| Elenco e wizard | GET/POST `/api/tournaments`, POST `/{tid}/generate` | Creazione e generazione separate; se la seconda fallisce conservare la bozza |
-| Squadre | POST `/{tid}/teams`, PATCH/DELETE `/{tid}/teams/{team_id}` sotto `/api/tournaments` | Aggiunta/rimozione solo prima della generazione; nomi unici |
-| Partite, classifiche, gruppi | GET `/api/tournaments/{tid}` | Tutto nel dettaglio, non chiamare endpoint standalone inesistenti |
-| Risultato e cancellazione | PATCH `/{tid}/matches/{mid}`, DELETE `/{tid}/matches/{mid}/result` | `version` obbligatoria, risultato immediatamente autorevole |
-| Calendario manuale | PATCH `/{tid}/matches/{mid}/schedule` | Corpo completo, UTC in risposta; campo ancora testuale |
-| Tabellone | `detail.matches` con kind knockout | Usare source_home/source_away, stage_id/round_no/position; BYE non è punteggio |
-| Statistiche demo | team_count nell'elenco, progress/campione nel dettaglio | Nessun conteggio studenti o proposte; totale solo fasi generate |
-| Link spettatore | GET `/api/public/{token}`, UI `/public/{token}` | Solo demo locale; non è invito, nessuna revoca |
-| Export | GET `/api/tournaments/{tid}/export.csv` | CSV con BOM e mitigazione formule |
+- [Contratto attuale](../contracts/API_V1.md): endpoint realmente implementati, input, stati ed errori.
+- [OpenAPI generato](../contracts/openapi.yaml): input e risposte V1 tipizzate, cookie e CSRF.
+- [Deployment e prova locale](../DEPLOYMENT_BACKEND.md): account professore, migrazioni, backup/ripristino.
+- [Report incremento](../CORE_ENGINE_REPORT.md): test, limiti e stato Git.
+- [Matrice aggiornata](../CORE_ENGINE_MATRIX.md): confronto con il Prompt A.
 
-Per le righe con percorsi abbreviati il prefisso è `/api/tournaments`.
-I dettagli esatti degli input/risposte/errori sono nel contratto, evitando una
-seconda specifica divergente qui.
+La prima proposta rimane nella cronologia al commit `4e15385`. Differenze
+implementative esplicite: catalogo sport come lista piatta di varianti;
+organization current come oggetto organization nullable; cursor numerico a offset;
+review conserva created_at e original_match_id; endpoint my-participation e penalty;
+public_url punta alla API JSON funzionante, non a una pagina frontend inesistente.
 
-Esempio sintetico da creare in un DB di sviluppo isolato:
+## Integrazione frontend
+
+La UI e gli asset statici non sono stati modificati. In **demo** il sito esistente
+continua a usare le route `/api` per tornei non assegnati. Le API V1 richiedono
+login anche in demo. In **service** le vecchie route sono disabilitate: serve il
+client V1. Un torneo assegnato da CLI non compare più nella demo anonima.
+
+Per login: GET `/api/v1/auth/csrf`, poi POST login con X-CSRF-Token; conservare il
+nuovo token ricevuto e inviarlo con il cookie nelle scritture. Non usare bearer token
+nei link QR. POST register crea solo studenti e ruota la sessione. La sessione è
+HttpOnly, quindi il client non legge il cookie direttamente. Su stesso origin
+fetch invia i cookie; eventuale altro dominio richiede accordo esplicito su proxy/CORS.
+
+Le risposte 401 devono portare al login; 403 a permessi/CSRF; 404 a risorsa assente;
+409 a rilettura e confronto. Non convertire automaticamente 409 in invalidate true.
+Campi di errore: detail stringa/lista, code e current_version quando disponibile.
+I messaggi legacy possono essere generici, non classificare dal testo italiano.
+Host non valido può essere rifiutato dal middleware con testo anziché JSON.
+
+Riordino: ordered_team_ids è la permutazione completa delle squadre attive;
+version è order_version, non la versione torneo o squadra. Nessun cambio al seed.
+Spostamenti studenti richiedono versione Student, risultato richiede match_version.
+Rileggere il dettaglio dopo scritture: possono cambiare più incontri/versioni.
+La durata iniziale degli incontri deriva dal preset; il calendario usa payload
+completo con scheduled_at/timezone/field_id/duration/version, non merge parziale.
+
+Form dinamici: GET sports e rules-schema. Il risultato è discriminato per type,
+points/sets/forfeit. Un punteggio a set non è 3–0 numerico senza singoli set.
+Proposte e risultati ufficiali sono separati: non aggiornare classifica/bracket
+con score di una proposta pending. Le proposte obsolete sono segnalate da stale;
+una correzione della fase finale può conservare proposte con match_id null e
+original_match_id storico.
+
+Gli inviti forniscono `/join#TOKEN` per il futuro flusso QR. **La pagina join non
+esiste ancora**: leggere il frammento nel client e chiamare validate/accept dopo
+login. public_url fornisce già JSON senza informazioni personali degli studenti;
+realizzare una pagina spettatore V1 su questo contratto. Non esporre autori,
+email, rose o audit nelle viste pubbliche.
+
+Bracket: usare stage_id/round_no/position, source_home/source_away e next con
+match_id/slot; BYE non è una partita né 0–0. Statistiche: dati derivati dai risultati
+ufficiali, non dalle proposte. Nei multifase il totale cresce alla qualificazione,
+con phases_pending_generation. Non interpretare 100% parziale come campione.
+
+## Prova sintetica
+
+Creare professore da manage.py, fare login da /docs, poi POST `/api/v1/tournaments`:
 
 ```json
-{"name":"Coppa sintetica","sport":"Calcio a 5","format":"knockout","team_names":["Alfa","Beta","Gamma"]}
+{"name":"Coppa sintetica","variant_id":"football-5","format":"knockout","team_names":["Alfa","Beta","Gamma"]}
 ```
 
-Inviare a POST `/api/tournaments`; usare l'ID ricevuto per generare e rileggere.
-Nessun ID o token fornito nell'esempio va considerato costante o credenziale.
-`POST /api/demo` carica i quattro esempi senza azzerare risultati esistenti;
-non chiamarlo come parte di un futuro ambiente di produzione.
+Usare l'ID ricevuto in generate; GET dettaglio. Registrare uno studente separato,
+associarlo da account professore e assegnarlo a una squadra. Lo studente propone,
+il professore approva. Per pallavolo usare variante volleyball-indoor e score sets.
+Non esistono ID, token o credenziali fissi di produzione nelle fixture.
 
-## Cosa resta proposto
+## Limiti e revisione
 
-Non collegare ancora le schermate a `/api/v1`: non esiste. Sono proposti login,
-studenti/rose, iscrizioni, ordine squadre, proposte/revisioni, pubblicazione
-revocabile, inviti, campi/sedi, regole sportive, bracket e statistiche dedicate.
-La sezione 6 specifica metodi, percorsi, payload e autorizzazioni candidate.
-Usare prototipi di interfaccia chiaramente indicati come tali finché il backend
-non passa da proposto a implementato e testato; non simulare conferme riuscite.
+Restano UI e QR, recupero password via email, import massivo studenti,
+cancellazione definitiva dati/tornei, CRUD completo sedi, regole modificabili dopo
+generazione, ricalcolo penalità dopo qualificazione, scheduler, altre discipline,
+PostgreSQL e pubblicazione reale. Preset scolastici, senza conformità federale dichiarata.
 
-L'ordine visuale non cambierà seeding o tabelloni; la relativa versione sarà di
-collezione. Le proposte non cambieranno classifica o campione finché un professore
-non le approverà. Il QR conterrà un URL, senza assegnare privilegi o identità.
+**132 test passati**, 1 warning di deprecazione, 103.27 secondi. Test con SQLite
+reale e identità sintetiche; OpenAPI sincronizzato. Esito e comandi nel report.
+La CI esistente esegue tutti i test, incluso OpenAPI; nessuna nuova esecuzione
+remota è stata avviata o dichiarata verde. Nessuna nuova prova browser frontend.
 
-## Errori e stati client
-
-- Dopo successo di un risultato/orario rileggere il dettaglio e la versione.
-- 409 versione: offrire aggiornamento e mantenere l'input per confronto, senza
-  sovrascrivere automaticamente. 409 dipendenze: chiedere conferma esplicita
-  prima di `invalidate:true`.
-- 422: visualizzare `detail` stringa o lista di errori. Non fare affidamento sul
-  testo italiano per classificare l'errore: V1 proporrà `code` stabile.
-- Origin 403 e Host 400 possono essere testo, non JSON. Gestire il fallback.
-- `[]` significa lista caricata vuota, `null` significa valore assente; nessun
-  risultato ancora inserito non equivale a 0–0. Distinguere caricamento,
-  errore di rete, risorsa 404 e assenza di incontri.
-- Nei multifase il totale cresce quando viene generato il knockout: la
-  percentuale attuale è sulle fasi generate, non sull'intero percorso futuro.
-
-## Autorizzazioni e migrazione da concordare
-
-Attualmente nessuna API organizzatore richiede login. Host/Origin e vista pubblica
-non sono ruoli. Restare in locale e usare dati sintetici.
-La proposta introduce sessione HttpOnly, CSRF e controllo proprietario/contesto.
-L'attivazione richiede adattamenti espliciti del client e una migrazione di
-assegnazione dei tornei esistenti. Il frontend dovrà distinguere 401, 403 e 404;
-mai consentire allo studente di inviare ruolo o identità del revisore.
-
-La scelta di un frontend GitHub Pages con backend su dominio diverso richiede
-una revisione su cookie/CORS/HTTPS. Nessun hosting, DNS o deploy scelto in questa
-consegna; il dominio Aruba da solo non indica la capacità di eseguire FastAPI.
-
-## Verifiche e limiti
-
-Baseline eseguita: **85 passed, 1 warning**, Python 3.14.3 su Windows.
-Il warning è la deprecazione Starlette/httpx. L'esecuzione sandbox era bloccata
-dalle directory temporanee; la suite completa è stata eseguita con autorizzazione.
-
-Verifica finale: **87 passed, 1 warning**, 14.50 s. Include confronto dello
-snapshot con `/openapi.json` e prova in un processo separato che `--check`
-non apra/modifichi il database configurato dall'utente né riscriva lo snapshot.
-Eseguito anche `python scripts/export_openapi.py --check`: sincronizzato.
-La CI esistente esegue automaticamente anche il nuovo test, ma non è stata
-avviata/verificata una nuova esecuzione GitHub Actions. Nessuna nuova prova UI.
-
-Limiti principali: risposte non tipizzate in OpenAPI, nessuna autenticazione o
-privacy scolastica completa, nessun workflow studenti, sport solo numerici,
-conflitti calendario interni al torneo. Le future API richiedono codice,
-migrazioni, autorizzazioni e test: il contratto da solo non le implementa.
-
-## Procedura di integrazione
-
-1. Revisionare il contratto insieme: prefisso, sessione/CSRF, ID, DTO, errori,
-   membership, approvazioni, inviti e primi preset sportivi.
-2. Il push su `leo-develop` richiede autorizzazione esplicita dell'utente come
-   previsto dall'allegato. La PR va verso `main`; niente force push o merge automatico.
-3. Dopo revisione dei due sviluppatori e integrazione del contratto, procedere
-   con incrementi A2–A9 aggiornando handoff, schema e matrice ad ogni consegna.
-
-La PR e la revisione non sono ancora avvenute. Nessun conflitto locale rilevato;
-non è stato confrontato il lavoro non disponibile del Team B, quindi non si
-garantisce assenza di conflitti nei suoi commit futuri.
+Prima del merge revisionare convenzioni, cookie/CSRF, DTO, preset sportivi e flussi
+studenti con entrambi gli sviluppatori. Nessun push o merge prima dell'autorizzazione.

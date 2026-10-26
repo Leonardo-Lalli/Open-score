@@ -1,56 +1,46 @@
-# Matrice backend rispetto al Prompt A
+# Matrice core engine — backend 0.3
 
-Data: 26 ottobre 2026. Baseline `b541824`, branch `leo-develop`.
-La [matrice storica](FEATURE_MATRIX.md) descrive la demo 0.2. Questa matrice
-confronta i nuovi requisiti con il codice, senza promuovere una proposta a funzione.
+26 ottobre 2026. Branch leo-develop, baseline precedente `4e15385`.
+La matrice storica FEATURE_MATRIX descrive la demo 0.2. Qui si confronta il
+Prompt A con l'implementazione locale; UI e revisione remota sono separate.
+Esiti effettivi di test e limiti nel [report](CORE_ENGINE_REPORT.md).
 
-Stati: **Testato** = presente e verificato nella suite locale per il perimetro
-scritto; **Parziale** = soltanto una parte esiste; **Proposto** = contratto
-revisionabile, nessuna implementazione; **Da realizzare** = manca il componente.
-
-| Area richiesta | Stato effettivo | Evidenza / limite | Incremento dopo revisione |
-| --- | --- | --- | --- |
-| Audit e inventario Markdown | Completato | CORE_ENGINE_AUDIT, 14 Markdown baseline, codice e configurazioni letti | A0 |
-| Contratto disponibile `/api` | Documentato e sincronizzato | API_V1 e openapi.yaml da FastAPI; risposta non tipizzata in OpenAPI | A1 |
-| Nuovi endpoint `/api/v1` | Proposti | Sezione 6 del contratto; nessuna route V1 attiva | A2–A8 |
-| Conservazione dopo riapertura | Testato | test_persistence_and_migration | Mantenere |
-| Migrazioni versionate e integrità | Testato / parziale | 1→2 senza perdita; nessun import legacy/PostgreSQL | A2/A9 |
-| Backup/restore operativo | Da realizzare | Solo istruzioni copia a server fermo; restore non provato | A9 |
-| Account professore/studente | Proposto | Nessun login, password hash o sessione corrente | A2 |
-| Organizzazioni e isolamento proprietario | Proposto | Nessun owner o organizzazione nel DB | A2 |
-| Visitatore pubblico | Parziale | GET spettatore testato, nessuna policy pubblicazione o whitelist per studenti | A2/A5 |
-| CRUD tornei | Parziale | Crea/elenca/legge; niente modifica/cancellazione API | A3 |
-| CRUD squadre | Parziale testato | Crea/rinomina/elimina in bozza; nessuna archiviazione | A3 |
-| Studenti, rose e membership | Proposto | `teams` non è un modello studente | A3 |
-| Ricerca, import e duplicati | Parziale | Duplicati nomi gestiti; niente ricerca server/import strutturato | A3 |
-| Iscrizioni e capienza | Proposto | Nessuna tabella o API | A3/A5 |
-| Ordine visuale persistente | Proposto | Ordine attuale per ID, nessuna versione di collezione | A3 |
-| Spostamento studenti tra squadre | Proposto | Nessuna membership attuale | A3 |
-| Risultato diretto e correzione | Testato | Versione, transazione, invalidazione e audit demo | Mantenere con autorizzazioni |
-| Proposte multiple degli studenti | Proposto | Nessuna entità proposta | A4 |
-| Approvazione/rifiuto/correzione professore | Proposto | Nessuna revisione o autore nel DB | A4 |
-| Atomicità risultati / concorrenza | Testato / parziale | 200/409 su risultato concorrente; workflow approvazione mancante | A4 |
-| Audit amministrativo attribuibile | Parziale | Azione e snapshot, senza identità autore | A2/A4 |
-| Link di sola lettura | Parziale testato | Token sempre attivo; niente revoca/pubblicazione intenzionale | A5 |
-| Inviti QR e accettazione identificata | Proposto | Nessun invito o uso/scadenza nel DB | A5 |
-| Campi/sedi personalizzati | Proposto | `location` è testo, non risorsa | A6 |
-| Calendario manuale con UTC | Parziale testato | Versione e conflitti noti dentro il singolo torneo | A6 |
-| Disponibilità e conflitti tra tornei | Proposto | Nessun inventario condiviso | A6 |
-| Sport a punteggio numerico | Parziale | Calcio/Calcio a 5/Basket/Pallamano come etichette con regole generiche | A7 |
-| Varianti, preset e form dinamici | Proposto | Nessun catalogo o schema di regole servito | A7 |
-| Punteggi a set e vincitore validato | Proposto | Pallavolo attualmente rifiutata; niente validatore set | A7 |
-| Penalità, tavolino e spareggi dedicati | Da realizzare | Nessuna rappresentazione esplicita | A7, con regole e test propri |
-| Round-robin pari/dispari e due andate | Testato | test_round_robin_invariants | Mantenere |
-| Knockout 2–32, BYE e progressione | Testato | test_bracket_tree_and_byes, test_complete_knockout_with_byes | Mantenere |
-| Gironi e qualificazioni | Testato | 16→4 gironi→8 finaliste; correzioni con ricostruzione | Mantenere |
-| Dati bracket | Parziale testato | ID/turno/posizione/sorgenti/vincitore presenti; manca slot successivo esplicito | A8 |
-| Classifiche | Testato nel perimetro demo | Punti/differenza/fatti/nome/ID; nessuna regola specifica sport | A7/A8 |
-| Statistiche e percentuale | Parziale | progress, team_count e campione; niente studenti/proposte; totale cresce tra fasi | A8 |
-| CI backend | Presente | tests.yml, Python 3.11/3.14; nessuna nuova esecuzione remota dichiarata | Mantenere |
-| Deployment backend / Aruba | Da realizzare | Hosting sconosciuto, nessun deploy autorizzato | A9 |
-| Handoff e PR coordinamento | Preparati localmente | BACKEND_TO_FRONTEND e bozza PR; revisione e integrazione non avvenute | A1 |
-
-Verifica iniziale: **85 test passati**, 1 warning di deprecazione. Verifica
-finale: **87 test passati**, stesso warning, inclusi i due controlli del
-contratto/esportatore. `export_openapi.py --check` passato. Nessuna nuova verifica
-end-to-end frontend dichiarata.
+| Requisito | Stato backend | Evidenza / limite |
+| --- | --- | --- |
+| Audit e lettura Markdown | Eseguiti | CORE_ENGINE_AUDIT, aggiornamenti nel report |
+| Contratto condiviso | Implementato e generato | API_V1, OpenAPI, controllo automatico; revisione Team B non avvenuta |
+| Persistenza e riapertura | Implementate e testate | SQLite reale, schema 4, riapertura risultati e permessi |
+| Migrazioni conservative | Implementate e testate | 1/2→4, backup automatico, owner non assegnato implicitamente |
+| Backup e restore | Implementati e testati | manage.py, destinazione nuova, integrità e riapertura applicativa |
+| Account e password | Implementati e testati | Hash con salt, sessione HttpOnly, CSRF, logout, scadenza e rate limit |
+| Proprietario/organizzazioni | Implementati e testati | Isolamento professori, studenti autorizzati, blocco bypass legacy |
+| Collaboratori | Supporto esplicito locale | CLI e membership nello stesso contesto; nessuna UI di gestione |
+| CRUD tornei | Parziale | Crea/legge/modifica; nessuna cancellazione definitiva |
+| Squadre e archiviazione | Implementate e testate | Nomi unici, capienza, versioni; struttura bloccata dopo generazione |
+| Studenti e rose | Implementati e testati | Alias, account opzionale, assegnazione/spostamento/rimozione squadra |
+| Ricerca e filtri | Implementati | Squadre/studenti, calendario, match e stati; pagine a offset |
+| Import studenti massivo | Non implementato | Richiede procedura di deduplicazione e report |
+| Ordine persistente | Implementato e testato | Versione collezione, permutazione atomica; seed e match invariati |
+| Iscrizioni e capienza | Implementate e testate | Richiesta, approvazione/rifiuto, ultimo posto concorrente |
+| Proposte discordanti | Implementate e testate | Record separati, nessun cambiamento alla classifica prima di review |
+| Review e risultato ufficiale | Implementati e testati | Ruoli, versioni, approvazione/correzione/rifiuto, storico e rollback |
+| Audit attribuibile | Implementato | Actor, snapshot e revisioni; audit separato per campi/sedi |
+| Pubblicazione revocabile | Implementata e testata | URL JSON stabile, whitelist pubblica, nessuna rosa/email/audit |
+| Inviti QR server-side | Implementati e testati | Hash/scadenza/revoca/usi, identità, idempotenza, concorrenza |
+| UI QR e join | Team B, non implementate | URL join previsto, validate/accept funzionanti da API |
+| Campi e sedi | Implementati e testati nel perimetro | CRUD/archiviazione campi; sedi create/elencate, niente CRUD sedi completo |
+| Disponibilità e calendario | Implementati e testati | UTC/IANA, sport, campo tra tornei, squadre e dipendenze dirette |
+| Scheduler automatico | Non implementato | Gestione manuale validata |
+| Calcio 11/7/5 | Implementato e testato | Preset scolastici, punti/durate/periodi, pareggi e knockout |
+| Basket standard | Implementato e testato | Risultato finale decisivo, punti configurabili |
+| Pallavolo indoor | Implementata e testata | Set completi/scarto/decisivo, custom best-of e punti classifica |
+| Altre discipline/varianti | Non implementate | Nessuno sport aggiunto come segnaposto |
+| Tavolino e penalità | Implementati con limiti | Tavolino esplicito, penalità classifica; blocco penalità dopo qualificazione |
+| Round-robin e knockout | Conservati e testati | 2–32, BYE, andata/ritorno, correzioni e qualificazioni |
+| Dati bracket espliciti | Implementati e testati | Sorgenti e next slot, campione, risultato ufficiale distinto |
+| Statistiche | Implementate e testate | Squadre/studenti/match/proposte, percentuale, qualificate, pubblico sicuro |
+| CI backend | Presente | Workflow tests.yml esteso automaticamente dalle nuove suite, nessun run remoto dichiarato |
+| Deployment e Aruba | Documentati, non eseguiti | Config service, TLS/backup/rollback; prodotto Aruba sconosciuto |
+| PostgreSQL | Valutato, non implementato | Necessari adapter e migrazioni dedicate |
+| Frontend end-to-end | Non integrato | Asset e README principale invariati, handoff aggiornato |
+| Push/PR/merge | Non eseguiti | Divieto esplicito dell'utente; solo commit locali |

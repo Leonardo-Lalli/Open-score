@@ -1,5 +1,10 @@
 # Piano per passi verificabili
 
+> Il piano sotto conserva lo stato della demo 0.2. Il successivo incremento
+> backend 0.3 implementa account, studenti, revisioni, inviti, campi e regole
+> sportive: vedere [report attuale](CORE_ENGINE_REPORT.md) e
+> [matrice core](CORE_ENGINE_MATRIX.md). UI e deployment restano separati.
+
 ## Incremento consegnato: demo locale 0.2
 
 Obiettivo: creare un torneo originale, registrare risultati reali, seguire un tabellone e una classifica, dimostrare qualificazioni e conservare i dati. Non equivale alla piattaforma completa del master prompt.
