@@ -159,7 +159,7 @@ Input su mobile: `font-size: 16px` per evitare lo zoom iOS; touch target ≥44px
 | Tabella | `.table-wrap`, `.table-note` | scroll orizzontale su mobile |
 | Elenco dettagli | `.details-list` | coppie dt/dd |
 | Classifica | tabella dentro `.panel` | posizione, punti, differenza |
-| Bracket | `.bracket-scroll`, `.bracket-tree`, `.round-title`, `.tree-help` | scroll orizzontale, niente zoom/pan dedicato |
+| Bracket | `.bracket-scroll`, `.bracket-tree`, `.round-title`, `.tree-help` | scroll orizzontale; su mobile `.bracket-mobile-nav`, `.bracket-rounds`, `.bracket-round-chip` | 
 | Regolamento | `.regulation-copy`, `.rule-list`, `.rule-pills`, `.rules-preview` | testo + pillole |
 | Punteggio a set | `.set-inputs`, `.set-row` | input per set |
 | Diario | `.timeline-item` | storico modifiche |
@@ -188,6 +188,17 @@ Regole mobile già attive:
 - `touch-action: manipulation`, `-webkit-tap-highlight-color: transparent`.
 
 **Da migliorare:** la dashboard su telefono non deve solo restringersi. Le card e le statistiche vanno ripensate (es. 2 colonne → 1, gerarchia diversa, azioni in basso).
+
+### Dashboard e bracket su telefono (implementato)
+
+- hero a una colonna sotto 560px, artwork decorativo nascosto, CTA a larghezza piena;
+- griglia tornei a una colonna sotto 560px e card con padding ridotto;
+- statistiche 2×2 fino a 380px, poi una colonna;
+- intestazioni di sezione con filtri a capo e filtrabili in orizzontale;
+- bracket con hint “scorri o scegli un turno” e chip dei turni che portano il tabellone alla colonna scelta;
+- `.bracket-scroll` focusabile da tastiera (`tabindex="0"`, `role="region"`).
+
+**Da migliorare ancora:** valutare uno zoom/pan esplicito e un drag & drop per il seeding.
 
 ## 6. Accessibilità
 
@@ -227,5 +238,5 @@ Da verificare o completare:
 - Sezione legacy non usata dalla SPA: candidata alla rimozione dopo verifica dei redirect e delle pagine statiche.
 - Molte dimensioni tipografiche piccole (8–10px) e valori hardcoded fuori dai token di spaziatura.
 - Nessun dark mode / `prefers-color-scheme`.
-- Bracket senza zoom/pan e senza drag & drop (previsto nel piano Team B).
+- Bracket senza zoom/pan e senza drag & drop (previsto nel piano Team B); il navigatore dei turni su mobile è già presente.
 - Statistiche individuali e QR non ancora presenti.

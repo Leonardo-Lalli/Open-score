@@ -106,6 +106,16 @@ def test_role_login_form_wraps_its_fields_and_submit(client):
     assert parser.has_submit
 
 
+def test_mobile_dashboard_and_bracket_have_dedicated_rules(client):
+    css = (BASE / 'static' / 'styles.css').read_text(encoding='utf-8')
+    for selector in ('.bracket-mobile-nav', '.bracket-round-chip', '.hero-buttons .button'):
+        assert selector in css
+    script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
+    assert '"bracket-round"' in script
+    assert 'role="region" aria-label="Tabellone del torneo"' in script
+    assert 'tabindex="0"' in script
+
+
 def test_role_gate_offers_teacher_login_and_student_read_only(client):
     html = client.get('/').text
     assert 'id="role-gate"' in html

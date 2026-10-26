@@ -613,6 +613,10 @@ function bracket() {
     return `<div class="panel empty">${icon("trophy")}<h2>La finale si conquista.</h2><p>${data.tournament.format === "groups" ? "Completa tutti i gironi. Le squadre qualificate riempiranno automaticamente il tabellone." : "Genera gli incontri per vedere il percorso verso la coppa."}</p>${button("Vai alle partite", "matches", "primary")}</div>`;
   const rounds = Math.max(...fixtures.map((m) => m.round_no));
   const first = fixtures.filter((m) => m.round_no === 1).length;
+  const roundList = Array.from({ length: rounds }, (_, i) => ({
+    number: i + 1,
+    name: roundName(fixtures.find((m) => m.round_no === i + 1)),
+  }));
   const coords = Object.fromEntries(
     fixtures.map((m) => [
       m.id,
@@ -631,7 +635,7 @@ function bracket() {
         lines += `<path d="M${a.x + 246},${a.y}H${a.x + 270}V${end.y}H${end.x}"/>`;
       }
   }
-  return `<div class="section-header"><div><h2>La strada verso la coppa.</h2><p class="section-sub">${publicToken ? "Segui ogni passaggio del torneo." : "Seleziona un incontro per registrare o correggere il risultato."}</p></div></div><div class="bracket-scroll"><div class="bracket-tree" style="width:${rounds * 295 - 48}px;height:${Math.max(210, first * 128 + 60)}px"><svg width="${rounds * 295 - 48}" height="${first * 128 + 60}" aria-hidden="true"><g fill="none" stroke="#c5d1b5" stroke-width="1.5">${lines}</g></svg>${Array.from({ length: rounds }, (_, i) => `<div class="bracket-title" style="left:${i * 295}px;top:0">${h(roundName(fixtures.find((m) => m.round_no === i + 1)))}</div>`).join("")}${fixtures
+  return `<div class="section-header"><div><h2>La strada verso la coppa.</h2><p class="section-sub">${publicToken ? "Segui ogni passaggio del torneo." : "Seleziona un incontro per registrare o correggere il risultato."}</p></div></div><div class="bracket-mobile-nav" role="group" aria-label="Vai a un turno"><p class="bracket-mobile-hint">${icon("link")} Scorri il tabellone o scegli un turno.</p><div class="bracket-rounds">${roundList.map((round, i) => `<button type="button" class="bracket-round-chip ${i === 0 ? "active" : ""}" data-action="bracket-round" data-round="${round.number}" aria-pressed="${i === 0}">${h(round.name)}</button>`).join("")}</div></div><div class="bracket-scroll" tabindex="0" role="region" aria-label="Tabellone del torneo"><div class="bracket-tree" style="width:${rounds * 295 - 48}px;height:${Math.max(210, first * 128 + 60)}px"><svg width="${rounds * 295 - 48}" height="${first * 128 + 60}" aria-hidden="true"><g fill="none" stroke="#c5d1b5" stroke-width="1.5">${lines}</g></svg>${Array.from({ length: rounds }, (_, i) => `<div class="bracket-title" style="left:${i * 295}px;top:0">${h(roundName(fixtures.find((m) => m.round_no === i + 1)))}</div>`).join("")}${fixtures
     .map((m) => {
       const pos = coords[m.id],
         editable =
@@ -1091,6 +1095,20 @@ const actions = {
     await api("/tournaments/" + selectedId + "/generate", { method: "POST" });
     await openTournament(selectedId, true);
     notify("Incontri generati. Si gioca!");
+  },
+  "bracket-round": (el) => {
+    const round = Number(el.dataset.round);
+    const scroll = $(".bracket-scroll");
+    if (!scroll || !Number.isFinite(round)) return;
+    const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? "auto"
+      : "smooth";
+    scroll.scrollTo({ left: (round - 1) * 295, behavior });
+    document.querySelectorAll(".bracket-round-chip").forEach((chip) => {
+      const active = chip === el;
+      chip.classList.toggle("active", active);
+      chip.setAttribute("aria-pressed", String(active));
+    });
   },
   copy: async () => {
     const el = $("#share-url");
