@@ -14,7 +14,7 @@ Questo documento è l'audit iniziale del frontend e l'elenco delle richieste ver
 - Servita da FastAPI: `GET /` e `GET /public/{token}` restituiscono `static/index.html`; gli asset sono versionati (`?v=0.8.0`) e serviti con `Cache-Control: no-cache, must-revalidate`.
 - **QR**: `static/vendor/qrcode.js` (qrcode-generator 1.4.4, MIT) genera localmente l'SVG della vista spettatore. Nessuna API e nessuna richiesta esterna.
 - **Un solo file JS** (`app.js`, ~1.500 righe) con stato modulare globale, nessun modulo ES.
-- **Routing hash** limitato al catalogo: `#/sport`, `#/sport/{sport}`, `#/sport/{sport}/{variante}`, più l'alias invito `#/join/{token}`. La navigazione principale (dashboard, torneo, tab) è gestita via stato (`selectedId`, `tab`) e re-render del `<main id="content">`, non via URL.
+- **Routing hash** limitato al catalogo, al calendario e ai campi: `#/sport`, `#/sport/{sport}`, `#/sport/{sport}/{variante}`, `#/calendar`, `#/fields`, più l'alias invito `#/join/{token}`. La navigazione principale (dashboard, torneo, tab) è gestita via stato (`selectedId`, `tab`) e re-render del `<main id="content">`, non via URL.
 - **Rendering lato client**: funzioni `render*` che producono stringhe HTML e le assegnano con `innerHTML`; `h()` esegue l'escape; `icon()`/`button()` sono helper.
 - Nessun bundler, nessun framework CSS: `styles.css` (~4.200 righe) con token CSS in `:root`.
 
@@ -31,9 +31,10 @@ Questo documento è l'audit iniziale del frontend e l'elenco delle richieste ver
 | Wizard | `startWizard`, `sportOptions`, `sportOptionsFor`, `variantOptionsFor`, `syncEditVariant`, `readWizard` |
 | Azioni globali | `actions` map (`new`, `catalog`, `open`, `edit`, `share`, `download-qr`, `print-qr`, `share-qr`, `invite-join`, `generate`, `score`, `archive`, `restore`, `print`, `refresh`, `copy`, …) |
 | Condivisione e inviti | `share`, `qrSvg`, `downloadQr`, `printQr`, `shareLink`, `inviteAdapter`, `inviteError`, `showInviteShell`, `openInvite`, `renderInvite`, `joinInvite` |
+| Campi e calendario | `fieldsAdapter`, `fieldError`, `openFields`, `renderFields`, `fieldModal`, `fieldCard`, `knownFieldOptions`, `calendarAdapter`, `openCalendar`, `reloadCalendar`, `renderCalendar`, `buildCalendarEvents`, `detectCalendarConflicts`, `filterCalendarEvents`, `updateScheduleConflictHint`, `scheduleError` |
 | Avvio | `init` — carica sessione e catalogo, decide gate vs studente, delega il rendering |
 
-Stato globale: `list`, `sports`, `auth {role, authenticated, teacher}`, `selectedId`, `data`, `tab`, `filter`, `matchFilter`, `search`, `wizard`, `wizardStep`, `catalogMode`, `catalogSport`, `catalogVariant`, `catalogDetail`, `inviteState`, `pendingInviteToken`.
+Stato globale: `list`, `sports`, `auth {role, authenticated, teacher}`, `selectedId`, `data`, `tab`, `filter`, `matchFilter`, `search`, `wizard`, `wizardStep`, `catalogMode`, `catalogSport`, `catalogVariant`, `catalogDetail`, `calendarMode`, `fieldsMode`, `calendarState`, `calendarFilters`, `calendarError`, `calendarLoading`, `fieldsCache`, `fieldsError`, `inviteState`, `pendingInviteToken`.
 
 ### Client HTTP esistente
 
@@ -64,6 +65,8 @@ Stato globale: `list`, `sports`, `auth {role, authenticated, teacher}`, `selecte
 - QR del link spettatore, generato nel browser senza servizi esterni.
 - Modale di condivisione con copia link, download del QR in SVG, stampa del solo QR e Web Share API con fallback.
 - Pagina di accettazione invito (`/?invite=<token>`, `#/join/<token>`) con anteprima reale tramite il link pubblico e adesione in attesa dell'API inviti.
+- Pagina **Campi** (`#/fields`, solo docenti) con elenco, scheda, creazione/modifica/disattivazione predisposte e campi citati negli incontri.
+- Pagina **Calendario** (`#/calendar`) con partite per giorno, filtri per torneo/squadra/giorno/campo/stato e conflitti visibili.
 - Riordino dei partecipanti nel wizard con drag & drop (mouse/touch) e tastiera; l'ordine viene inviato al backend in `team_names`.
 - Vista spettatore (`/public/{token}`) in sola lettura con auto-refresh.
 
@@ -134,6 +137,13 @@ Prima del contratto ufficiale, lavoro su attività indipendenti o con mock isola
    - *Oggi*: `inviteAdapter.ready` è `false`; la pagina usa in sola lettura `GET /api/public/{token}` per l'anteprima e disabilita l'adesione. Nessuna iscrizione simulata.
    - *Privacità*: l'organizzatore va esposto solo se pubblicabile; il token deve essere opaco (niente email, password o token di sessione).
    - *Opzionale*: `GET /join/{token}` che restituisce `static/index.html` (come `/public/{token}`); oggi funzionano già `/?invite=<token>` e `#/join/<token>`.
+
+13. **Campi e calendario aggregato**.
+   - *Serve*: CRUD dei campi del docente (nome, descrizione, sede, sport supportati, disponibilità, stato) e un aggregato del calendario con conflitti calcolati dal server. Frontend e contratto sono documentati in [`../FIELDS_AND_CALENDAR.md`](../FIELDS_AND_CALENDAR.md).
+   - *Contratto proposto*: `GET/POST /api/fields`, `PATCH/DELETE /api/fields/{id}`; `GET /api/calendar?tournament=&team=&day=&field=&status=` → `{events, teams, fields, conflicts}`.
+   - *Conflitti*: campo occupato, squadra in doppio impegno, docente in doppio impegno, con `message` leggibile. Oggi il frontend rileva solo sovrapposizioni campo/squadra dai dati reali e le etichetta come anteprima client.
+   - *Oggi*: `fieldsAdapter.ready` e `calendarAdapter.ready` sono `false`; nessun campo viene salvato e il calendario aggrega i tornei leggibili con le API esistenti.
+   - *Vincolo*: la programmazione partita continua a usare `location` testuale; un eventuale `field_id` va aggiunto senza rompere il testo.
 
 Per QR, infografiche lato client e GitHub Pages **non serve** alcuna nuova API. Il drag & drop del wizard usa già `team_names`; servono API per il riordino post-creazione (punto 1) e per gli aggregati dashboard (punto 7).
 

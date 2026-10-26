@@ -186,6 +186,24 @@ Input su mobile: `font-size: 16px` per evitare lo zoom iOS; touch target ≥44px
 
 Regole: la pagina invito resta in sola lettura, non mostra dati personali di altri studenti e non scrive token in `localStorage`. Quando `inviteAdapter.ready` è `false`, la CTA di adesione è disabilitata con motivazione visibile.
 
+### 4.9 Campi e calendario
+
+| Componente | Classi | Note |
+| --- | --- | --- |
+| Griglia campi | `.field-grid`, `.field-card`, `.field-card-top` | `auto-fill minmax(255px, 1fr)`, una colonna sotto 560px |
+| Dettagli campo | `.field-venue`, `.field-description`, `.field-availability` | icona + testo, stato non affidato al solo colore |
+| Azioni campo | `.field-actions`, `.danger-text` | Modifica/Disattiva, separazione con bordo |
+| Sport del campo | `.field-checkboxes` | fieldset con checkbox, griglia `auto-fit` |
+| Campi citati | `.venue-list`, `.venue-row` | elenco compatto nome + conteggio |
+| Filtri calendario | `.calendar-filters` | griglia `auto-fit minmax(150px, 1fr)`, controlli `min-height: 40px`, una colonna su telefono |
+| Giornata | `.calendar-day`, `.calendar-list` | titolo con iniziale maiuscola, lista verticale |
+| Evento | `.calendar-event`, `.calendar-time`, `.calendar-main`, `.calendar-side` | griglia `74px 1fr auto`; su telefono due colonne con azioni in basso |
+| Conflitto in riga | `.calendar-event.has-conflict`, `.calendar-conflict` | bordo e sfondo caldo + testo esplicito |
+| Pannello conflitti | `.calendar-conflict-panel` | elenco leggibile, badge “Server” o “Anteprima client” |
+| Avviso programmazione | `.schedule-conflict` | `role="status"`, non blocca il submit: il server decide |
+
+Regole: il calendario non salva nulla; i conflitti client sono dichiarati come anteprima e mai spacciati per verifica del server. La disattivazione di un campo è un'azione distruttiva soft: usa `.danger-text`, non il rosso pieno dei pulsanti di cancellazione.
+
 ## 5. Responsive
 
 Breakpoint presenti:

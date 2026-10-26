@@ -33,6 +33,7 @@ const paths = {
   chart: "M4 20V10h4v10 M10 20V4h4v16 M16 20v-8h4v8",
   ball: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20 M8 9l4-3 4 3-1 5H9z M3 8l5 1 M16 9l5-1 M9 14l-3 6 M15 14l3 6",
   link: "M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2 M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2",
+  field: "M4 5h16v14H4z M12 5v14 M4 9h3v6H4 M17 9h3v6h-3",
 };
 const icon = (name) =>
   `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${paths[name] || paths.ball}"/></svg>`;
@@ -93,6 +94,20 @@ let list = [],
   approvalsCache = [],
   inviteState = null,
   pendingInviteToken = null,
+  calendarMode = false,
+  fieldsMode = false,
+  calendarState = { events: [], conflicts: [], teams: [], fields: [], loadedAt: 0 },
+  calendarFilters = {
+    tournament: "all",
+    team: "all",
+    day: "",
+    field: "all",
+    status: "all",
+  },
+  calendarError = "",
+  calendarLoading = false,
+  fieldsCache = [],
+  fieldsError = "",
   toastTimer;
 const sportFor = (name) => sports.find((s) => s.name === name);
 const variantFor = (slug) => {
@@ -362,6 +377,91 @@ async function inviteError(response) {
   error.status = response.status;
   return error;
 }
+const fieldsAdapter = {
+  // Team A: esporre i campi del docente. Finché `ready` è false la pagina
+  // mostra solo i campi citati negli incontri e non invia alcun salvataggio.
+  ready: false,
+  async list() {
+    if (!this.ready) return [];
+    const response = await fetch("/api/fields", {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) throw await fieldError(response);
+    const body = await response.json().catch(() => ({}));
+    return body.fields || [];
+  },
+  async save(payload, fieldId = null) {
+    if (!this.ready)
+      throw new Error("Salvataggio dei campi non ancora disponibile.");
+    const response = await fetch(
+      fieldId ? `/api/fields/${fieldId}` : "/api/fields",
+      {
+        method: fieldId ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+    );
+    if (!response.ok) throw await fieldError(response);
+    return response.json();
+  },
+  async deactivate(fieldId) {
+    if (!this.ready)
+      throw new Error("Disattivazione dei campi non ancora disponibile.");
+    const response = await fetch(`/api/fields/${fieldId}`, { method: "DELETE" });
+    if (!response.ok) throw await fieldError(response);
+    return response.json().catch(() => ({}));
+  },
+};
+async function fieldError(response) {
+  const body = await response.json().catch(() => ({}));
+  const messages = {
+    401: "Sessione scaduta. Accedi di nuovo.",
+    403: "Non hai i permessi per gestire i campi.",
+    404: "Campo non trovato.",
+    409: "Esiste già un campo con questo nome.",
+    422: "Controlla i dati del campo: nome, sede o sport non validi.",
+  };
+  const error = new Error(
+    messages[response.status] ||
+      body.detail ||
+      `Operazione non riuscita (${response.status})`,
+  );
+  error.status = response.status;
+  return error;
+}
+const calendarAdapter = {
+  // Team A: esporre un aggregato del calendario con i conflitti calcolati dal
+  // server. Finché `ready` è false il frontend aggrega i dettagli dei tornei
+  // già esistenti e segnala solo i conflitti visibili.
+  ready: false,
+  async list(filters) {
+    if (!this.ready) return null;
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(filters)) {
+      if (value && value !== "all") params.set(key, value);
+    }
+    const response = await fetch(`/api/calendar?${params}`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) throw await calendarApiError(response);
+    return response.json();
+  },
+};
+async function calendarApiError(response) {
+  const body = await response.json().catch(() => ({}));
+  const messages = {
+    401: "Sessione scaduta. Accedi di nuovo.",
+    403: "Non hai i permessi per questo calendario.",
+    409: "Conflitto di calendario segnalato dal server.",
+  };
+  const error = new Error(
+    messages[response.status] ||
+      body.detail ||
+      `Operazione non riuscita (${response.status})`,
+  );
+  error.status = response.status;
+  return error;
+}
 function enableReorder(list, onReorder, liveSelector = "#reorder-live") {
   if (!list) return;
   const live = $(liveSelector);
@@ -511,6 +611,9 @@ function renderAuthControl() {
   document
     .querySelectorAll(".sidebar [data-action='new']")
     .forEach((el) => el.classList.toggle("hidden", !canEdit()));
+  document
+    .querySelectorAll("[data-teacher-only]")
+    .forEach((el) => el.classList.toggle("hidden", !canEdit()));
 }
 function showRoleGate(view = "choice") {
   const gate = $("#role-gate");
@@ -597,14 +700,21 @@ function renderNav() {
           `<button data-open="${t.id}" class="${t.id === selectedId ? "active" : ""}"><span class="event-dot"></span>${h(t.name)}</button>`,
       )
       .join("") || '<p class="sidebar-muted">Il primo torneo ti aspetta.</p>';
-  $("#home-nav").classList.toggle("active", !selectedId && !catalogMode);
+  $("#home-nav").classList.toggle(
+    "active",
+    !selectedId && !catalogMode && !calendarMode && !fieldsMode,
+  );
   $("#sports-nav")?.classList.toggle("active", catalogMode);
+  $("#calendar-nav")?.classList.toggle("active", calendarMode);
+  $("#fields-nav")?.classList.toggle("active", fieldsMode);
 }
 async function dashboard() {
   if (publicToken) return;
   selectedId = null;
   data = null;
   catalogMode = false;
+  calendarMode = false;
+  fieldsMode = false;
   tab = "overview";
   await refreshList();
   if (location.hash) history.replaceState(null, "", location.pathname);
@@ -864,6 +974,472 @@ async function loadUpcoming() {
         .join("")
     : '<p class="muted">Nessuna partita in arrivo. Genera gli incontri o programma le partite.</p>';
 }
+function loadingMarkup(text) {
+  return `<div class="loading"><div class="spinner"></div><p>${h(text)}</p></div>`;
+}
+// ---------------------------------------------------------------------------
+// Campi
+// ---------------------------------------------------------------------------
+function fieldSportNames(field) {
+  const raw = Array.isArray(field?.sports) ? field.sports : [];
+  return raw
+    .map((sport) => (typeof sport === "string" ? sport : sport?.name))
+    .filter(Boolean);
+}
+function fieldStatusLabel(field) {
+  return field.active === false ? "Disattivato" : "Attivo";
+}
+async function openFields() {
+  if (!canEdit()) {
+    notify("Serve un account prof per gestire i campi.", true);
+    await dashboard();
+    return;
+  }
+  catalogMode = false;
+  calendarMode = false;
+  fieldsMode = true;
+  selectedId = null;
+  data = null;
+  tab = "overview";
+  $("#breadcrumb").textContent = "Campi";
+  history.replaceState(null, "", location.pathname + "#/fields");
+  $("#content").innerHTML = loadingMarkup("Carico i campi…");
+  fieldsError = "";
+  try {
+    fieldsCache = await fieldsAdapter.list();
+  } catch (e) {
+    fieldsError = e.message;
+    fieldsCache = [];
+  }
+  if (!calendarState.loadedAt) {
+    try {
+      await reloadCalendar();
+    } catch (e) {
+      calendarError = e.message;
+    }
+  }
+  renderFields();
+  setMenu(false);
+}
+function fieldCard(field) {
+  const sportsList = fieldSportNames(field);
+  const inactive = field.active === false;
+  return `<article class="field-card ${inactive ? "inactive" : ""}"><div class="field-card-top"><div class="sport-symbol">${icon("field")}</div><span class="tag ${inactive ? "archived" : "active"}"><i></i>${fieldStatusLabel(field)}</span></div><h3>${h(field.name || "Campo senza nome")}</h3><p class="field-venue">${icon("ball")}${h(field.venue || "Sede da definire")}</p>${field.description ? `<p class="field-description">${h(field.description)}</p>` : ""}<div class="catalog-chips">${sportsList.map((sport) => `<span>${h(sport)}</span>`).join("") || "<span>Sport da assegnare</span>"}</div>${field.availability ? `<p class="field-availability">${icon("clock")}${h(field.availability)}</p>` : ""}<div class="field-actions"><button type="button" class="text-button" data-action="field-edit" data-field="${field.id}">Modifica ${icon("edit")}</button>${inactive ? "" : `<button type="button" class="text-button danger-text" data-action="field-toggle" data-field="${field.id}">Disattiva</button>`}</div></article>`;
+}
+function renderFields() {
+  const venues = calendarState.fields || [];
+  const programmed = (calendarState.events || []).filter(
+    (event) => event.scheduled_at && event.location,
+  );
+  const active = fieldsCache.filter((field) => field.active !== false).length;
+  const heading = `<div class="page-heading"><div><p class="eyebrow"><span class="line"></span> CAMPI E PALESTRE</p><h1>Dove si gioca.</h1><p>Campi, sedi e disponibilità: scegli il campo quando programmi una partita.</p></div><button type="button" class="button primary" data-action="field-new">${icon("plus")}Nuovo campo</button></div>`;
+  const notice = fieldsError
+    ? `<div class="panel error-page"><h2>Impossibile caricare i campi</h2><p>${h(fieldsError)}</p><button type="button" class="button" data-action="fields-refresh">Riprova</button></div>`
+    : fieldsAdapter.ready
+      ? ""
+      : `<div class="note-banner">${icon("spark")}<div><strong>API campi in attesa</strong><p>Il Team A esporrà <code>GET /api/fields</code> e le operazioni di creazione, modifica e disattivazione. Nel frattempo vedi i campi citati negli incontri e puoi preparare la scheda di un nuovo campo senza salvare.</p></div><button type="button" class="text-button" data-action="field-new">Prepara una scheda ${icon("arrow")}</button></div>`;
+  const empty = `<div class="panel empty">${icon("field")}<h2>Nessun campo configurato.</h2><p>${fieldsAdapter.ready ? "Crea il primo campo per iniziare a programmare le partite." : "La gestione dei campi arriverà con l’API del Team A. Intanto puoi usare i campi citati negli incontri."}</p>${fieldsAdapter.ready ? button("Nuovo campo", "field-new", "primary", "plus") : ""}</div>`;
+  const venueRows = venues
+    .map((venue) => {
+      const count = programmed.filter((event) => event.location === venue).length;
+      return `<div class="venue-row"><strong>${h(venue)}</strong><span>${count} ${count === 1 ? "incontro programmato" : "incontri programmati"}</span></div>`;
+    })
+    .join("");
+  $("#content").innerHTML = `${heading}<div class="stat-grid">${stat("Campi attivi", active, "Configurati e disponibili", "field")}${stat("Campi citati", venues.length, "Usati negli incontri", "ball")}${stat("Incontri con campo", programmed.length, "Già assegnati a una sede", "calendar")}</div>${notice}<section><div class="section-header"><div><h2>Campi del docente</h2><p class="section-sub">Nome, sede, sport supportati e disponibilità.</p></div><span class="tag archived"><i></i>${fieldsAdapter.ready ? "Sincronizzato" : "In attesa API"}</span></div><div class="field-grid">${fieldsCache.map(fieldCard).join("") || empty}</div></section><section class="panel"><div class="section-header"><div><h2>Campi citati negli incontri</h2><p class="section-sub">Testi di campo salvati finora, ricavati dagli incontri reali.</p></div></div>${venueRows ? `<div class="venue-list">${venueRows}</div>` : '<p class="muted">Nessun incontro ha ancora un campo assegnato.</p>'}</section>`;
+  $("#content").setAttribute("aria-busy", "false");
+}
+function fieldModal(field = null) {
+  if (!canEdit()) {
+    loginModal();
+    return;
+  }
+  const editing = !!field;
+  const sportsList = sports.map((sport) => sport.name);
+  const selected = new Set(fieldSportNames(field));
+  modal(
+    editing ? "Modifica il campo." : "Un nuovo campo.",
+    `<form id="field-form" data-id="${editing ? field.id : ""}"><div class="form-grid"><label class="full">Nome<input name="name" required minlength="2" maxlength="80" value="${h(field?.name || "")}" placeholder="Es. Palestra A"></label><label>Sede<input name="venue" maxlength="120" value="${h(field?.venue || "")}" placeholder="Es. Plesso centrale"></label><label>Disponibilità<input name="availability" maxlength="160" value="${h(field?.availability || "")}" placeholder="Es. Lun–Ven 8:00–13:00"></label><label class="full">Descrizione<textarea name="description" maxlength="400" rows="2" placeholder="Note su accesso, attrezzatura, capienza…">${h(field?.description || "")}</textarea></label></div><fieldset class="field-checkboxes"><legend>Sport supportati</legend>${sportsList.map((name) => `<label class="checkbox"><input type="checkbox" name="sports" value="${h(name)}" ${selected.has(name) ? "checked" : ""}>${h(name)}</label>`).join("")}</fieldset>${editing ? `<label class="checkbox"><input type="checkbox" name="active" ${field.active === false ? "" : "checked"}>Campo attivo</label>` : ""}${fieldsAdapter.ready ? "" : '<p class="field-help">Anteprima: l’API campi non è ancora attiva, quindi il salvataggio verrà bloccato senza inviare dati.</p>'}</form>`,
+    `${button("Annulla", "close", "ghost")}<button type="submit" form="field-form" class="button primary">${icon("check")}${fieldsAdapter.ready ? "Salva campo" : "Verifica anteprima"}</button>`,
+    "CAMPI",
+  );
+}
+function knownFieldOptions() {
+  const names = new Set();
+  for (const field of fieldsCache)
+    if (field.active !== false && field.name) names.add(field.name);
+  for (const event of calendarState.events || [])
+    if (event.location) names.add(event.location);
+  for (const match of data?.matches || [])
+    if (match.location && match.location.trim()) names.add(match.location.trim());
+  return [...names].sort((a, b) => a.localeCompare(b, "it"));
+}
+function fieldPickerHtml() {
+  const names = knownFieldOptions();
+  if (!names.length) return "";
+  return `<datalist id="known-fields">${names.map((name) => `<option value="${h(name)}"></option>`).join("")}</datalist>`;
+}
+// ---------------------------------------------------------------------------
+// Calendario
+// ---------------------------------------------------------------------------
+function dayKey(iso) {
+  return new Date(iso).toLocaleDateString("sv-SE", { timeZone: "Europe/Rome" });
+}
+function dayLabel(key) {
+  const date = new Date(key + "T12:00:00Z");
+  const text = new Intl.DateTimeFormat("it-IT", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Europe/Rome",
+  }).format(date);
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+function timeLabel(iso) {
+  return new Intl.DateTimeFormat("it-IT", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Rome",
+  }).format(new Date(iso));
+}
+function calendarEventStatus(event) {
+  if (!event.scheduled_at) return { cls: "draft", label: "Da programmare" };
+  if (event.status === "completed") return { cls: "completed", label: "Giocata" };
+  if (event.status === "ready") return { cls: "active", label: "Da giocare" };
+  return { cls: "draft", label: "In attesa" };
+}
+function buildCalendarEvents(details) {
+  const events = [];
+  for (const detail of details) {
+    const tournament = detail.tournament || {};
+    const teams = new Map((detail.teams || []).map((team) => [team.id, team.name]));
+    const duration =
+      Number(detail.variant_config?.match_duration) ||
+      Number(detail.rules?.match_duration) ||
+      20;
+    for (const match of detail.matches || []) {
+      if (match.is_bye) continue;
+      events.push({
+        id: `${tournament.id}-${match.id}`,
+        tournamentId: tournament.id,
+        tournamentName: tournament.name,
+        matchId: match.id,
+        homeTeamId: match.home_team_id,
+        awayTeamId: match.away_team_id,
+        home: teams.get(match.home_team_id) || "Da definire",
+        away: teams.get(match.away_team_id) || "Da definire",
+        round: match.round_no,
+        kind: match.kind,
+        scheduled_at: match.scheduled_at || null,
+        location: (match.location || "").trim(),
+        fieldId: null,
+        duration: Number(match.duration) || duration,
+        status: match.status || "waiting",
+        score:
+          match.home_score !== null ? `${match.home_score}–${match.away_score}` : null,
+        group: (detail.groups || []).find((group) => group.id === match.group_id)?.name || null,
+      });
+    }
+  }
+  return events;
+}
+function normalizeCalendarEvent(event) {
+  return {
+    id: event.id || `${event.tournament_id}-${event.match_id}`,
+    tournamentId: event.tournament_id ?? event.tournamentId,
+    tournamentName: event.tournament_name ?? event.tournamentName ?? "Torneo",
+    matchId: event.match_id ?? event.matchId,
+    homeTeamId: event.home_team_id ?? null,
+    awayTeamId: event.away_team_id ?? null,
+    home: event.home ?? event.home_name ?? "Da definire",
+    away: event.away ?? event.away_name ?? "Da definire",
+    round: event.round_no ?? null,
+    kind: event.kind || "round_robin",
+    scheduled_at: event.scheduled_at || null,
+    location: (event.field || event.location || "").trim(),
+    fieldId: event.field_id ?? null,
+    duration: Number(event.duration) || 20,
+    status: event.status || "waiting",
+    score: event.score || null,
+    group: event.group || null,
+  };
+}
+function intervalFor(event) {
+  const start = new Date(event.scheduled_at).getTime();
+  return [start, start + Math.max(1, Number(event.duration) || 20) * 60000];
+}
+function sharesTeam(a, b) {
+  if (a.tournamentId !== b.tournamentId) return false;
+  const ids = (event) => [event.homeTeamId, event.awayTeamId].filter(Boolean);
+  return ids(a).some((id) => ids(b).includes(id));
+}
+function detectCalendarConflicts(events) {
+  const scheduled = events.filter((event) => event.scheduled_at);
+  const conflicts = [];
+  for (let i = 0; i < scheduled.length; i++) {
+    for (let j = i + 1; j < scheduled.length; j++) {
+      const a = scheduled[i];
+      const b = scheduled[j];
+      const [aStart, aEnd] = intervalFor(a);
+      const [bStart, bEnd] = intervalFor(b);
+      if (!(aStart < bEnd && bStart < aEnd)) continue;
+      const windowText = `${timeLabel(a.scheduled_at)}–${timeLabel(
+        new Date(Math.max(aEnd, bEnd)).toISOString(),
+      )}`;
+      const sameField =
+        a.location &&
+        b.location &&
+        a.location.toLocaleLowerCase("it") === b.location.toLocaleLowerCase("it");
+      if (sameField) {
+        conflicts.push({
+          kind: "field",
+          aId: a.id,
+          bId: b.id,
+          aMatchId: a.matchId,
+          bMatchId: b.matchId,
+          message: `Campo “${a.location}” · ${windowText}: ${a.home} – ${a.away} e ${b.home} – ${b.away} si sovrappongono.`,
+        });
+      }
+      if (sharesTeam(a, b)) {
+        conflicts.push({
+          kind: "team",
+          aId: a.id,
+          bId: b.id,
+          aMatchId: a.matchId,
+          bMatchId: b.matchId,
+          message: `Stessa squadra in due partite sovrapposte · ${windowText}: ${a.home} – ${a.away} e ${b.home} – ${b.away}.`,
+        });
+      }
+    }
+  }
+  return conflicts;
+}
+async function reloadCalendar() {
+  if (calendarLoading) return;
+  calendarLoading = true;
+  calendarError = "";
+  try {
+    await refreshList();
+    const remote = await calendarAdapter.list(calendarFilters);
+    if (remote) {
+      const events = (remote.events || []).map(normalizeCalendarEvent);
+      calendarState = {
+        events,
+        conflicts: remote.conflicts || [],
+        teams: remote.teams || [],
+        fields:
+          remote.fields ||
+          [...new Set(events.map((event) => event.location).filter(Boolean))],
+        loadedAt: Date.now(),
+        source: "server",
+      };
+    } else {
+      const details = [];
+      for (const tournament of list.filter((item) => !item.archived_at)) {
+        try {
+          details.push(await api("/tournaments/" + tournament.id));
+        } catch {
+          // Un torneo non leggibile non blocca il calendario.
+        }
+      }
+      const events = buildCalendarEvents(details);
+      calendarState = {
+        events,
+        conflicts: detectCalendarConflicts(events),
+        teams: details.flatMap((detail) =>
+          (detail.teams || []).map((team) => ({
+            tournamentId: detail.tournament.id,
+            id: team.id,
+            name: team.name,
+          })),
+        ),
+        fields: [...new Set(events.map((event) => event.location).filter(Boolean))].sort(
+          (a, b) => a.localeCompare(b, "it"),
+        ),
+        loadedAt: Date.now(),
+        source: "client",
+      };
+    }
+  } catch (e) {
+    calendarError = e.message;
+  } finally {
+    calendarLoading = false;
+  }
+  if (calendarMode) renderCalendar();
+}
+function filterCalendarEvents(events) {
+  const filters = calendarFilters;
+  return events.filter((event) => {
+    if (filters.tournament !== "all" && String(event.tournamentId) !== filters.tournament)
+      return false;
+    if (filters.team !== "all") {
+      const [tournamentId, teamId] = filters.team.split(":");
+      if (String(event.tournamentId) !== tournamentId) return false;
+      if (String(event.homeTeamId) !== teamId && String(event.awayTeamId) !== teamId)
+        return false;
+    }
+    if (filters.day) {
+      if (!event.scheduled_at || dayKey(event.scheduled_at) !== filters.day) return false;
+    }
+    if (filters.field !== "all" && event.location !== filters.field) return false;
+    if (filters.status !== "all") {
+      const bucket = !event.scheduled_at
+        ? "unscheduled"
+        : event.status === "completed"
+          ? "played"
+          : "to-play";
+      if (bucket !== filters.status) return false;
+    }
+    return true;
+  });
+}
+function calendarConflictMessages(event, conflicts) {
+  return conflicts
+    .filter((conflict) => {
+      const eventIds = [conflict.aId, conflict.bId].filter(Boolean).map(String);
+      if (eventIds.length) return eventIds.includes(String(event.id));
+      const matchIds = [conflict.match_id, conflict.other_match_id]
+        .filter((value) => value != null)
+        .map(String);
+      return matchIds.includes(String(event.matchId));
+    })
+    .map((conflict) => conflict.message || "Sovrapposizione di orario.");
+}
+function calendarEventRow(event, conflicts) {
+  const status = calendarEventStatus(event);
+  const messages = calendarConflictMessages(event, conflicts);
+  const manageable =
+    canEdit() &&
+    (list.find((tournament) => tournament.id === event.tournamentId)?.can_manage !== false);
+  return `<article class="calendar-event ${messages.length ? "has-conflict" : ""}"><div class="calendar-time"><strong>${event.scheduled_at ? h(timeLabel(event.scheduled_at)) : "—"}</strong><small>${event.duration ? h(durationText(event.duration)) : ""}</small></div><div class="calendar-main"><p class="calendar-title">${h(event.home)} <b>—</b> ${h(event.away)}</p><p class="calendar-meta">${h(event.tournamentName)}${event.location ? " · " + h(event.location) : ""}${event.group ? " · " + h(event.group) : ""}</p>${messages.map((message) => `<p class="calendar-conflict">${icon("spark")}${h(message)}</p>`).join("")}</div><div class="calendar-side"><span class="tag ${status.cls}">${status.label}</span>${event.score ? `<span class="calendar-score">${h(event.score)}</span>` : ""}${manageable ? `<button type="button" class="button compact" data-action="calendar-open" data-tournament="${event.tournamentId}" data-match="${event.matchId}">${event.scheduled_at ? "Modifica" : "Programma"}</button>` : ""}</div></article>`;
+}
+function renderCalendar() {
+  if (!calendarMode) return;
+  const events = filterCalendarEvents(calendarState.events);
+  const scheduled = events
+    .filter((event) => event.scheduled_at)
+    .sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
+  const unscheduled = events
+    .filter((event) => !event.scheduled_at)
+    .sort((a, b) => (a.round || 0) - (b.round || 0));
+  const visibleEvents = new Set(events.map((event) => String(event.id)));
+  const visibleMatches = new Set(events.map((event) => String(event.matchId)));
+  const conflicts = (calendarState.conflicts || []).filter((conflict) => {
+    const eventIds = [conflict.aId, conflict.bId].filter(Boolean).map(String);
+    if (eventIds.length) return eventIds.some((id) => visibleEvents.has(id));
+    const matchIds = [conflict.match_id, conflict.other_match_id]
+      .filter((value) => value != null)
+      .map(String);
+    return !matchIds.length || matchIds.some((id) => visibleMatches.has(id));
+  });
+  const days = new Map();
+  for (const event of scheduled) {
+    const key = dayKey(event.scheduled_at);
+    if (!days.has(key)) days.set(key, []);
+    days.get(key).push(event);
+  }
+  const daySections = [...days.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(
+      ([key, items]) =>
+        `<section class="calendar-day"><h2>${h(dayLabel(key))}</h2><div class="calendar-list">${items.map((event) => calendarEventRow(event, conflicts)).join("")}</div></section>`,
+    )
+    .join("");
+  const unscheduledSection = unscheduled.length
+    ? `<section class="calendar-day"><h2>Da programmare <span class="muted">${unscheduled.length}</span></h2><div class="calendar-list">${unscheduled.map((event) => calendarEventRow(event, conflicts)).join("")}</div></section>`
+    : "";
+  const tournamentOptions = [
+    ...new Map(
+      calendarState.events.map((event) => [event.tournamentId, event.tournamentName]),
+    ).entries(),
+  ].sort((a, b) => String(a[1]).localeCompare(String(b[1]), "it"));
+  const teamOptions = calendarState.teams
+    .filter(
+      (team) =>
+        calendarFilters.tournament === "all" ||
+        String(team.tournamentId) === calendarFilters.tournament,
+    )
+    .sort((a, b) => a.name.localeCompare(b.name, "it"));
+  const filterPanel = `<div class="calendar-filters" role="group" aria-label="Filtra il calendario"><label>Torneo<select data-calendar-filter="tournament"><option value="all">Tutti i tornei</option>${tournamentOptions.map(([id, name]) => `<option value="${id}" ${calendarFilters.tournament === String(id) ? "selected" : ""}>${h(name)}</option>`).join("")}</select></label><label>Squadra<select data-calendar-filter="team"><option value="all">Tutte le squadre</option>${teamOptions.map((team) => `<option value="${team.tournamentId}:${team.id}" ${calendarFilters.team === `${team.tournamentId}:${team.id}` ? "selected" : ""}>${h(team.name)} · ${h(tournamentOptions.find(([id]) => String(id) === String(team.tournamentId))?.[1] || "")}</option>`).join("")}</select></label><label>Giorno<input type="date" data-calendar-filter="day" value="${h(calendarFilters.day)}"></label><label>Campo<select data-calendar-filter="field"><option value="all">Tutti i campi</option>${(calendarState.fields || []).map((field) => `<option value="${h(field)}" ${calendarFilters.field === field ? "selected" : ""}>${h(field)}</option>`).join("")}</select></label><label>Stato<select data-calendar-filter="status">${[
+    ["all", "Tutti"],
+    ["to-play", "Da giocare"],
+    ["played", "Giocate"],
+    ["unscheduled", "Da programmare"],
+  ]
+    .map(([value, text]) => `<option value="${value}" ${calendarFilters.status === value ? "selected" : ""}>${text}</option>`)
+    .join("")}</select></label><button type="button" class="text-button" data-action="calendar-reset">Azzera filtri</button></div>`;
+  const conflictPanel = conflicts.length
+    ? `<div class="calendar-conflict-panel" role="status"><div class="section-header"><div><h2>${conflicts.length} ${conflicts.length === 1 ? "conflitto da controllare" : "conflitti da controllare"}</h2><p class="section-sub">${calendarState.source === "server" ? "Segnalati dal server." : "Rilevati dal browser incrociando campo e orario: il server resta l’unica fonte autorevole."}</p></div><span class="tag archived"><i></i>${calendarState.source === "server" ? "Server" : "Anteprima client"}</span></div><ul>${conflicts.map((conflict) => `<li>${h(conflict.message || "Sovrapposizione di orario.")}</li>`).join("")}</ul></div>`
+    : "";
+  const notice = calendarError
+    ? `<div class="panel error-page"><h2>Calendario non aggiornato</h2><p>${h(calendarError)}</p><button type="button" class="button" data-action="calendar-refresh">Riprova</button></div>`
+    : calendarState.source === "client"
+      ? '<p class="field-help">Il calendario aggrega i tornei che puoi leggere. I conflitti sono un’anteprima del browser; l’API calendario del Team A fornirà la verifica definitiva.</p>'
+      : "";
+  const heading = `<div class="page-heading"><div><p class="eyebrow"><span class="line"></span> CALENDARIO</p><h1>Tutto il gioco, giorno per giorno.</h1><p>Partite, orari, campi e conflitti in un’unica vista.</p></div><button type="button" class="button" data-action="calendar-refresh">${icon("refresh")}Aggiorna</button></div>`;
+  $("#content").innerHTML = `${heading}<div class="stat-grid">${stat("In calendario", scheduled.length, "Con data e ora", "calendar")}${stat("Da programmare", unscheduled.length, "Ancora senza orario", "clock")}${stat("Giornate", days.size, "Giorni con partite", "grid")}${stat("Conflitti", conflicts.length, "Da verificare", "spark")}</div>${notice}${conflictPanel}${filterPanel}${daySections}${unscheduledSection}${events.length ? "" : '<div class="panel empty">' + icon("calendar") + "<h2>Nessun incontro con questi filtri.</h2><p>Prova ad azzerare i filtri o programma nuove partite.</p></div>"}`;
+  $("#content").setAttribute("aria-busy", "false");
+}
+async function openCalendar() {
+  catalogMode = false;
+  fieldsMode = false;
+  calendarMode = true;
+  selectedId = null;
+  data = null;
+  tab = "overview";
+  $("#breadcrumb").textContent = "Calendario";
+  history.replaceState(null, "", location.pathname + "#/calendar");
+  $("#content").innerHTML = loadingMarkup("Preparo il calendario…");
+  await reloadCalendar();
+  setMenu(false);
+}
+function updateScheduleConflictHint() {
+  const form = $("#schedule-form");
+  const box = $("#schedule-conflict");
+  if (!form || !box || !data) return;
+  const match = data.matches.find((item) => item.id === Number(form.dataset.id));
+  const at = form.querySelector('[name="scheduled_at"]')?.value;
+  const location = (form.querySelector('[name="location"]')?.value || "").trim();
+  const duration =
+    Number(form.querySelector('[name="duration"]')?.value) ||
+    Number(match?.duration) ||
+    currentVariant()?.match_duration ||
+    20;
+  if (!match || !at || !location) {
+    box.classList.add("hidden");
+    box.textContent = "";
+    return;
+  }
+  const start = new Date(at).getTime();
+  const end = start + duration * 60000;
+  const conflicts = (data.matches || []).filter((other) => {
+    if (other.id === match.id || other.is_bye || !other.scheduled_at) return false;
+    if (
+      (other.location || "").trim().toLocaleLowerCase("it") !==
+      location.toLocaleLowerCase("it")
+    )
+      return false;
+    const otherStart = new Date(other.scheduled_at).getTime();
+    const otherEnd = otherStart + (Number(other.duration) || 20) * 60000;
+    return start < otherEnd && otherStart < end;
+  });
+  if (!conflicts.length) {
+    box.classList.add("hidden");
+    box.textContent = "";
+    return;
+  }
+  box.textContent = `Attenzione: ${
+    conflicts.length === 1
+      ? "un’altra partita occupa"
+      : conflicts.length + " altre partite occupano"
+  } questo campo nello stesso orario. Il server deciderà se il salvataggio è valido.`;
+  box.classList.remove("hidden");
+}
+function scheduleError(error) {
+  if (error.status === 409 && !/conflitt/i.test(error.message))
+    return new Error("Conflitto di calendario: " + error.message);
+  return error;
+}
 function eventCard(t, i) {
   const progress = t.progress.total
     ? Math.round((t.progress.completed / t.progress.total) * 100)
@@ -886,6 +1462,8 @@ function hashRoute() {
 async function openCatalog(sportName = null, variantSlug = null) {
   if (publicToken) return;
   catalogMode = true;
+  calendarMode = false;
+  fieldsMode = false;
   selectedId = null;
   data = null;
   catalogSport = sportName || null;
@@ -957,6 +1535,8 @@ async function openTournament(id, keepTab = false) {
   selectedId = next.tournament.id;
   data = next;
   catalogMode = false;
+  calendarMode = false;
+  fieldsMode = false;
   if (location.hash) history.replaceState(null, "", location.pathname);
   if (!keepTab) tab = "overview";
   if (!publicToken) await refreshList();
@@ -1539,7 +2119,7 @@ function resultModal(id) {
     m.status === "completed"
       ? "Ogni risultato conta."
       : "Com’è andata in campo?",
-    `<form id="result-form" data-id="${m.id}">${setInputs}${m.home_score !== null ? '<label class="checkbox"><input type="checkbox" name="invalidate">Se questa correzione cambia qualificazioni o avversari, confermo l’annullamento dei risultati e degli orari dipendenti.</label>' : ""}</form><details class="result-schedule"><summary>Orario e campo</summary><form id="schedule-form" data-id="${m.id}"><div class="form-grid"><label>Data e ora locale<input name="scheduled_at" type="datetime-local" value="${local}"></label><label>Campo<input name="location" maxlength="80" placeholder="Es. Palestra · campo A" value="${h(m.location || "")}"></label><label>Durata in minuti<input name="duration" type="number" min="1" max="240" value="${m.duration || variant?.match_duration || 20}" required></label></div><p class="field-help">L’orario usa il fuso del dispositivo. Gli orari sono mostrati nel torneo in Europe/Rome.</p><button class="button" style="margin-top:13px">Salva orario e campo</button></form></details>`,
+    `<form id="result-form" data-id="${m.id}">${setInputs}${m.home_score !== null ? '<label class="checkbox"><input type="checkbox" name="invalidate">Se questa correzione cambia qualificazioni o avversari, confermo l’annullamento dei risultati e degli orari dipendenti.</label>' : ""}</form><details class="result-schedule"><summary>Orario e campo</summary><form id="schedule-form" data-id="${m.id}"><div class="form-grid"><label>Data e ora locale<input name="scheduled_at" type="datetime-local" value="${local}"></label><label>Campo<input name="location" maxlength="80" list="known-fields" placeholder="Es. Palestra · campo A" value="${h(m.location || "")}"></label><label>Durata in minuti<input name="duration" type="number" min="1" max="240" value="${m.duration || variant?.match_duration || 20}" required></label></div>${fieldPickerHtml()}<p class="field-help">L’orario usa il fuso del dispositivo. Gli orari sono mostrati nel torneo in Europe/Rome. Scegli un campo già usato dall’elenco o scrivine uno nuovo.</p><p class="field-help schedule-conflict hidden" id="schedule-conflict" role="status"></p><button class="button" style="margin-top:13px">Salva orario e campo</button></form></details>`,
     `${m.home_score !== null ? `<button class="button danger" data-clear="${m.id}">Cancella risultato</button>` : button("Annulla", "close", "ghost")}<button type="submit" form="result-form" class="button primary">${icon("check")}Salva risultato</button>`,
     h(roundName(m)),
   );
@@ -1971,6 +2551,46 @@ const actions = {
   new: () => (canEdit() ? startWizard() : loginModal()),
   catalog: (el) =>
     openCatalog(el?.dataset?.catalogSport || null, el?.dataset?.catalogVariant || null),
+  calendar: () => openCalendar(),
+  fields: () => openFields(),
+  "calendar-refresh": () => reloadCalendar(),
+  "calendar-reset": () => {
+    calendarFilters = {
+      tournament: "all",
+      team: "all",
+      day: "",
+      field: "all",
+      status: "all",
+    };
+    renderCalendar();
+  },
+  "calendar-open": async (el) => {
+    await openTournament(Number(el.dataset.tournament));
+    tab = "matches";
+    renderTournament();
+    if (!canManage()) return;
+    const match = data.matches.find((item) => item.id === Number(el.dataset.match));
+    if (match) resultModal(match.id);
+  },
+  "fields-refresh": () => openFields(),
+  "field-new": () => fieldModal(),
+  "field-edit": (el) => {
+    const field = fieldsCache.find((item) => String(item.id) === el.dataset.field);
+    if (field) fieldModal(field);
+    else notify("Campo non trovato.", true);
+  },
+  "field-toggle": async (el) => {
+    if (!fieldsAdapter.ready) {
+      notify("La disattivazione dei campi non è ancora attiva.", true);
+      return;
+    }
+    const field = fieldsCache.find((item) => String(item.id) === el.dataset.field);
+    if (!field) return;
+    await fieldsAdapter.deactivate(field.id);
+    fieldsCache = await fieldsAdapter.list();
+    renderFields();
+    notify(`Campo “${field.name}” disattivato.`);
+  },
   "new-variant": (el) =>
     canEdit()
       ? startWizard(el.dataset.sport, el.dataset.variant)
@@ -2237,12 +2857,25 @@ document.addEventListener("click", (e) => {
     });
 });
 document.addEventListener("input", (e) => {
+  if (e.target.closest("#schedule-form")) {
+    updateScheduleConflictHint();
+    return;
+  }
   if (e.target.id !== "student-team-search") return;
   studentSearch = e.target.value;
   const list = document.querySelector(".students-team-list");
   if (list) list.innerHTML = studentTeamsListHtml();
 });
 document.addEventListener("change", (e) => {
+  const calendarFilter = e.target.closest("[data-calendar-filter]");
+  if (calendarFilter) {
+    const key = calendarFilter.dataset.calendarFilter;
+    calendarFilters[key] = calendarFilter.value;
+    if (key === "tournament") calendarFilters.team = "all";
+    renderCalendar();
+    return;
+  }
+  if (e.target.closest("#schedule-form")) updateScheduleConflictHint();
   if (e.target.id === "bulk-file") {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -2304,6 +2937,32 @@ document.addEventListener("submit", (e) => {
     try {
       const fd = new FormData(form);
       if (form.id === "wizard-form") await wizardSubmit();
+      if (form.id === "field-form") {
+        const payload = {
+          name: String(fd.get("name") || "").trim(),
+          description: String(fd.get("description") || "").trim(),
+          venue: String(fd.get("venue") || "").trim(),
+          availability: String(fd.get("availability") || "").trim(),
+          sports: fd.getAll("sports"),
+          active: form.dataset.id ? fd.has("active") : true,
+        };
+        if (!payload.name) throw new Error("Il nome del campo è obbligatorio.");
+        if (!fieldsAdapter.ready) {
+          const box = $("#form-error");
+          if (box) {
+            box.textContent =
+              "Salvataggio non disponibile: l’API campi del Team A non è ancora attiva. Nessun dato è stato inviato.";
+            box.classList.remove("hidden");
+          }
+          return;
+        }
+        const fieldId = form.dataset.id ? Number(form.dataset.id) : null;
+        await fieldsAdapter.save(payload, fieldId);
+        close();
+        await openFields();
+        notify(fieldId ? "Campo aggiornato." : "Campo creato.");
+        return;
+      }
       if (form.id === "team-form") {
         await api("/tournaments/" + selectedId + "/teams", {
           method: "POST",
@@ -2453,10 +3112,15 @@ document.addEventListener("submit", (e) => {
             invalidate: fd.has("invalidate"),
           };
         }
-        await api(
-          `/tournaments/${selectedId}/matches/${m.id}${schedule ? "/schedule" : ""}`,
-          { method: "PATCH", body: JSON.stringify(payload) },
-        );
+        try {
+          await api(
+            `/tournaments/${selectedId}/matches/${m.id}${schedule ? "/schedule" : ""}`,
+            { method: "PATCH", body: JSON.stringify(payload) },
+          );
+        } catch (e) {
+          if (schedule) throw scheduleError(e);
+          throw e;
+        }
         close();
         await openTournament(selectedId, true);
         notify(
@@ -2510,10 +3174,14 @@ async function startApp() {
   selectedId = null;
   data = null;
   catalogMode = false;
+  calendarMode = false;
+  fieldsMode = false;
   tab = "overview";
   await loadSports();
   const route = hashRoute();
   if (route.kind === "sport") await openCatalog(route.sport, route.variant);
+  else if (route.kind === "calendar") await openCalendar();
+  else if (route.kind === "fields") await openFields();
   else await dashboard();
 }
 async function init() {
@@ -2565,11 +3233,12 @@ init();
 window.addEventListener("hashchange", () => {
   if (publicToken || inviteToken || document.body.classList.contains("role-pending")) return;
   const route = hashRoute();
-  safely(() =>
-    route.kind === "sport"
-      ? openCatalog(route.sport, route.variant)
-      : dashboard(),
-  );
+  safely(() => {
+    if (route.kind === "sport") return openCatalog(route.sport, route.variant);
+    if (route.kind === "calendar") return openCalendar();
+    if (route.kind === "fields") return openFields();
+    return dashboard();
+  });
 });
 
 document.addEventListener("keydown", (e) => {

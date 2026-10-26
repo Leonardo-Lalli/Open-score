@@ -227,6 +227,43 @@ def test_invite_landing_only_uses_real_server_data(client):
     assert 'localStorage.setItem("invite' not in script
 
 
+def test_fields_and_calendar_interfaces_are_prepared(client):
+    script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
+    for marker in ('fieldsAdapter', 'fieldError', 'fieldModal', 'renderFields',
+                   'openFields', 'field-card', 'field-form', 'field-new',
+                   'field-edit', 'field-toggle', 'knownFieldOptions',
+                   'calendarAdapter', 'calendarApiError', 'openCalendar',
+                   'reloadCalendar', 'renderCalendar', 'filterCalendarEvents',
+                   'detectCalendarConflicts', 'calendar-conflict',
+                   'data-calendar-filter', 'calendar-open', 'calendar-reset',
+                   'updateScheduleConflictHint', 'schedule-conflict',
+                   'known-fields', '/api/fields', '/api/calendar'):
+        assert marker in script, f'{marker!r} mancante in app.js'
+
+    html = (BASE / 'static' / 'index.html').read_text(encoding='utf-8')
+    assert 'data-action="calendar"' in html
+    assert 'data-action="fields"' in html
+    assert 'data-teacher-only' in html
+
+    css = (BASE / 'static' / 'styles.css').read_text(encoding='utf-8')
+    for selector in ('.field-grid', '.field-card', '.field-actions',
+                     '.calendar-filters', '.calendar-day', '.calendar-event',
+                     '.calendar-conflict-panel', '.schedule-conflict'):
+        assert selector in css, f'{selector!r} mancante in styles.css'
+    assert css.count('{') == css.count('}')
+
+
+def test_fields_and_calendar_do_not_fake_saves_or_conflicts(client):
+    script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
+    assert 'ready: false' in script
+    assert 'Nessun dato è stato inviato' in script
+    assert 'il server resta l’unica fonte autorevole' in script
+    assert 'api("/tournaments/" + tournament.id)' in script
+    # The schedule form surfaces server-side conflicts instead of forcing saves.
+    assert 'function scheduleError' in script
+    assert 'Conflitto di calendario' in script
+
+
 def test_role_gate_offers_teacher_login_and_student_read_only(client):
     html = client.get('/').text
     assert 'id="role-gate"' in html
