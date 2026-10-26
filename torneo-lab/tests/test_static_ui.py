@@ -264,6 +264,40 @@ def test_fields_and_calendar_do_not_fake_saves_or_conflicts(client):
     assert 'Conflitto di calendario' in script
 
 
+def test_sport_rule_forms_are_metadata_driven(client):
+    script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
+    for marker in ('variantRuleSchema', 'fallbackRuleSchema', 'ruleFieldsetHtml',
+                   'ruleInputHtml', 'ruleConstraintText', 'ruleWarnings',
+                   'derivedRuleItems', 'formatRuleValue', 'config_schema',
+                   'rule_schema', 'tie_breakers', 'wizard-rule-fields',
+                   'edit-rule-fields', 'rule-warnings', 'rule-warning-banner',
+                   'Regole definite dalla variante', 'Parametri configurabili',
+                   'Torneo già iniziato'):
+        assert marker in script, f'{marker!r} mancante in app.js'
+    # The wizard and the edit modal both render rules through the same fieldset.
+    assert script.count('ruleFieldsetHtml(') >= 4
+    # Validation blocks incompatible rules before the request.
+    assert 'warnings.join(" ")' in script
+    assert 'Il backend valida ogni modifica' in script
+
+    css = (BASE / 'static' / 'styles.css').read_text(encoding='utf-8')
+    for selector in ('.rule-fieldset', '.rule-warnings', '.rule-warning-banner',
+                     '.rule-config-list', '.rule-config-row'):
+        assert selector in css, f'{selector!r} mancante in styles.css'
+    assert css.count('{') == css.count('}')
+
+
+def test_sport_rule_forms_do_not_override_backend_metadata(client):
+    script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
+    # Variant rules stay read-only; only the declared schema is editable.
+    assert 'field.scope !== "variant"' in script
+    assert 'variant.rules' in script
+    # The fallback is the shared TournamentInput contract, not a sport rulebook.
+    assert 'Punti vittoria' in script
+    assert 'name="target_goals"' not in script
+    assert 'name="periods"' not in script
+
+
 def test_role_gate_offers_teacher_login_and_student_read_only(client):
     html = client.get('/').text
     assert 'id="role-gate"' in html

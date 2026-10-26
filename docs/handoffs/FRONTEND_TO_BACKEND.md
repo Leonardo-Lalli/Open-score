@@ -32,6 +32,7 @@ Questo documento è l'audit iniziale del frontend e l'elenco delle richieste ver
 | Azioni globali | `actions` map (`new`, `catalog`, `open`, `edit`, `share`, `download-qr`, `print-qr`, `share-qr`, `invite-join`, `generate`, `score`, `archive`, `restore`, `print`, `refresh`, `copy`, …) |
 | Condivisione e inviti | `share`, `qrSvg`, `downloadQr`, `printQr`, `shareLink`, `inviteAdapter`, `inviteError`, `showInviteShell`, `openInvite`, `renderInvite`, `joinInvite` |
 | Campi e calendario | `fieldsAdapter`, `fieldError`, `openFields`, `renderFields`, `fieldModal`, `fieldCard`, `knownFieldOptions`, `calendarAdapter`, `openCalendar`, `reloadCalendar`, `renderCalendar`, `buildCalendarEvents`, `detectCalendarConflicts`, `filterCalendarEvents`, `updateScheduleConflictHint`, `scheduleError` |
+| Regole e metadati | `variantRuleSchema`, `fallbackRuleSchema`, `ruleInputHtml`, `ruleFieldsetHtml`, `ruleWarnings`, `derivedRuleItems`, `updateRuleWarnings`, `renderEditRules`, `readEditRules` |
 | Avvio | `init` — carica sessione e catalogo, decide gate vs studente, delega il rendering |
 
 Stato globale: `list`, `sports`, `auth {role, authenticated, teacher}`, `selectedId`, `data`, `tab`, `filter`, `matchFilter`, `search`, `wizard`, `wizardStep`, `catalogMode`, `catalogSport`, `catalogVariant`, `catalogDetail`, `calendarMode`, `fieldsMode`, `calendarState`, `calendarFilters`, `calendarError`, `calendarLoading`, `fieldsCache`, `fieldsError`, `inviteState`, `pendingInviteToken`.
@@ -67,6 +68,7 @@ Stato globale: `list`, `sports`, `auth {role, authenticated, teacher}`, `selecte
 - Pagina di accettazione invito (`/?invite=<token>`, `#/join/<token>`) con anteprima reale tramite il link pubblico e adesione in attesa dell'API inviti.
 - Pagina **Campi** (`#/fields`, solo docenti) con elenco, scheda, creazione/modifica/disattivazione predisposte e campi citati negli incontri.
 - Pagina **Calendario** (`#/calendar`) con partite per giorno, filtri per torneo/squadra/giorno/campo/stato e conflitti visibili.
+- Form di configurazione sport/regole guidati dai metadati della variante, condivisi tra wizard e modifica torneo, con validazione live e avviso sui tornei già iniziati.
 - Riordino dei partecipanti nel wizard con drag & drop (mouse/touch) e tastiera; l'ordine viene inviato al backend in `team_names`.
 - Vista spettatore (`/public/{token}`) in sola lettura con auto-refresh.
 
@@ -144,6 +146,12 @@ Prima del contratto ufficiale, lavoro su attività indipendenti o con mock isola
    - *Conflitti*: campo occupato, squadra in doppio impegno, docente in doppio impegno, con `message` leggibile. Oggi il frontend rileva solo sovrapposizioni campo/squadra dai dati reali e le etichetta come anteprima client.
    - *Oggi*: `fieldsAdapter.ready` e `calendarAdapter.ready` sono `false`; nessun campo viene salvato e il calendario aggrega i tornei leggibili con le API esistenti.
    - *Vincolo*: la programmazione partita continua a usare `location` testuale; un eventuale `field_id` va aggiunto senza rompere il testo.
+
+14. **Metadati delle regole configurabili**.
+   - *Serve*: descrivere per ogni variante quali parametri sono modificabili, con limiti e opzioni, così il frontend non deve codificare il regolamento di ogni sport. Dettaglio in [`../SPORT_RULES_CONFIG.md`](../SPORT_RULES_CONFIG.md).
+   - *Contratto proposto*: `config_schema` (alias `rule_schema`/`configurable`) nella variante, array di `{key, label, type, min, max, step, options, required, default, help, scope, stages, disabled}`; opzionale `tie_breakers: [{value,label}]`.
+   - *Oggi*: senza `config_schema` il frontend usa come fallback il contratto di `TournamentInput` (punti, criterio a parità, gare, gironi, qualificate). Durata, tempi, set e regole di pareggio restano derivati da `variant.rules` in sola lettura.
+   - *Vincolo*: il payload resta limitato ai campi accettati dal backend; il frontend non inventa chiavi e non forza un salvataggio quando il server risponde `409` o `422`.
 
 Per QR, infografiche lato client e GitHub Pages **non serve** alcuna nuova API. Il drag & drop del wizard usa già `team_names`; servono API per il riordino post-creazione (punto 1) e per gli aggregati dashboard (punto 7).
 

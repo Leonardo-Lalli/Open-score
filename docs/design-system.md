@@ -204,6 +204,19 @@ Regole: la pagina invito resta in sola lettura, non mostra dati personali di alt
 
 Regole: il calendario non salva nulla; i conflitti client sono dichiarati come anteprima e mai spacciati per verifica del server. La disattivazione di un campo è un'azione distruttiva soft: usa `.danger-text`, non il rosso pieno dei pulsanti di cancellazione.
 
+### 4.10 Regole della variante
+
+| Componente | Classi | Note |
+| --- | --- | --- |
+| Fieldset regole | `.rule-fieldset` | bordo, sfondo `#fbfcf8`, legenda in maiuscoletto; usato da wizard e modifica torneo |
+| Campo regola | `.form-grid` + input generati | tipo, min/max/step, opzioni e help derivano dai metadati della variante |
+| Avvisi live | `.rule-warnings` | `role="alert"`, testo esplicito, non solo colore |
+| Banner torneo avviato | `.rule-warning-banner` | icona + titolo + spiegazione; niente controlli modificabili |
+| Regole derivate | `.rule-derived`, `.rule-list` | `<details>` con le regole congelate dalla variante |
+| Parametri nel catalogo | `.rule-config-list`, `.rule-config-row` | nome + valori/labels ammessi |
+
+Regole: un controllo modificabile esiste solo se il backend lo dichiara con `config_schema` (o se appartiene al contratto condiviso). Le regole non modificabili vengono lette da `variant.rules` e mostrate in sola lettura. Gli avvisi non sostituiscono la validazione server: il messaggio del backend resta visibile e nessun salvataggio viene forzato.
+
 ## 5. Responsive
 
 Breakpoint presenti:

@@ -2422,6 +2422,108 @@ body.reorder-active {
     justify-self: stretch;
   }
 }
+.rule-fieldset {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fbfcf8;
+}
+.rule-fieldset legend {
+  padding: 0 8px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.rule-fieldset .field-help {
+  display: block;
+  margin-top: 4px;
+}
+.rule-warnings {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #e3b7a8;
+  border-radius: 10px;
+  background: #fff8f4;
+  color: #8a3a26;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.rule-warnings p {
+  margin: 0;
+}
+.rule-warnings p + p {
+  margin-top: 6px;
+}
+.rule-warning-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 14px 16px;
+  border: 1px solid #e8d6a8;
+  border-radius: var(--radius);
+  background: #fffaf0;
+}
+.rule-warning-banner .icon {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  flex: none;
+  color: #8a6a1f;
+}
+.rule-warning-banner strong {
+  display: block;
+  font-size: 12px;
+}
+.rule-warning-banner p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #7a6a45;
+}
+.rule-config-list {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 6px;
+}
+.rule-config-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fbfcf8;
+  font-size: 12px;
+}
+.rule-config-row span {
+  color: var(--muted);
+  text-align: right;
+}
+.rule-derived {
+  margin-top: 12px;
+}
+.rule-derived summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+.rule-derived .rule-list {
+  margin-top: 10px;
+}
+@media (max-width: 560px) {
+  .rule-config-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  .rule-config-row span {
+    text-align: left;
+  }
+}
 .project-intro {
   font-size: 13px;
   color: #728168;

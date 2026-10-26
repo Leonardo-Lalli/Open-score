@@ -108,6 +108,7 @@ let list = [],
   calendarLoading = false,
   fieldsCache = [],
   fieldsError = "",
+  editState = null,
   toastTimer;
 const sportFor = (name) => sports.find((s) => s.name === name);
 const variantFor = (slug) => {
@@ -133,6 +134,296 @@ const durationText = (minutes) => {
 };
 function variantOptionLabel(v) {
   return `${v.name} · ${v.players_on_field} in campo · ${durationText(v.match_duration)}`;
+}
+// ---------------------------------------------------------------------------
+// Regole: metadati della variante
+//
+// La variante è la fonte autorevole. Il backend può descrivere i parametri
+// modificabili con `config_schema` (o `rule_schema` / `configurable`); finché
+// non lo fa usiamo il contratto condiviso di `TournamentInput` come fallback.
+// Le regole non modificabili vengono comunque mostrate leggendo `variant.rules`.
+// ---------------------------------------------------------------------------
+const RULE_LABELS = {
+  players_on_field: "Giocatori in campo",
+  min_lineup: "Minimo in campo",
+  max_roster: "Rosa massima",
+  match_duration: "Durata partita",
+  periods: "Tempi",
+  period_minutes: "Minuti per tempo",
+  scoring_mode: "Modalità punteggio",
+  score_label: "Unità di punteggio",
+  draw_allowed: "Pareggio ammesso",
+  sets_to_win: "Set per vincere",
+  max_sets: "Set massimi",
+  points_per_set: "Punti per set",
+  tiebreak_points: "Punti del set decisivo",
+  win_by_two: "Vantaggio di 2 punti",
+  max_points: "Limite punti del set",
+  target_goals: "Gol per vincere",
+  standings: "Punti classifica",
+  default_tie_breaker: "Criterio predefinito",
+  surface: "Campo",
+  court_type: "Tipo di campo",
+  field_type: "Tipo di campo",
+  substitutions: "Sostituzioni",
+  notes: "Note",
+};
+const TIE_BREAKER_FALLBACK = [
+  { value: "goal_difference", label: "Differenza reti" },
+  { value: "head_to_head", label: "Scontri diretti" },
+  { value: "goals_for", label: "Reti fatte" },
+  { value: "wins", label: "Vittorie" },
+];
+function humanizeRuleKey(key) {
+  return String(key)
+    .replace(/[_-]+/g, " ")
+    .replace(/^./, (letter) => letter.toUpperCase());
+}
+function optionList(raw, fallback = []) {
+  const source = Array.isArray(raw) && raw.length ? raw : fallback;
+  return (source || []).map((item) =>
+    item && typeof item === "object"
+      ? { value: String(item.value), label: String(item.label ?? item.value) }
+      : { value: String(item), label: String(item) },
+  );
+}
+function formatRuleValue(key, value) {
+  if (value === null || value === undefined) return "–";
+  if (typeof value === "boolean") return value ? "Sì" : "No";
+  if (key === "match_duration" || key === "period_minutes" || key === "duration")
+    return durationText(value);
+  if (key === "scoring_mode")
+    return { sets: "Set", points: "Punti", time: "Tempo" }[value] || String(value);
+  if (key === "standings" && typeof value === "object")
+    return `Vittoria ${value.win ?? "–"} · Pareggio ${value.draw ?? "–"} · Sconfitta ${value.loss ?? "–"}`;
+  if (Array.isArray(value)) return value.join(" · ");
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+function derivedRuleItems(variant) {
+  const rules = variant?.rules || {};
+  return Object.entries(rules)
+    .filter(([, value]) => value !== null && value !== undefined && value !== "")
+    .map(([key, value]) => ({
+      key,
+      label: RULE_LABELS[key] || humanizeRuleKey(key),
+      value: formatRuleValue(key, value),
+    }));
+}
+function fallbackRuleSchema(variant) {
+  const standings = variant?.standings || {};
+  const drawAllowed = !variant || variant.draw_allowed !== false;
+  const items = [
+    {
+      key: "win_points",
+      label: "Punti vittoria",
+      type: "number",
+      min: 0,
+      max: 10,
+      step: 1,
+      default: standings.win ?? 3,
+      stages: ["round_robin", "groups"],
+      help: "Punti in classifica per una vittoria.",
+    },
+    {
+      key: "draw_points",
+      label: "Punti pareggio",
+      type: "number",
+      min: 0,
+      max: 10,
+      step: 1,
+      default: drawAllowed ? (standings.draw ?? 1) : 0,
+      disabled: !drawAllowed,
+      stages: ["round_robin", "groups"],
+      help: drawAllowed
+        ? "Punti in classifica per un pareggio."
+        : "Questa variante non ammette pareggi: il valore resta 0.",
+    },
+    {
+      key: "loss_points",
+      label: "Punti sconfitta",
+      type: "number",
+      min: 0,
+      max: 10,
+      step: 1,
+      default: standings.loss ?? 0,
+      stages: ["round_robin", "groups"],
+      help: "Punti in classifica per una sconfitta.",
+    },
+    {
+      key: "tie_breaker",
+      label: "Criterio a parità di punti",
+      type: "select",
+      options: optionList(variant?.tie_breakers, TIE_BREAKER_FALLBACK),
+      default: variant?.default_tie_breaker || "goal_difference",
+      stages: ["round_robin", "groups"],
+      help: "Usato quando due partecipanti hanno gli stessi punti.",
+    },
+    {
+      key: "legs",
+      label: "Gare del girone",
+      type: "select",
+      options: [
+        { value: "1", label: "Sola andata" },
+        { value: "2", label: "Andata e ritorno" },
+      ],
+      default: 1,
+      stages: ["round_robin", "groups"],
+      help: "Numero di incontri tra le stesse due squadre.",
+    },
+    {
+      key: "group_count",
+      label: "Numero gironi",
+      type: "select",
+      options: [
+        { value: "2", label: "2 gironi" },
+        { value: "4", label: "4 gironi" },
+        { value: "8", label: "8 gironi" },
+      ],
+      default: 2,
+      stages: ["groups"],
+      help: "I gironi devono avere lo stesso numero di partecipanti.",
+    },
+    {
+      key: "qualifiers",
+      label: "Qualificate per girone",
+      type: "select",
+      options: [
+        { value: "1", label: "La prima" },
+        { value: "2", label: "Le prime due" },
+      ],
+      default: 2,
+      stages: ["groups"],
+      help: "Quante squadre passano alla fase finale.",
+    },
+  ];
+  return items.map((item) => ({ scope: "tournament", required: true, ...item }));
+}
+function variantRuleSchema(variant) {
+  if (!variant) return [];
+  const supplied =
+    variant.config_schema || variant.rule_schema || variant.configurable;
+  if (!Array.isArray(supplied) || !supplied.length)
+    return fallbackRuleSchema(variant);
+  return supplied
+    .filter((field) => field && field.key)
+    .map((field) => {
+      const type = field.type || "text";
+      const options = optionList(field.options, []);
+      return {
+        key: field.key,
+        label: field.label || RULE_LABELS[field.key] || humanizeRuleKey(field.key),
+        type: type === "select" && !options.length ? "text" : type,
+        min: field.min,
+        max: field.max,
+        step: field.step,
+        options,
+        required: field.required !== false,
+        help: field.help || "",
+        default: field.default,
+        scope: field.scope || "tournament",
+        stages: Array.isArray(field.stages) ? field.stages : null,
+        disabled: !!field.disabled,
+      };
+    });
+}
+function ruleValue(field, values, variant) {
+  if (field.disabled && field.default !== undefined) return field.default;
+  const value = values?.[field.key];
+  if (value !== undefined && value !== null && value !== "") return value;
+  if (field.default !== undefined) return field.default;
+  const fromVariant = variant?.rules?.[field.key];
+  return fromVariant === undefined ? "" : fromVariant;
+}
+function ruleConstraintText(field) {
+  if (field.type === "number")
+    return `Numero · ${field.min ?? 0}–${field.max ?? "∞"}`;
+  if (field.type === "select")
+    return field.options.map((option) => option.label).join(" · ");
+  if (field.type === "checkbox") return "Sì / No";
+  return "Testo";
+}
+function ruleInputHtml(field, value) {
+  const id = "rule-" + field.key;
+  const help = [
+    field.help,
+    field.type === "number" || field.type === "select"
+      ? `Valori consentiti: ${ruleConstraintText(field)}.`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const disabled = field.disabled ? "disabled" : "";
+  const required = field.required ? "required" : "";
+  if (field.type === "select") {
+    return `<label>${h(field.label)}<select id="${id}" name="${h(field.key)}" ${required} ${disabled}>${field.options.map((option) => `<option value="${h(option.value)}" ${String(value) === String(option.value) ? "selected" : ""}>${h(option.label)}</option>`).join("")}</select>${help ? `<small class="field-help">${h(help)}</small>` : ""}</label>`;
+  }
+  if (field.type === "checkbox") {
+    const checked = value === true || value === 1 || value === "1" || value === "true";
+    return `<label class="checkbox"><input id="${id}" name="${h(field.key)}" type="checkbox" ${checked ? "checked" : ""} ${disabled}>${h(field.label)}${help ? `<small class="field-help">${h(help)}</small>` : ""}</label>`;
+  }
+  const type = field.type === "number" ? "number" : "text";
+  return `<label>${h(field.label)}<input id="${id}" name="${h(field.key)}" type="${type}" value="${h(value)}" ${field.min != null ? `min="${field.min}"` : ""} ${field.max != null ? `max="${field.max}"` : ""} ${field.step != null ? `step="${field.step}"` : ""} ${required} ${disabled}>${help ? `<small class="field-help">${h(help)}</small>` : ""}</label>`;
+}
+function ruleWarnings(variant, values, format) {
+  const warnings = [];
+  for (const field of variantRuleSchema(variant)) {
+    if (field.scope === "variant") continue;
+    if (field.stages && !field.stages.includes(format)) continue;
+    if (!field.required) continue;
+    const value = values?.[field.key];
+    if (value === undefined || value === null || String(value).trim() === "") {
+      warnings.push(`${field.label} è obbligatorio.`);
+      continue;
+    }
+    if (field.type === "number") {
+      const number = Number(value);
+      if (!Number.isFinite(number))
+        warnings.push(`${field.label}: inserisci un numero.`);
+      else {
+        if (field.min != null && number < field.min)
+          warnings.push(`${field.label}: minimo ${field.min}.`);
+        if (field.max != null && number > field.max)
+          warnings.push(`${field.label}: massimo ${field.max}.`);
+      }
+    }
+  }
+  if (format === "knockout" && Number(values?.legs) > 1)
+    warnings.push("L’eliminazione diretta prevede una sola gara per incontro.");
+  if (format === "groups") {
+    const count = Number(values?.count);
+    const groups = Number(values?.group_count);
+    const qualifiers = Number(values?.qualifiers);
+    if (
+      count &&
+      groups &&
+      (count % groups || count / groups < Math.max(2, qualifiers))
+    )
+      warnings.push(
+        "Con i gironi servono gruppi uguali con almeno due partecipanti e abbastanza qualificate.",
+      );
+  }
+  return [...new Set(warnings)];
+}
+function ruleFieldsetHtml(
+  variant,
+  values,
+  format,
+  { id = "rule-fields", title = "Regole del torneo" } = {},
+) {
+  const fields = variantRuleSchema(variant)
+    .filter((field) => field.scope !== "variant")
+    .filter((field) => !field.stages || field.stages.includes(format));
+  const warnings = ruleWarnings(variant, values, format);
+  const derived = derivedRuleItems(variant);
+  return `<fieldset class="rule-fieldset" id="${id}"><legend>${h(title)}</legend><p class="field-help">I valori iniziali arrivano dalla variante. Il backend valida ogni modifica: qui vedi i limiti dichiarati.</p><div class="form-grid">${fields.map((field) => ruleInputHtml(field, ruleValue(field, values, variant))).join("")}</div><div id="${id}-warnings" class="rule-warnings ${warnings.length ? "" : "hidden"}" role="alert">${warnings.map((warning) => `<p>${h(warning)}</p>`).join("")}</div>${derived.length ? `<details class="rule-derived"><summary>Regole definite dalla variante</summary><ul class="rule-list">${derived.map((item) => `<li><strong>${h(item.label)}:</strong> ${h(item.value)}</li>`).join("")}</ul><p class="field-help">Queste regole sono congelate nel torneo con la variante. Per cambiarle scegli un’altra variante.</p></details>` : ""}</fieldset>`;
+}
+function updateRuleWarnings(id, variant, values, format) {
+  const box = document.getElementById(id + "-warnings");
+  if (!box) return;
+  const warnings = ruleWarnings(variant, values, format);
+  box.innerHTML = warnings.map((warning) => `<p>${h(warning)}</p>`).join("");
+  box.classList.toggle("hidden", !warnings.length);
 }
 const avatar = (name, id = 0) =>
   `<span class="avatar c${Math.abs(id) % 4}" aria-hidden="true">${h(
@@ -1511,16 +1802,13 @@ function renderCatalog() {
       ["Punteggio", scoringText(v)],
       ["Campo", v.surface],
     ];
-    const rules = v.rules || {};
-    const extra = [
-      rules.periods ? `${rules.periods} periodi da ${rules.period_minutes} minuti` : "",
-      rules.sets_to_win ? `Vittoria con ${rules.sets_to_win} set su ${rules.max_sets}` : "",
-      rules.win_by_two ? "Ogni set richiede almeno 2 punti di scarto" : "",
-      rules.max_points ? `Limite del set a ${rules.max_points} punti` : "",
-      rules.target_goals ? `Vince chi arriva per primo a ${rules.target_goals} gol` : "",
-      rules.notes || "",
-    ].filter(Boolean);
-    body = `<button class="back-link" data-action="catalog" data-catalog-sport="${h(v.sport)}">${icon("back")} ${h(v.sport)}</button><div class="page-heading"><div><p class="eyebrow"><span class="line"></span> ${h(v.sport)} / ${h(v.name)}</p><h1>${h(v.name)}</h1><p>${h(v.description)}</p></div><div class="toolbar">${canEdit() ? `<button class="button primary" data-action="new-variant" data-sport="${h(v.sport)}" data-variant="${h(v.slug)}">${icon("plus")}Crea torneo</button>` : button("Accedi per organizzare", "login", "primary", "check")}</div></div><div class="stat-grid">${rows.map(([label, value]) => stat(label, value, "", "ball")).join("")}</div><div class="catalog-detail-grid"><section class="panel"><div class="section-header"><h2>Regolamento</h2><span class="panel-label">${h(v.participant_kind === "team" ? "A SQUADRE" : "INDIVIDUALE")}</span></div><div class="regulation-copy">${v.regulation.split(/\n\n+/).map((p) => `<p>${h(p)}</p>`).join("")}</div></section><section class="panel"><h2>In sintesi</h2><details class="result-schedule" open><summary>Dettagli di gioco</summary><ul class="rule-list">${extra.map((item) => `<li>${h(item)}</li>`).join("")}</ul></details><div class="catalog-cta">${canEdit() ? `<button class="button primary" data-action="new-variant" data-sport="${h(v.sport)}" data-variant="${h(v.slug)}">${icon("plus")}Crea torneo ${h(v.name)}</button>` : ""}<button class="button ghost" data-action="catalog">Torna al catalogo</button></div></section></div>`;
+    const derived = derivedRuleItems(v).map(
+      (item) => `${item.label}: ${item.value}`,
+    );
+    const configurable = variantRuleSchema(v).filter(
+      (field) => field.scope !== "variant",
+    );
+    body = `<button class="back-link" data-action="catalog" data-catalog-sport="${h(v.sport)}">${icon("back")} ${h(v.sport)}</button><div class="page-heading"><div><p class="eyebrow"><span class="line"></span> ${h(v.sport)} / ${h(v.name)}</p><h1>${h(v.name)}</h1><p>${h(v.description)}</p></div><div class="toolbar">${canEdit() ? `<button class="button primary" data-action="new-variant" data-sport="${h(v.sport)}" data-variant="${h(v.slug)}">${icon("plus")}Crea torneo</button>` : button("Accedi per organizzare", "login", "primary", "check")}</div></div><div class="stat-grid">${rows.map(([label, value]) => stat(label, value, "", "ball")).join("")}</div><div class="catalog-detail-grid"><section class="panel"><div class="section-header"><h2>Regolamento</h2><span class="panel-label">${h(v.participant_kind === "team" ? "A SQUADRE" : "INDIVIDUALE")}</span></div><div class="regulation-copy">${v.regulation.split(/\n\n+/).map((p) => `<p>${h(p)}</p>`).join("")}</div></section><section class="panel"><h2>In sintesi</h2><details class="result-schedule" open><summary>Dettagli di gioco</summary><ul class="rule-list">${derived.map((item) => `<li>${h(item)}</li>`).join("")}</ul></details>${configurable.length ? `<h2>Parametri configurabili</h2><div class="rule-config-list">${configurable.map((field) => `<div class="rule-config-row"><strong>${h(field.label)}</strong><span>${h(ruleConstraintText(field))}</span></div>`).join("")}</div><p class="field-help">I limiti e i valori ammessi arrivano dai metadati della variante; il backend resta l’autorità sul salvataggio.</p>` : ""}<div class="catalog-cta">${canEdit() ? `<button class="button primary" data-action="new-variant" data-sport="${h(v.sport)}" data-variant="${h(v.slug)}">${icon("plus")}Crea torneo ${h(v.name)}</button>` : ""}<button class="button ghost" data-action="catalog">Torna al catalogo</button></div></section></div>`;
   }
   $("#content").innerHTML = body;
   $("#content").setAttribute("aria-busy", "false");
@@ -1862,7 +2150,6 @@ function regulationView() {
   if (!v) {
     return `<div class="panel empty">${icon("ball")}<h2>Sport storico.</h2><p>${h(t.sport)} non fa più parte del catalogo. Il torneo resta consultabile in sola lettura.</p></div>`;
   }
-  const rules = data.rules || {};
   const summary = [
     ["Giocatori in campo", v.players_on_field],
     ["Minimo in campo", v.min_lineup],
@@ -1871,17 +2158,11 @@ function regulationView() {
     ["Punteggio", scoringText(v)],
     ["Criterio classifica", tieLabel(t.tie_breaker)],
   ];
-  const details = [
-    rules.periods ? `${rules.periods} periodi da ${rules.period_minutes} minuti` : "",
-    rules.sets_to_win
-      ? `Vittoria con ${rules.sets_to_win} set su ${rules.max_sets}; il set decisivo si gioca a ${rules.tiebreak_points} punti`
-      : "",
-    rules.win_by_two ? "Ogni set richiede almeno 2 punti di scarto" : "",
-    rules.max_points ? `Limite del set a ${rules.max_points} punti` : "",
-    rules.target_goals ? `Vince chi arriva per primo a ${rules.target_goals} gol` : "",
-    rules.substitutions || rules.notes || "",
-  ].filter(Boolean);
-  return `<div class="section-header"><div><h2>Le regole scendono in campo.</h2><p class="section-sub">${h(t.sport)} · ${h(v.name)}. Il regolamento è congelato alla creazione del torneo.</p></div><button class="button ghost" data-action="print">${icon("download")}Stampa</button></div><div class="stat-grid">${summary.map(([label, value]) => stat(label, value, "", "ball")).join("")}</div><div class="catalog-detail-grid"><section class="panel"><h2>Regolamento applicato</h2><div class="regulation-copy">${(data.regulation || "").split(/\n\n+/).map((p) => `<p>${h(p)}</p>`).join("")}</div></section><section class="panel"><h2>Dettagli</h2><ul class="rule-list">${details.map((d) => `<li>${h(d)}</li>`).join("")}</ul><p class="field-help">Punti in classifica: vittoria ${t.win_points}, pareggio ${t.draw_points}, sconfitta ${t.loss_points}. A parità: ${tieLabel(t.tie_breaker)}.</p></section></div>`;
+  const details = derivedRuleItems(v).map(
+    (item) => `${item.label}: ${item.value}`,
+  );
+  const generated = data.matches.length > 0;
+  return `${generated ? `<div class="rule-warning-banner" role="status">${icon("clock")}<div><strong>Torneo già iniziato.</strong><p>Le regole sono congelate: cambiarle richiederebbe di rigenerare gli incontri. Puoi ancora modificare nomi, orari e risultati.</p></div></div>` : ""}<div class="section-header"><div><h2>Le regole scendono in campo.</h2><p class="section-sub">${h(t.sport)} · ${h(v.name)}. Il regolamento è congelato alla creazione del torneo.</p></div><div class="toolbar">${canManage() && !generated ? `<button class="button" data-action="edit">${icon("edit")}Modifica regole</button>` : ""}<button class="button ghost" data-action="print">${icon("download")}Stampa</button></div></div><div class="stat-grid">${summary.map(([label, value]) => stat(label, value, "", "ball")).join("")}</div><div class="catalog-detail-grid"><section class="panel"><h2>Regolamento applicato</h2><div class="regulation-copy">${(data.regulation || "").split(/\n\n+/).map((p) => `<p>${h(p)}</p>`).join("")}</div></section><section class="panel"><h2>Dettagli</h2><ul class="rule-list">${details.map((d) => `<li>${h(d)}</li>`).join("")}</ul><p class="field-help">Punti in classifica: vittoria ${t.win_points}, pareggio ${t.draw_points}, sconfitta ${t.loss_points}. A parità: ${tieLabel(t.tie_breaker)}.</p></section></div>`;
 }
 function approvalsView() {
   if (!resultProposalsAdapter.ready) {
@@ -2141,16 +2422,20 @@ function applyVariantToWizard(variant) {
   const hidden = $("#wizard-form [name=participant_kind]");
   if (hidden) hidden.value = variant.participant_kind;
   wizard.win_points = variant.standings?.win ?? 3;
-  wizard.draw_points = variant.standings?.draw ?? 0;
+  wizard.draw_points =
+    variant.draw_allowed === false ? 0 : (variant.standings?.draw ?? 0);
   wizard.loss_points = variant.standings?.loss ?? 0;
   wizard.tie_breaker = variant.default_tie_breaker || "goal_difference";
 }
 function variantRulesPanel(variant) {
   if (!variant) return "";
-  return `<div class="panel rules-preview"><div class="section-header"><h2>${h(variant.name)}</h2><span class="panel-label">REGOLE DELLA VARIANTE</span></div><div class="rule-pills"><span>${icon("users")}${variant.players_on_field} in campo</span><span>${icon("users")}Rosa max ${variant.max_roster}</span><span>${icon("clock")}${durationText(variant.match_duration)}</span><span>${icon("spark")}${h(scoringText(variant))}</span></div><p class="field-help" style="margin-bottom:0">${h(variant.description)}</p></div>`;
+  const configurable = variantRuleSchema(variant)
+    .filter((field) => field.scope !== "variant")
+    .map((field) => field.label);
+  return `<div class="panel rules-preview"><div class="section-header"><h2>${h(variant.name)}</h2><span class="panel-label">REGOLE DELLA VARIANTE</span></div><div class="rule-pills"><span>${icon("users")}${variant.players_on_field} in campo</span><span>${icon("users")}Rosa max ${variant.max_roster}</span><span>${icon("clock")}${durationText(variant.match_duration)}</span><span>${icon("spark")}${h(scoringText(variant))}</span></div><p class="field-help" style="margin-bottom:0">${h(variant.description)}</p>${configurable.length ? `<p class="field-help" style="margin-bottom:0">Parametri configurabili: ${h(configurable.join(" · "))}.</p>` : ""}</div>`;
 }
 function syncEditVariant(variant) {
-  if (!variant) return;
+  if (!variant || !editState) return;
   const sportSelect = $("#edit-sport");
   if (sportSelect) sportSelect.value = variant.sport;
   const kind = $("#tournament-form [name=participant_kind]");
@@ -2163,20 +2448,41 @@ function syncEditVariant(variant) {
           ? "Squadre"
           : "Giocatori individuali";
   }
-  const points = variant.standings || {};
-  const pointValues = {
-    win_points: points.win,
-    draw_points: points.draw,
-    loss_points: points.loss,
+  editState.variant = variant.slug;
+  editState.values = {
+    ...editState.values,
+    win_points: variant.standings?.win ?? 3,
+    draw_points:
+      variant.draw_allowed === false ? 0 : (variant.standings?.draw ?? 0),
+    loss_points: variant.standings?.loss ?? 0,
+    tie_breaker: variant.default_tie_breaker || "goal_difference",
   };
-  for (const [key, value] of Object.entries(pointValues)) {
-    const input = $(`#tournament-form [name=${key}]`);
-    if (input && value !== undefined && value !== null) input.value = value;
-  }
-  const tie = $("#tournament-form [name=tie_breaker]");
-  if (tie && variant.default_tie_breaker) tie.value = variant.default_tie_breaker;
   const preview = $("#edit-variant-preview");
   if (preview) preview.innerHTML = variantRulesPanel(variant);
+  renderEditRules();
+}
+function readEditRules() {
+  const form = $("#tournament-form");
+  if (!form || !editState) return;
+  const fd = new FormData(form);
+  if (fd.has("format")) editState.format = fd.get("format");
+  if (fd.has("variant")) editState.variant = fd.get("variant");
+  for (const key of ["win_points", "draw_points", "loss_points"])
+    if (fd.has(key)) editState.values[key] = Number(fd.get(key));
+  for (const key of ["legs", "group_count", "qualifiers"])
+    if (fd.has(key)) editState.values[key] = Number(fd.get(key));
+  if (fd.has("tie_breaker")) editState.values.tie_breaker = fd.get("tie_breaker");
+  editState.values.count = data?.teams?.length || editState.values.count;
+}
+function renderEditRules() {
+  const target = $("#edit-rule-fields");
+  if (!target || !editState) return;
+  target.outerHTML = ruleFieldsetHtml(
+    variantFor(editState.variant),
+    editState.values,
+    editState.format,
+    { id: "edit-rule-fields", title: "Regole e punteggi" },
+  );
 }
 function startWizard(sportName = null, variantSlug = null) {
   const sport =
@@ -2198,7 +2504,8 @@ function startWizard(sportName = null, variantSlug = null) {
     description: "",
     participant_kind: selected?.participant_kind || "team",
     win_points: selected?.standings?.win ?? 3,
-    draw_points: selected?.standings?.draw ?? 1,
+    draw_points:
+      selected?.draw_allowed === false ? 0 : (selected?.standings?.draw ?? 1),
     loss_points: selected?.standings?.loss ?? 0,
     tie_breaker: selected?.default_tie_breaker || "goal_difference",
     order: null,
@@ -2269,28 +2576,23 @@ function editTournament() {
   const generated = data.matches.length > 0;
   const variant = currentVariant();
   const kind = variant?.participant_kind || t.participant_kind;
+  editState = {
+    variant: variant?.slug || t.variant || null,
+    format: t.format,
+    values: {
+      win_points: t.win_points,
+      draw_points: t.draw_points,
+      loss_points: t.loss_points,
+      tie_breaker: t.tie_breaker,
+      legs: t.legs,
+      group_count: t.group_count,
+      qualifiers: t.qualifiers,
+      count: data.teams.length,
+    },
+  };
   const structure = generated
-    ? '<p class="field-help">Sport, variante, formato e regole sono bloccati perché gli incontri sono già stati generati. Nome e descrizione restano modificabili.</p>'
-    : `<fieldset class="format-fieldset" style="margin-top:18px"><legend>Formato e regole</legend><div class="form-grid"><label>Formato<select name="format" id="edit-format">${[["knockout", "Eliminazione"], ["round_robin", "Girone unico"], ["groups", "Gironi + finali"]].map(([v, l]) => `<option value="${v}" ${t.format === v ? "selected" : ""}>${l}</option>`).join("")}</select></label><label>Sport<select name="sport" id="edit-sport">${sportOptionsFor(t.sport)}</select></label><label>Variante<select name="variant" id="edit-variant">${variantOptionsFor(t.sport, t.variant)}</select></label><label>Partecipanti<input value="${kind === "team" ? "Squadre" : "Giocatori individuali"}" disabled><input type="hidden" name="participant_kind" value="${kind}"></label><label>Gare del girone<select name="legs" id="edit-legs"><option value="1" ${t.legs === 1 ? "selected" : ""}>Sola andata</option><option value="2" ${t.legs === 2 ? "selected" : ""}>Andata e ritorno</option></select></label></div><div class="form-grid groups-options ${t.format === "groups" ? "" : "hidden"}" id="edit-group-options"><label>Numero gironi<select name="group_count">${[2, 4, 8].map((n) => `<option value="${n}" ${t.group_count === n ? "selected" : ""}>${n} gironi</option>`).join("")}</select></label><label>Qualificate per girone<select name="qualifiers"><option value="1" ${t.qualifiers === 1 ? "selected" : ""}>La prima</option><option value="2" ${t.qualifiers === 2 ? "selected" : ""}>Le prime due</option></select></label></div><div class="form-grid">${[
-        ["win_points", "Punti vittoria", t.win_points],
-        ["draw_points", "Punti pareggio", t.draw_points],
-        ["loss_points", "Punti sconfitta", t.loss_points],
-      ]
-        .map(
-          ([n, l, v]) =>
-            `<label>${l}<input name="${n}" type="number" min="0" max="10" value="${v}" required></label>`,
-        )
-        .join("")}<label class="full">Criterio a parità di punti<select name="tie_breaker">${[
-        ["goal_difference", "Differenza reti"],
-        ["head_to_head", "Scontri diretti"],
-        ["goals_for", "Reti fatte"],
-        ["wins", "Vittorie"],
-      ]
-        .map(
-          ([v, l]) =>
-            `<option value="${v}" ${t.tie_breaker === v ? "selected" : ""}>${l}</option>`,
-        )
-        .join("")}</select></label></div><div id="edit-variant-preview">${variantRulesPanel(variant)}</div></fieldset>`;
+    ? `<div class="rule-warning-banner" role="status">${icon("clock")}<div><strong>Torneo già iniziato.</strong><p>Gli incontri sono stati generati: sport, variante, formato e regole sono bloccati dal backend. Puoi modificare nome e descrizione; per nuove regole serve un nuovo torneo.</p></div></div><details class="result-schedule"><summary>Regole applicate</summary><ul class="rule-list">${derivedRuleItems(variant).map((item) => `<li><strong>${h(item.label)}:</strong> ${h(item.value)}</li>`).join("")}</ul><p class="field-help">Punti in classifica: ${t.win_points}/${t.draw_points}/${t.loss_points} · ${h(tieLabel(t.tie_breaker))} · ${t.legs === 2 ? "andata e ritorno" : "sola andata"}.</p></details>`
+    : `<fieldset class="format-fieldset" style="margin-top:18px"><legend>Sport e formato</legend><div class="form-grid"><label>Formato<select name="format" id="edit-format">${[["knockout", "Eliminazione"], ["round_robin", "Girone unico"], ["groups", "Gironi + finali"]].map(([v, l]) => `<option value="${v}" ${t.format === v ? "selected" : ""}>${l}</option>`).join("")}</select></label><label>Sport<select name="sport" id="edit-sport">${sportOptionsFor(t.sport)}</select></label><label>Variante<select name="variant" id="edit-variant">${variantOptionsFor(t.sport, t.variant)}</select></label><label>Partecipanti<input value="${kind === "team" ? "Squadre" : "Giocatori individuali"}" disabled><input type="hidden" name="participant_kind" value="${kind}"></label></div><div id="edit-variant-preview">${variantRulesPanel(variant)}</div></fieldset>${ruleFieldsetHtml(variant, editState.values, t.format, { id: "edit-rule-fields", title: "Regole e punteggi" })}`;
   modal(
     "Ritocca il torneo.",
     `<form id="tournament-form"><div class="form-grid"><label class="full">Nome del torneo<input name="name" value="${h(t.name)}" minlength="2" maxlength="120" required autofocus></label><label class="full">Descrizione<textarea name="description" maxlength="1000" rows="3">${h(t.description)}</textarea></label></div>${structure}</form>`,
@@ -2301,15 +2603,10 @@ function editTournament() {
 }
 function updateEditFormat() {
   const form = $("#tournament-form");
-  if (!form) return;
-  const format = form.querySelector('[name="format"]')?.value;
-  const groups = $("#edit-group-options");
-  if (groups) groups.classList.toggle("hidden", format !== "groups");
-  const legs = $("#edit-legs");
-  if (legs) {
-    legs.disabled = format === "knockout";
-    if (legs.disabled) legs.value = "1";
-  }
+  if (!form || !editState) return;
+  readEditRules();
+  if (editState.format === "knockout") editState.values.legs = 1;
+  renderEditRules();
 }
 function renderWizard() {
   let body = "";
@@ -2325,32 +2622,9 @@ function renderWizard() {
       )
       .join(
         "",
-      )}</div></fieldset><div class="form-grid"><label>Numero partecipanti<input type="number" name="count" min="2" max="32" value="${wizard.count}" required></label><label>Gare del girone<select name="legs"><option value="1" ${wizard.legs === 1 ? "selected" : ""}>Sola andata</option><option value="2" ${wizard.legs === 2 ? "selected" : ""}>Andata e ritorno</option></select></label></div><div class="form-grid groups-options ${wizard.format === "groups" ? "" : "hidden"}" id="group-options"><label>Numero gironi<select name="group_count">${[2, 4, 8].map((n) => `<option value="${n}" ${wizard.group_count === n ? "selected" : ""}>${n} gironi</option>`).join("")}</select></label><label>Qualificate per girone<select name="qualifiers"><option value="1" ${wizard.qualifiers === 1 ? "selected" : ""}>La prima</option><option value="2" ${wizard.qualifiers === 2 ? "selected" : ""}>Le prime due</option></select></label></div>`;
+      )}</div></fieldset><div class="form-grid"><label>Numero partecipanti<input type="number" name="count" min="2" max="32" value="${wizard.count}" required></label></div>${ruleFieldsetHtml(variantFor(wizard.variant), wizard, wizard.format, { id: "wizard-rule-fields" })}`;
   if (wizardStep === 1)
-    body = `<div class="form-grid"><label class="full">${wizard.participant_kind === "team" ? "Come si chiamano le squadre?" : "Chi scende in campo?"}<textarea name="names" placeholder="Un nome per riga, ad esempio:&#10;Falchi&#10;Leoni&#10;Aquile" rows="7">${h(wizard.names)}</textarea></label><label class="full">Una descrizione, se ti va<textarea name="description" maxlength="1000" rows="2" style="min-height:65px" placeholder="Dove si gioca, perché ci incontriamo…">${h(wizard.description)}</textarea></label></div><p class="field-help">Servono ${wizard.count} nomi distinti. Lascia vuoto per usare ${wizard.participant_kind === "team" ? "Team" : "Giocatore"} #1, #2, … Potrai rinominarli in seguito.</p>${
-      wizard.format !== "knockout"
-        ? `<details class="result-schedule"><summary>Punti in classifica</summary><div class="form-grid" style="margin-top:15px">${[
-            ["win_points", "Vittoria"],
-            ["draw_points", "Pareggio"],
-            ["loss_points", "Sconfitta"],
-          ]
-            .map(
-              ([n, l]) =>
-                `<label>${l}<input name="${n}" type="number" min="0" max="10" value="${wizard[n]}" required></label>`,
-            )
-            .join("")}<label class="full">Criterio a parità di punti<select name="tie_breaker">${[
-              ["goal_difference", "Differenza reti"],
-              ["head_to_head", "Scontri diretti"],
-              ["goals_for", "Reti fatte"],
-              ["wins", "Vittorie"],
-            ]
-              .map(
-                ([v, l]) =>
-                  `<option value="${v}" ${wizard.tie_breaker === v ? "selected" : ""}>${l}</option>`,
-              )
-              .join("")}</select></label></div></details>`
-        : ""
-    }`;
+    body = `<div class="form-grid"><label class="full">${wizard.participant_kind === "team" ? "Come si chiamano le squadre?" : "Chi scende in campo?"}<textarea name="names" placeholder="Un nome per riga, ad esempio:&#10;Falchi&#10;Leoni&#10;Aquile" rows="7">${h(wizard.names)}</textarea></label><label class="full">Una descrizione, se ti va<textarea name="description" maxlength="1000" rows="2" style="min-height:65px" placeholder="Dove si gioca, perché ci incontriamo…">${h(wizard.description)}</textarea></label></div><p class="field-help">Servono ${wizard.count} nomi distinti. Lascia vuoto per usare ${wizard.participant_kind === "team" ? "Team" : "Giocatore"} #1, #2, … Potrai rinominarli in seguito.</p>`;
   if (wizardStep === 2) {
     const v = variantFor(wizard.variant);
     const order =
@@ -2378,11 +2652,16 @@ function renderWizard() {
 }
 function updateWizardFormat() {
   if (wizardStep !== 0) return;
-  const fmt = $('#wizard-form [name="format"]:checked')?.value;
-  $("#group-options").classList.toggle("hidden", fmt !== "groups");
-  const legs = $('#wizard-form [name="legs"]');
-  legs.disabled = fmt === "knockout";
-  if (legs.disabled) legs.value = "1";
+  readWizard();
+  if (wizard.format === "knockout") wizard.legs = 1;
+  const target = $("#wizard-rule-fields");
+  if (target)
+    target.outerHTML = ruleFieldsetHtml(
+      variantFor(wizard.variant),
+      wizard,
+      wizard.format,
+      { id: "wizard-rule-fields" },
+    );
 }
 async function wizardSubmit() {
   const form = $("#wizard-form");
@@ -2390,14 +2669,12 @@ async function wizardSubmit() {
   readWizard();
   if (wizardStep === 0) {
     if (wizard.format === "knockout") wizard.legs = 1;
-    if (
-      wizard.format === "groups" &&
-      (wizard.count % wizard.group_count ||
-        wizard.count / wizard.group_count < Math.max(2, wizard.qualifiers))
-    )
-      throw new Error(
-        "Scegli gironi uguali con almeno due partecipanti ciascuno.",
-      );
+    const warnings = ruleWarnings(
+      variantFor(wizard.variant),
+      wizard,
+      wizard.format,
+    );
+    if (warnings.length) throw new Error(warnings.join(" "));
   }
   if (wizardStep === 1) {
     const names = wizardParticipantNames();
@@ -2857,6 +3134,26 @@ document.addEventListener("click", (e) => {
     });
 });
 document.addEventListener("input", (e) => {
+  if (e.target.closest("#wizard-form") && wizardStep === 0) {
+    readWizard();
+    updateRuleWarnings(
+      "wizard-rule-fields",
+      variantFor(wizard.variant),
+      wizard,
+      wizard.format,
+    );
+    return;
+  }
+  if (e.target.closest("#tournament-form") && editState) {
+    readEditRules();
+    updateRuleWarnings(
+      "edit-rule-fields",
+      variantFor(editState.variant),
+      editState.values,
+      editState.format,
+    );
+    return;
+  }
   if (e.target.closest("#schedule-form")) {
     updateScheduleConflictHint();
     return;
@@ -2876,6 +3173,24 @@ document.addEventListener("change", (e) => {
     return;
   }
   if (e.target.closest("#schedule-form")) updateScheduleConflictHint();
+  if (e.target.closest("#wizard-form") && wizardStep === 0) {
+    readWizard();
+    updateRuleWarnings(
+      "wizard-rule-fields",
+      variantFor(wizard.variant),
+      wizard,
+      wizard.format,
+    );
+  }
+  if (e.target.closest("#tournament-form") && editState) {
+    readEditRules();
+    updateRuleWarnings(
+      "edit-rule-fields",
+      variantFor(editState.variant),
+      editState.values,
+      editState.format,
+    );
+  }
   if (e.target.id === "bulk-file") {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -2898,12 +3213,22 @@ document.addEventListener("change", (e) => {
     const select = $("#wizard-variant");
     if (select) select.innerHTML = variantOptionsFor(wizard.sport, wizard.variant);
     $("#wizard-variant-preview").innerHTML = variantRulesPanel(variant);
+    const rules = $("#wizard-rule-fields");
+    if (rules)
+      rules.outerHTML = ruleFieldsetHtml(variant, wizard, wizard.format, {
+        id: "wizard-rule-fields",
+      });
   }
   if (e.target.id === "wizard-variant") {
     readWizard();
     const variant = variantFor(wizard.variant);
     applyVariantToWizard(variant);
     $("#wizard-variant-preview").innerHTML = variantRulesPanel(variant);
+    const rules = $("#wizard-rule-fields");
+    if (rules)
+      rules.outerHTML = ruleFieldsetHtml(variant, wizard, wizard.format, {
+        id: "wizard-rule-fields",
+      });
   }
   if (e.target.id === "edit-sport") {
     const sport = sportFor(e.target.value);
@@ -3021,28 +3346,38 @@ document.addEventListener("submit", (e) => {
         if (fd.has("sport")) {
           payload.sport = fd.get("sport");
           payload.variant = fd.get("variant");
-          // The edit modal has no format control: omit it so PATCH preserves
-          // the current structure instead of sending an explicit null.
           if (fd.has("format")) payload.format = fd.get("format");
           payload.participant_kind = fd.get("participant_kind");
-          payload.legs =
-            fd.get("format") === "knockout" ? 1 : Number(fd.get("legs"));
-          payload.group_count = Number(fd.get("group_count"));
-          payload.qualifiers = Number(fd.get("qualifiers"));
-          payload.win_points = Number(fd.get("win_points"));
-          payload.draw_points = Number(fd.get("draw_points"));
-          payload.loss_points = Number(fd.get("loss_points"));
-          payload.tie_breaker = fd.get("tie_breaker");
-          if (payload.format === "groups") {
-            const count = data.teams.length;
-            if (
-              count % payload.group_count ||
-              count / payload.group_count < Math.max(2, payload.qualifiers)
-            )
-              throw new Error(
-                "Con i gironi servono gruppi uguali con almeno due partecipanti e abbastanza qualificate.",
-              );
+          const format = payload.format || data.tournament.format;
+          const variant = variantFor(editState?.variant || payload.variant);
+          for (const field of variantRuleSchema(variant)) {
+            if (field.scope === "variant") continue;
+            if (field.stages && !field.stages.includes(format)) continue;
+            const input = form.querySelector(`[name="${field.key}"]`);
+            if (field.type === "checkbox") {
+              if (input) payload[field.key] = fd.has(field.key);
+              continue;
+            }
+            if (input) {
+              const raw = fd.get(field.key);
+              payload[field.key] = field.type === "number" ? Number(raw) : raw;
+            } else if (field.disabled) {
+              payload[field.key] =
+                editState?.values?.[field.key] ?? field.default ?? 0;
+            }
           }
+          if (format === "knockout") payload.legs = 1;
+          const values = {
+            ...(editState?.values || {}),
+            ...payload,
+            count: data.teams.length,
+          };
+          const warnings = ruleWarnings(
+            variantFor(editState?.variant || payload.variant),
+            values,
+            format,
+          );
+          if (warnings.length) throw new Error(warnings.join(" "));
         }
         await api(`/tournaments/${selectedId}`, {
           method: "PATCH",
