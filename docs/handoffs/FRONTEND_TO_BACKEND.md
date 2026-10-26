@@ -2,6 +2,7 @@
 
 > Proprietario: Team B (frontend/UX). Non modificare in parallelo dal Team A.
 > Branch: `max-develop` · Base: `main` @ `f0eedf9` · Data: 26 ottobre 2026 · Versione app: 0.8.0.
+> Registro cronologico delle modifiche: [TEAM_B_LOG.md](TEAM_B_LOG.md).
 
 Questo documento è l'audit iniziale del frontend e l'elenco delle richieste verso il Team A. Serve come contratto informale finché non sarà pronto `docs/contracts/API_V1.md` (ancora assente al momento della scrittura).
 
