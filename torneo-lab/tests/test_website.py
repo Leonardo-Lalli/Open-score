@@ -3,9 +3,11 @@
 The site is a standalone static directory: these tests guard structure, honest
 claims, local assets, the Pages workflow and basic CSS/JS sanity.
 """
+import json
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -24,6 +26,8 @@ def test_site_is_a_standalone_page():
     assert (SITE / 'script.js').exists()
     assert (SITE / '404.html').exists()
     assert (SITE / '.nojekyll').exists()
+    assert (SITE / 'site.config.json').exists()
+    assert (ROOT / '.github' / 'scripts' / 'build_site.py').exists()
     assert (SITE / 'assets' / 'mark.svg').exists()
     assert '<html lang="it">' in HTML
     assert '<meta charset="utf-8"' in HTML
@@ -75,7 +79,7 @@ def test_all_local_assets_and_links_exist():
     targets = re.findall(r'(?:src|href)="([^"]+)"', HTML)
     for target in targets:
         if target.startswith(('#', 'http://', 'https://', 'mailto:', 'tel:',
-                              'data:')):
+                              'data:', '__SITE_')):
             continue
         clean = target.split('#')[0].split('?')[0]
         if not clean:
@@ -262,11 +266,12 @@ def test_pages_workflow_deploys_the_website_directory():
     for marker in ('branches: [main]', 'workflow_dispatch', 'needs: verify',
                    "if: github.ref == 'refs/heads/main'", 'pages: write',
                    'id-token: write', 'contents: read',
-                   'cancel-in-progress: false', 'upload-pages-artifact@v3',
-                   'path: website', 'deploy-pages@v4',
+                   'cancel-in-progress: false', 'upload-pages-artifact@v4',
+                   'path: _site', 'deploy-pages@v4', 'build_site.py',
                    'node --check website/script.js',
                    'python -m pytest --noconftest', 'python -m pip check'):
         assert marker in text, f'{marker!r} mancante nel workflow Pages'
+    assert 'path: website' not in text
     assert 'secrets.' not in text
     assert 'pull_request' not in text
 
@@ -277,17 +282,48 @@ def test_site_has_no_secret_material():
         r'-----BEGIN [A-Z ]*PRIVATE KEY-----|client_secret\s*[:=]|'
         r'api_key\s*[:=]', re.I)
     for path in (INDEX, SITE / '404.html', SITE / 'styles.css',
-                 SITE / 'script.js'):
+                 SITE / 'script.js', SITE / 'site.config.json'):
         text = path.read_text(encoding='utf-8')
         assert not patterns.search(text), f'possibile segreto in {path.name}'
 
 
-def test_site_uses_the_project_pages_base_path():
-    error = (SITE / '404.html').read_text(encoding='utf-8')
-    assert '<base href="/Open-score/" />' in error
-    assert 'https://leonardo-lalli.github.io/Open-score/' in HTML
+def test_site_config_matches_the_pages_placeholders():
+    config = json.loads((SITE / 'site.config.json').read_text(encoding='utf-8'))
+    assert config['base'].startswith('/') and config['base'].endswith('/')
+    assert config['url'].startswith('https://') and config['url'].endswith('/')
+    domain = config['custom_domain']
+    if domain:
+        assert config['base'] == '/'
+        assert config['url'].lower().startswith(f'https://{domain.lower()}/')
+    else:
+        assert config['base'] == '/Open-score/'
+        assert config['url'].endswith(config['base'])
+    assert '<base href="__SITE_BASE__" />' in (SITE / '404.html').read_text(
+        encoding='utf-8')
+    assert '__SITE_URL__' in HTML
     absolute = re.findall(r'(?:src|href)="(/[^/][^"]*)"', HTML)
     assert absolute == [], f'percorsi assoluti non portabili: {absolute}'
+
+
+def test_build_renders_the_site_without_placeholders(tmp_path):
+    config = json.loads((SITE / 'site.config.json').read_text(encoding='utf-8'))
+    out = tmp_path / 'site'
+    subprocess.run(
+        [sys.executable, str(ROOT / '.github' / 'scripts' / 'build_site.py'),
+         '--out', str(out)],
+        check=True, timeout=60,
+    )
+    index = (out / 'index.html').read_text(encoding='utf-8')
+    error = (out / '404.html').read_text(encoding='utf-8')
+    for page in (index, error):
+        assert '__SITE_' not in page
+    assert f'<base href="{config["base"]}" />' in error
+    assert f'href="{config["url"]}"' in index
+    assert not (out / 'site.config.json').exists()
+    assert not (out / 'README.md').exists()
+    assert (out / 'styles.css').exists()
+    assert (out / '.nojekyll').exists()
+    assert (out / 'assets' / 'fonts' / 'OFL.txt').exists()
 
 
 def test_images_have_alt_text():

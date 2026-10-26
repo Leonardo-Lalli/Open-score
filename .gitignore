@@ -443,3 +443,6 @@ deploy/open-score.env
 
 # Configurazione locale dell'agente, non fa parte del progetto
 opencode.json
+
+# Sito statico generato da .github/scripts/build_site.py
+_site/

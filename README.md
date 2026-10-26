@@ -262,7 +262,7 @@ Open-score/
 | `torneo-lab/README.md` | Guida completa all'app, LAN, account, backup e Docker |
 | `torneo-lab/static/` | SPA unica, senza build step |
 | `torneo-lab/migrations/` | Schema versionato, dalla 001 alla 007 |
-| `website/` | Vetrina statica, tema chiaro/scuro e workflow Pages |
+| `website/` | Vetrina statica, tema chiaro/scuro, configurazione del dominio e workflow Pages |
 | `docs/` | Architettura, API, database, deploy, sicurezza, specifiche e design |
 | `deploy/` | Configurazione LAN e script di manutenzione |
 
@@ -276,6 +276,7 @@ Open-score/
 | API | [`docs/API.md`](docs/API.md) · `/docs` quando il server è avviato |
 | Database | [`docs/DATABASE.md`](docs/DATABASE.md) |
 | Deploy in LAN | [`docs/DEPLOY.md`](docs/DEPLOY.md) |
+| Dominio e GitHub Pages | [`docs/GITHUB_PAGES_DOMAIN.md`](docs/GITHUB_PAGES_DOMAIN.md) |
 | Sicurezza | [`docs/SECURITY.md`](docs/SECURITY.md) |
 | Matrice funzionale | [`docs/FEATURE_MATRIX.md`](docs/FEATURE_MATRIX.md) |
 | Design system | [`docs/design-system.md`](docs/design-system.md) |
@@ -284,8 +285,11 @@ Open-score/
 Il sito è una vetrina statica: non contiene il backend e non chiama le API
 dell'app. Per pubblicarlo o aggiornarlo, vedi
 [`website/README.md`](website/README.md). Il workflow
-`.github/workflows/pages.yml` pubblica la cartella `website/` su `main` dopo
-l'attivazione di **Settings → Pages → Source: GitHub Actions**.
+`.github/workflows/pages.yml` genera `_site/` da `website/` con
+`site.config.json` e lo pubblica su `main` dopo l'attivazione di
+**Settings → Pages → Source: GitHub Actions**. Il collegamento a un dominio
+Aruba, con record DNS e rollback, è descritto in
+[`docs/GITHUB_PAGES_DOMAIN.md`](docs/GITHUB_PAGES_DOMAIN.md).
 
 ## Roadmap
 

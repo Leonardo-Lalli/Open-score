@@ -1,13 +1,16 @@
 name: Open Score website
 
-# Il sito è statico: non esiste un passo di build. La verifica controlla
-# struttura, asset, link, temi e sintassi JavaScript; il deploy pubblica la
-# cartella website/ con il meccanismo ufficiale di GitHub Pages.
+# `website/` contiene due segnaposto (__SITE_BASE__, __SITE_URL__) che
+# `.github/scripts/build_site.py` risolve in `_site/` leggendo
+# `website/site.config.json`. Così lo stesso sito funziona sia sul percorso di
+# progetto (/Open-score/) sia sulla radice di un dominio personalizzato.
+# Il deploy usa il meccanismo ufficiale di GitHub Pages.
 on:
   push:
     branches: [main]
     paths:
       - 'website/**'
+      - '.github/scripts/build_site.py'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -26,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -36,6 +39,8 @@ jobs:
         run: python -m pip check
       - name: Controlla la sintassi JavaScript
         run: node --check website/script.js
+      - name: Genera il sito statico
+        run: python .github/scripts/build_site.py
       - name: Verifica struttura, asset, link, temi e workflow
         run: python -m pytest --noconftest -q torneo-lab/tests/test_website.py
 
@@ -55,10 +60,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
         with:
-          path: website
+          python-version: '3.12'
+      - name: Genera il sito statico
+        run: python .github/scripts/build_site.py
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4

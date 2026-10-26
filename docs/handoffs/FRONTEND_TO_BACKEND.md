@@ -231,3 +231,17 @@ del Team A). Fino a quella decisione la UI espone solo nome e numero di maglia.
   Source: GitHub Actions**. Non dichiarare il sito online finché non è attivo.
 - Verifica in un browser reale (console, font, responsive, temi) non eseguita:
   in questo ambiente non c'è un browser automatizzato.
+
+## 10. Dominio del professore e GitHub Pages (Team B)
+
+- Architettura solo ipotizzata: `www.` = sito statico su Pages, `app.`/`api.` =
+  Team A su Aruba o altro host. **Nessun DNS reale è stato modificato.**
+- Procedura completa, record DNS ufficiali (verificati il 26 ottobre 2026),
+  verifica del dominio e rollback: `docs/GITHUB_PAGES_DOMAIN.md`.
+- Il sito si adatta con `website/site.config.json`; la build risolve
+  `__SITE_BASE__`/`__SITE_URL__` in `_site/`. Non servono modifiche agli HTML
+  e non serve un file `CNAME` con il workflow Actions.
+- Serve dal Team A: decisione su hosting di `app`/`api`, eventuale CORS verso
+  l'origine del sito e conferma di chi gestisce la zona DNS Aruba.
+- Da chiedere al professore: dominio reale, piano Aruba, scelta apex/`www`,
+  presenza di posta o sito esistente sull'apex.

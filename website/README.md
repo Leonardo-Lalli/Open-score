@@ -14,6 +14,7 @@ website/
 ├── 404.html                   pagina di errore statica
 ├── styles.css                 design system del sito, font inclusi
 ├── script.js                  menu mobile e anno nel footer
+├── site.config.json           base, URL canonico e dominio personalizzato
 ├── .nojekyll                  evita l'elaborazione Jekyll
 ├── assets/
 │   ├── mark.svg               marchio Open Score
@@ -22,7 +23,11 @@ website/
 └── README.md
 ```
 
-Nessun framework, nessun build step, nessuna CDN: si apre direttamente con un server statico.
+Nessun framework e nessuna CDN. C'è però un piccolo passo di build:
+`.github/scripts/build_site.py` copia il sito in `_site/` e risolve i segnaposto
+`__SITE_BASE__` e `__SITE_URL__` leggendo `site.config.json`. Lo stesso sorgente
+funziona così sia su `/Open-score/` sia sulla radice di un dominio personalizzato.
+`_site/` è generato e non va versionato.
 
 ## Pubblicazione su GitHub Pages
 
@@ -33,10 +38,10 @@ sono eseguiti, il sito non è online: non dichiararlo pubblicato.
 1. Unisci le modifiche su `main` (il workflow non pubblica altri branch).
 2. Nel repository: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 3. Il workflow `Open Score website` parte a ogni push su `main` che tocca
-   `website/` o il workflow stesso, oppure manualmente da **Actions → Open
-   Score website → Run workflow**. Il job `verify` esegue `node --check`,
-   `pip check` e i test statici del sito; il job `deploy` pubblica solo se il
-   run parte da `main`.
+   `website/`, `site.config.json`, lo script di build o il workflow stesso,
+   oppure manualmente da **Actions → Open Score website → Run workflow**. Il job
+   `verify` esegue `pip check`, `node --check`, la build e i test statici del
+   sito; il job `deploy` pubblica solo se il run parte da `main`.
 4. Attendi la fine del job `deploy` e apri l'URL indicato nell'ambiente
    `github-pages`.
 
@@ -44,19 +49,26 @@ Un `workflow_dispatch` da un branch feature esegue soltanto `verify`: serve come
 anteprima di validazione e non sovrascrive il sito pubblico. Il workflow non usa
 secret e non ha bisogno di variabili d'ambiente.
 
-Il workflow carica la cartella `website/` come artifact, quindi tutto ciò che deve essere pubblico va messo qui dentro. Non pubblicare `torneo-lab/`, database, `.env` o screenshot con nomi reali.
+Il workflow carica `_site/`, cioè **solo la build** di `website/`: configurazione
+locale e file Markdown non vengono pubblicati. Non pubblicare `torneo-lab/`,
+database, `.env` o screenshot con nomi reali.
 
-Se il repository o il dominio cambiano, aggiorna `canonical`, `og:url` e i link GitHub in `index.html`, oltre al `<base href="/Open-score/">` in `404.html`.
+Per collegare un dominio del professore non si modificano gli HTML: si aggiorna
+`site.config.json` (ad esempio `base: "/"`, `url: "https://www.DOMINIO.IT/"`,
+`custom_domain: "www.DOMINIO.IT"`) e si configura Pages. Procedura completa,
+record DNS e rollback in [`../docs/GITHUB_PAGES_DOMAIN.md`](../docs/GITHUB_PAGES_DOMAIN.md).
 
 ## Anteprima locale
 
-Dalla cartella `website/`:
+Dalla radice del repository, genera la build e servila:
 
 ```bash
-python -m http.server 8080
+python .github/scripts/build_site.py
+cd _site && python -m http.server 8080
 ```
 
-Poi apri <http://localhost:8080>. In alternativa, apri `index.html` con un browser moderno: i percorsi sono relativi e funzionano anche senza server.
+Poi apri <http://localhost:8080>. Servire `website/` direttamente non basta:
+conterrebbe ancora i segnaposto di `canonical` e del `<base>` della 404.
 
 ## Contenuti: regole di onestà
 
