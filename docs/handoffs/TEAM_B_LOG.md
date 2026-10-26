@@ -11,10 +11,10 @@
 
 ## Stato corrente
 
-- Branch: `max-develop` (HEAD `1ef0152`), working tree pulito.
+- Branch: `max-develop` (HEAD `0f086ee`), working tree pulito.
 - Base: `f0eedf9` (`main` / `origin/main`).
 - Backend, migrazioni, modelli e contratti API: **non modificati**.
-- Suite: **200 passed** (warning Starlette/httpx del TestClient, innocuo).
+- Suite: **202 passed** (warning Starlette/httpx del TestClient, innocuo).
 - Lint: `ruff check --select I,C4,UP,F .` pulito; `node --check static/app.js` OK.
 - Push: nessuno; il branch resta locale finché il team non lo richiede.
 
@@ -33,13 +33,14 @@
 | `1ce99bd` | 26/10 12:20 | Tabella ordine squadre con drag and drop | `static/app.js`, `static/styles.css`, `tests/test_static_ui.py`, `docs/DRAG_DROP_ORDERING.md`, `docs/design-system.md`, `docs/handoffs/*` | Adapter `PATCH /teams/order` proposto, `ready: false`; anteprima locale con rollback su errore API | 197 passed |
 | `3937ee3` | 26/10 12:30 | Interfacce proposte e approvazioni | `static/app.js`, `static/styles.css`, `tests/test_static_ui.py`, `docs/RESULT_APPROVALS.md`, `docs/design-system.md`, `docs/handoffs/*` | `resultProposalsAdapter` con `ready: false`; scheda Da verificare in attesa API; nessun dato finto | 198 passed |
 | `1ef0152` | 26/10 13:10 | Condivisione QR completa e pagina inviti | `static/app.js`, `static/styles.css`, `tests/test_static_ui.py`, `docs/QR_SHARING.md`, `docs/design-system.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | Azioni download/stampa/condividi; `inviteAdapter` con `ready: false`; anteprima invito via `GET /api/public/{token}` | 200 passed |
+| `0f086ee` | 26/10 13:40 | Pagine campi e calendario | `static/app.js`, `static/styles.css`, `static/index.html`, `tests/test_static_ui.py`, `docs/FIELDS_AND_CALENDAR.md`, `docs/design-system.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | `fieldsAdapter` e `calendarAdapter` con `ready: false`; conflitti client dichiarati; aggregazione dai tornei reali | 202 passed |
 
 ## File toccati da `f0eedf9`
 
 - SPA: `torneo-lab/static/app.js`, `index.html`, `styles.css`.
 - Vendor: `torneo-lab/static/vendor/qrcode.js` (+ `README.md` di provenienza e licenza MIT).
 - Test UI: `torneo-lab/tests/test_static_ui.py`.
-- Documentazione: `docs/design-system.md`, `docs/PROFESSOR_DASHBOARD.md`, `docs/STUDENT_DASHBOARD.md`, `docs/STUDENT_MANAGEMENT.md`, `docs/DRAG_DROP_ORDERING.md`, `docs/RESULT_APPROVALS.md`, `docs/QR_SHARING.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md`, questo registro.
+- Documentazione: `docs/design-system.md`, `docs/PROFESSOR_DASHBOARD.md`, `docs/STUDENT_DASHBOARD.md`, `docs/STUDENT_MANAGEMENT.md`, `docs/DRAG_DROP_ORDERING.md`, `docs/RESULT_APPROVALS.md`, `docs/QR_SHARING.md`, `docs/FIELDS_AND_CALENDAR.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md`, questo registro.
 
 Nessuna modifica a `app.py`, `services.py`, `schemas.py`, `db.py`, `migrations/`, `deploy/` o workflow CI.
 
@@ -65,6 +66,7 @@ Dettaglio e stati in [`FRONTEND_TO_BACKEND.md`](FRONTEND_TO_BACKEND.md), sezione
 7. Scheduler automatico e gestione campi/arbitri.
 8. Eventuale stato `pending` per l'approvazione dei risultati (da concordare).
 9. `GET /api/invites/{token}` e `POST /api/invites/{token}/join` per la pagina inviti, con token opachi, stato invito e approvazione del docente. Dettaglio in [`../QR_SHARING.md`](../QR_SHARING.md).
+10. CRUD campi docente (`GET/POST /api/fields`, `PATCH/DELETE /api/fields/{id}`) e aggregato calendario `GET /api/calendar` con conflitti. Dettaglio in [`../FIELDS_AND_CALENDAR.md`](../FIELDS_AND_CALENDAR.md).
 
 ## Integrazione con `main`
 
@@ -88,6 +90,9 @@ Dettaglio e stati in [`FRONTEND_TO_BACKEND.md`](FRONTEND_TO_BACKEND.md), sezione
 - Condivisione QR: download in SVG, stampa via `#print-sheet` + `body.printing`, condivisione con `navigator.share` e fallback copia. Tutto client-side, nessun servizio esterno.
 - Pagina inviti: `/?invite=<token>` e `#/join/<token>`. Con `inviteAdapter.ready: false` mostra l'anteprima reale del torneo tramite `GET /api/public/{token}` e disabilita l'adesione: nessuna iscrizione finta, nessun token in `localStorage`.
 - Il QR contiene `location.origin`: da `localhost` non è raggiungibile dal telefono.
+- Calendario: `calendarAdapter.ready: false` aggrega un dettaglio per torneo (N+1) e rileva solo conflitti campo/squadra visibili. Sono dichiarati come anteprima client; il server resta autorevole.
+- Campi: `fieldsAdapter.ready: false`. La modale si apre in anteprima e il submit blocca il salvataggio ("Nessun dato è stato inviato"). I “campi citati” derivano dai `location` reali degli incontri.
+- Programmazione partita: il conflitto `409` viene mostrato come “Conflitto di calendario: …” dentro la modale, senza forzare il salvataggio. Il campo resta un testo con suggerimenti (`datalist`), compatibile con il contratto attuale.
 
 ## Aggiornare il registro
 
