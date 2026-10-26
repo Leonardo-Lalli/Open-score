@@ -57,6 +57,21 @@ const tieLabel = (v) =>
 const publicToken = location.pathname.startsWith("/public/")
   ? location.pathname.split("/")[2]
   : null;
+// The invite landing page is client-only until Team A ships the invite API:
+// `/?invite=<token>` and `#/join/<token>` open the same read-only view.
+const inviteToken = (() => {
+  const query = new URLSearchParams(location.search).get("invite");
+  if (query) return query;
+  const kind = location.hash.replace(/^#\/?/, "").split("/")[0];
+  if (!["join", "invito", "invite"].includes(kind)) return null;
+  const value = location.hash.replace(/^#\/?/, "").split("/")[1];
+  if (!value) return null;
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+})();
 let list = [],
   sports = [],
   auth = { role: null, authenticated: false, teacher: null },
@@ -76,6 +91,8 @@ let list = [],
   studentSearch = "",
   bulkState = null,
   approvalsCache = [],
+  inviteState = null,
+  pendingInviteToken = null,
   toastTimer;
 const sportFor = (name) => sports.find((s) => s.name === name);
 const variantFor = (slug) => {
@@ -286,6 +303,65 @@ const teamOrderAdapter = {
     return { saved: true };
   },
 };
+const inviteAdapter = {
+  // Team A: esporre gli inviti con token dedicati. Finché `ready` è false la
+  // pagina mostra solo l'anteprima del torneo tramite il link pubblico
+  // esistente: nessuna adesione viene simulata.
+  ready: false,
+  async resolve(token) {
+    if (this.ready) {
+      const response = await fetch(`/api/invites/${encodeURIComponent(token)}`, {
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) throw await inviteError(response);
+      return response.json();
+    }
+    // Read-only preview through the existing public link. The flag below makes
+    // the UI state explicit: the invite has not been verified server-side.
+    const preview = await api("/public/" + encodeURIComponent(token));
+    const tournament = preview.tournament || {};
+    return {
+      status: "unverified",
+      kind: "tournament",
+      tournament: {
+        name: tournament.name,
+        sport: tournament.sport,
+        variant: tournament.variant,
+        format: tournament.format,
+        participant_kind: tournament.participant_kind,
+      },
+      team_count: (preview.teams || []).length,
+      match_count: (preview.matches || []).length,
+      organizer: null,
+    };
+  },
+  async join(token) {
+    if (!this.ready) throw new Error("Adesione non ancora disponibile.");
+    const response = await fetch(
+      `/api/invites/${encodeURIComponent(token)}/join`,
+      { method: "POST", headers: { "Content-Type": "application/json" } },
+    );
+    if (!response.ok) throw await inviteError(response);
+    return response.json();
+  },
+};
+async function inviteError(response) {
+  const body = await response.json().catch(() => ({}));
+  const messages = {
+    401: "Accedi come prof per completare l'adesione.",
+    403: "Non hai i permessi per questo invito.",
+    404: "Questo invito non esiste o è stato revocato.",
+    409: "Sei già iscritto oppure la squadra è completa.",
+    410: "Questo invito è scaduto.",
+  };
+  const error = new Error(
+    messages[response.status] ||
+      body.detail ||
+      `Operazione non riuscita (${response.status})`,
+  );
+  error.status = response.status;
+  return error;
+}
 function enableReorder(list, onReorder, liveSelector = "#reorder-live") {
   if (!list) return;
   const live = $(liveSelector);
@@ -427,7 +503,7 @@ async function loadSession() {
   renderAuthControl();
 }
 function renderAuthControl() {
-  if (publicToken) return;
+  if (publicToken || inviteToken) return;
   const access = canEdit()
     ? `<span class="auth-user">${icon("check")}${h(auth.teacher?.display_name || auth.teacher?.email || "Prof")}</span><button class="button ghost compact" data-action="logout">Esci</button>`
     : `<span class="auth-user">${icon("users")}Studente · sola lettura</span><button class="button ghost compact" data-action="login">Accedi come prof</button>`;
@@ -473,6 +549,11 @@ async function enterStudentMode() {
   auth = { role: "student", authenticated: false, teacher: null };
   hideRoleGate();
   renderAuthControl();
+  if (inviteToken) {
+    showInviteShell();
+    await openInvite(inviteToken);
+    return;
+  }
   await startApp();
 }
 async function loginTeacher(formData) {
@@ -489,7 +570,14 @@ async function loginTeacher(formData) {
     setStoredRole("teacher");
     auth = { role: "teacher", authenticated: true, teacher: result.teacher };
     renderAuthControl();
-    await startApp();
+    if (pendingInviteToken) {
+      const token = pendingInviteToken;
+      pendingInviteToken = null;
+      showInviteShell();
+      await openInvite(token);
+    } else {
+      await startApp();
+    }
     hideRoleGate();
     notify(`Benvenuto, ${result.teacher.display_name || result.teacher.email}.`);
   } catch (e) {
@@ -524,6 +612,154 @@ async function dashboard() {
   renderDashboard();
   if (canEdit()) safely(() => loadUpcoming());
   setMenu(false);
+}
+function showInviteShell() {
+  hideRoleGate();
+  $("#sidebar").classList.add("hidden");
+  $(".app-shell").style.marginLeft = "0";
+  $("#mobile-menu").classList.add("hidden");
+  $(".top-actions").innerHTML =
+    '<span class="context-label">INVITO · SOLA LETTURA</span>';
+}
+const inviteStatusCopy = {
+  active: { tone: "ok", title: "Invito attivo" },
+  unverified: { tone: "wait", title: "Anteprima dell’invito" },
+  pending: { tone: "ok", title: "Richiesta inviata" },
+  accepted: { tone: "ok", title: "Adesione confermata" },
+  "already-member": { tone: "ok", title: "Sei già iscritto" },
+  rejected: { tone: "warn", title: "Richiesta respinta" },
+  full: { tone: "warn", title: "Squadra completa" },
+  expired: { tone: "warn", title: "Invito scaduto" },
+  revoked: { tone: "warn", title: "Invito revocato" },
+  invalid: { tone: "warn", title: "Invito non valido" },
+  error: { tone: "warn", title: "Invito non raggiungibile" },
+};
+function inviteMessage(state) {
+  switch (state.status) {
+    case "active":
+      return state.requires_approval
+        ? "Conferma la richiesta: il prof dovrà approvarla prima dell’inizio del torneo."
+        : "Conferma per entrare subito nel torneo.";
+    case "unverified":
+      return "Stai vedendo l’anteprima del torneo tramite il link pubblico. L’adesione guidata non è ancora attiva: serve l’API inviti del Team A.";
+    case "pending":
+      return "La richiesta è stata registrata. Il prof la vedrà tra quelle da approvare.";
+    case "accepted":
+      return "Il server ha confermato l’adesione: il torneo è ora disponibile nella tua area.";
+    case "already-member":
+      return "Risulti già iscritto a questo torneo: non serve una nuova adesione.";
+    case "rejected":
+      return "Il prof ha respinto la richiesta. Puoi chiedere un nuovo invito.";
+    case "full":
+      return "Non ci sono più posti disponibili in questa squadra.";
+    case "expired":
+      return "Il link è scaduto. Chiedi al prof di generarne uno nuovo.";
+    case "revoked":
+      return "Il prof ha revocato questo invito.";
+    case "invalid":
+      return "Il link non corrisponde a nessun invito. Controlla di averlo copiato per intero.";
+    default:
+      return (
+        state.message ||
+        "Non è stato possibile verificare l’invito. Riprova tra poco."
+      );
+  }
+}
+async function openInvite(token) {
+  selectedId = null;
+  data = null;
+  catalogMode = false;
+  inviteState = null;
+  $("#breadcrumb").textContent = "Invito";
+  $("#content").innerHTML =
+    '<div class="loading"><div class="spinner"></div><p>Apro l’invito…</p></div>';
+  $("#content").setAttribute("aria-busy", "true");
+  try {
+    inviteState = await inviteAdapter.resolve(token);
+  } catch (e) {
+    inviteState = {
+      status: e.status === 404 ? "invalid" : "error",
+      message: e.message,
+    };
+  }
+  renderInvite();
+  setMenu(false);
+}
+function renderInvite() {
+  const state = inviteState || { status: "error" };
+  const meta = inviteStatusCopy[state.status] || inviteStatusCopy.error;
+  const tournament = state.tournament || {};
+  const team = state.kind === "team" ? state.team || null : null;
+  const variant = tournament.variant ? variantFor(tournament.variant) : null;
+  const sportName = tournament.sport || variant?.sport || "";
+  const facts = [
+    [
+      "Sport",
+      sportName
+        ? `${sportName}${variant ? " · " + variant.name : ""}`
+        : null,
+    ],
+    ["Formato", tournament.format ? label(tournament.format) : null],
+    [
+      "Partecipanti",
+      Number.isFinite(state.team_count)
+        ? `${state.team_count} ${tournament.participant_kind === "player" ? "giocatori" : "squadre"}`
+        : null,
+    ],
+    [
+      "Organizzatore",
+      state.organizer?.display_name || state.organizer?.name || null,
+    ],
+    ["Squadra", team?.name],
+    [
+      "Posti disponibili",
+      Number.isFinite(state.available_slots)
+        ? String(state.available_slots)
+        : null,
+    ],
+    [
+      "Iscrizione",
+      team
+        ? state.requires_approval
+          ? "Serve l’approvazione del prof"
+          : "Automatica"
+        : null,
+    ],
+  ].filter(([, value]) => value);
+  const title =
+    tournament.name || (team ? `Squadra ${team.name}` : "Invito Open Score");
+  const needsLogin = !auth.authenticated;
+  let action;
+  if (state.status === "active") {
+    action = `<div class="invite-actions"><button type="button" class="button primary" data-action="${needsLogin ? "invite-login" : "invite-join"}">${icon(needsLogin ? "users" : "check")}${needsLogin ? "Accedi per aderire" : "Conferma adesione"}</button><a class="button ghost" href="/">Torna alla home</a></div>`;
+  } else if (state.status === "unverified") {
+    action = `<div class="invite-actions"><button type="button" class="button primary" disabled>Adesione non ancora disponibile</button><a class="button ghost" href="/public/${h(encodeURIComponent(inviteToken))}">Apri il torneo</a></div>`;
+  } else if (state.status === "error") {
+    action = `<div class="invite-actions"><button type="button" class="button primary" data-action="invite-retry">Riprova</button><a class="button ghost" href="/">Torna alla home</a></div>`;
+  } else {
+    action = `<div class="invite-actions"><a class="button primary" href="/">Torna alla home</a></div>`;
+  }
+  $("#content").innerHTML = `<div class="invite-page"><section class="panel invite-card"><p class="eyebrow"><span class="line"></span> ${team ? "INVITO ALLA SQUADRA" : "INVITO AL TORNEO"}</p><h1>${h(title)}</h1>${sportName ? `<p class="invite-sport">${icon("ball")}${h(sportName)}${variant ? " · " + h(variant.name) : ""}</p>` : ""}<div class="invite-facts">${facts.map(([key, value]) => `<div><span>${key}</span><strong>${h(value)}</strong></div>`).join("")}</div><div class="invite-status ${meta.tone}"><i></i><div><strong>${meta.title}</strong><p>${h(inviteMessage(state))}</p></div></div>${action}</section><section class="panel invite-help"><h2>Come funziona</h2><ul><li>L’adesione è confermata solo dopo la risposta del server.</li><li>Se il torneo lo richiede, la richiesta resta in attesa dell’approvazione del prof.</li><li>Non mostriamo i dati personali degli altri studenti: la pagina resta in sola lettura.</li></ul></section></div>`;
+  $("#content").setAttribute("aria-busy", "false");
+}
+async function joinInvite() {
+  if (!inviteAdapter.ready) {
+    notify("L’adesione guidata non è ancora attiva.", true);
+    return;
+  }
+  if (!auth.authenticated) {
+    pendingInviteToken = inviteToken;
+    showRoleGate("login");
+    return;
+  }
+  const result = await inviteAdapter.join(inviteToken);
+  inviteState = { ...inviteState, ...result };
+  renderInvite();
+  notify(
+    result.status === "pending"
+      ? "Richiesta inviata al prof."
+      : "Adesione confermata.",
+  );
 }
 function renderStudentDashboard() {
   const active = list.filter((t) => !t.archived_at);
@@ -1660,10 +1896,75 @@ async function share() {
     : "L'app è sul tuo computer: il link funziona sui browser che possono raggiungere questo server locale. Per condividerla online servirà l’hosting previsto nella roadmap.";
   modal(
     "Il torneo è più bello insieme.",
-    `<p class="project-intro">Condividi calendario, risultati e tabellone con chi segue il torneo. Questa vista è di sola lettura.</p>${qr ? `<div class="share-qr">${qr}<p class="field-help">Inquadra il QR con il telefono per aprire la vista spettatore.</p></div>` : ""}<div class="share-url"><input id="share-url" aria-label="Link del torneo" value="${h(url)}" readonly><button class="button primary" data-action="copy">Copia link</button></div><p class="field-help">${help}</p>`,
+    `<p class="project-intro">Condividi calendario, risultati e tabellone con chi segue il torneo. Questa vista è di sola lettura.</p>${qr ? `<div class="share-qr" id="share-qr">${qr}<p class="field-help">Inquadra il QR con il telefono per aprire la vista spettatore.</p></div>` : ""}<div class="share-url"><input id="share-url" aria-label="Link del torneo" value="${h(url)}" readonly><button class="button primary" data-action="copy">Copia link</button></div><div class="share-actions"><button type="button" class="button" data-action="download-qr">Scarica QR</button><button type="button" class="button" data-action="print-qr">Stampa</button><button type="button" class="button" data-action="share-qr">Condividi</button></div><div class="share-invite"><strong>Invitare chi gioca</strong><p class="field-help">Il link di adesione con QR arriverà con l'API inviti del Team A. Oggi puoi condividere la vista spettatore in sola lettura.</p></div><p class="field-help">Visibilità: link pubblico in sola lettura. La modifica della visibilità non è ancora disponibile.</p><p class="field-help">${help}</p>`,
     `<a class="button primary" href="${h(url)}" target="_blank" rel="noopener">Apri vista spettatore ${icon("arrow")}</a>`,
     "CONDIVIDI IL GIOCO",
   );
+}
+function downloadQr() {
+  const svg = $("#share-qr svg");
+  if (!svg) {
+    notify("QR non disponibile: condividi il link.", true);
+    return;
+  }
+  const source = new XMLSerializer().serializeToString(svg);
+  const blob = new Blob(['<?xml version="1.0" encoding="UTF-8"?>\n' + source], {
+    type: "image/svg+xml;charset=utf-8",
+  });
+  const href = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = `qr-${data?.tournament?.public_token || "torneo"}.svg`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 1000);
+  notify("QR scaricato in formato SVG.");
+}
+function printQr() {
+  const svg = $("#share-qr svg");
+  if (!svg) {
+    notify("QR non disponibile: usa il link.", true);
+    return;
+  }
+  document.querySelectorAll("#print-sheet").forEach((el) => el.remove());
+  const sheet = document.createElement("div");
+  sheet.id = "print-sheet";
+  sheet.innerHTML = `<h1>${h(data?.tournament?.name || "Torneo")}</h1><p>Inquadra il QR per aprire il torneo in sola lettura.</p>${svg.outerHTML}<p class="print-url">${h($("#share-url")?.value || "")}</p>`;
+  document.body.appendChild(sheet);
+  document.body.classList.add("printing");
+  let done = false;
+  const cleanup = () => {
+    if (done) return;
+    done = true;
+    document.body.classList.remove("printing");
+    sheet.remove();
+  };
+  window.addEventListener("afterprint", cleanup, { once: true });
+  setTimeout(cleanup, 60000);
+  window.print();
+}
+async function shareLink() {
+  const url = $("#share-url")?.value || "";
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: data?.tournament?.name || "Open Score",
+        text: "Segui il torneo su Open Score",
+        url,
+      });
+      return;
+    } catch (e) {
+      if (e?.name === "AbortError") return;
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    notify("Condivisione non supportata: link copiato.");
+  } catch {
+    $("#share-url")?.select();
+    notify("Seleziona e copia il link con Ctrl+C.");
+  }
 }
 const actions = {
   dashboard,
@@ -1797,6 +2098,15 @@ const actions = {
       notify("Seleziona e copia il link con Ctrl+C.");
     }
   },
+  "download-qr": () => downloadQr(),
+  "print-qr": () => printQr(),
+  "share-qr": () => shareLink(),
+  "invite-join": () => joinInvite(),
+  "invite-login": () => {
+    pendingInviteToken = inviteToken;
+    showRoleGate("login");
+  },
+  "invite-retry": () => safely(() => openInvite(inviteToken)),
   "wizard-back": () => {
     readWizard();
     wizardStep--;
@@ -2191,7 +2501,10 @@ document.addEventListener("click", (e) => {
   if (choice.dataset.role === "student")
     safely(() => enterStudentMode());
   else if (choice.dataset.role === "teacher") showRoleGate("login");
-  else if (choice.dataset.role === "back") showRoleGate("choice");
+  else if (choice.dataset.role === "back") {
+    if (inviteToken) hideRoleGate();
+    else showRoleGate("choice");
+  }
 });
 async function startApp() {
   selectedId = null;
@@ -2219,6 +2532,13 @@ async function init() {
       }, 30000);
       return;
     }
+    if (inviteToken) {
+      showInviteShell();
+      await loadSession();
+      await loadSports().catch(() => {});
+      await openInvite(inviteToken);
+      return;
+    }
     await loadSession();
     if (auth.authenticated) {
       hideRoleGate();
@@ -2243,7 +2563,7 @@ async function init() {
 }
 init();
 window.addEventListener("hashchange", () => {
-  if (publicToken || document.body.classList.contains("role-pending")) return;
+  if (publicToken || inviteToken || document.body.classList.contains("role-pending")) return;
   const route = hashRoute();
   safely(() =>
     route.kind === "sport"

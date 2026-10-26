@@ -156,6 +156,8 @@ Input su mobile: `font-size: 16px` per evitare lo zoom iOS; touch target ≥44px
 - Focus: il dialog nativo gestisce il focus iniziale; verificare il ritorno del focus all’elemento che ha aperto.
 - Gate iniziale: `.role-gate`, `.role-gate-panel`, `.role-choice` (`.role-teacher`, `.role-student`), `.role-login`, `.role-login-actions`, `.role-switch`.
 - QR di condivisione: `.share-qr`; SVG generato nel browser da `static/vendor/qrcode.js`, con `title`/`description` accessibili.
+- Azioni di condivisione: `.share-actions` (griglia di pulsanti che va a colonna su telefono), `.share-invite` (nota separata da un divisore).
+- Stampa del QR: `#print-sheet` è `display:none` a schermo; con `body.printing` e `@media print` resta visibile solo quel nodo.
 
 ### 4.7 Dati e rappresentazioni
 
@@ -169,6 +171,20 @@ Input su mobile: `font-size: 16px` per evitare lo zoom iOS; touch target ≥44px
 | Punteggio a set | `.set-inputs`, `.set-row` | input per set |
 | Diario | `.timeline-item` | storico modifiche |
 | Icone | `.icon` | SVG inline, 20px, stroke 1.7, `aria-hidden` |
+
+### 4.8 Condivisione e inviti
+
+| Componente | Classi | Note |
+| --- | --- | --- |
+| Azioni QR | `.share-actions` | copia, download SVG, stampa, condivisione; `flex: 1 1 130px`, colonna sotto 560px |
+| Foglio di stampa | `#print-sheet`, `body.printing` | nascosto a schermo, visibile solo in stampa |
+| Pagina invito | `.invite-page`, `.invite-card` | larghezza massima 760px, centrata |
+| Fatti invito | `.invite-facts` | griglia `auto-fit minmax(140px, 1fr)`, una colonna su telefono |
+| Stato invito | `.invite-status` + `.ok`/`.wait`/`.warn` | pallino colorato **e** testo esplicito; mai solo colore |
+| Azioni invito | `.invite-actions` | CTA primaria + ritorno alla home, a colonna su telefono |
+| Aiuto | `.invite-help` | elenco breve su conferma server e privacy |
+
+Regole: la pagina invito resta in sola lettura, non mostra dati personali di altri studenti e non scrive token in `localStorage`. Quando `inviteAdapter.ready` è `false`, la CTA di adesione è disabilitata con motivazione visibile.
 
 ## 5. Responsive
 

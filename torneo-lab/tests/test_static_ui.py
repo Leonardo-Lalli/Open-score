@@ -198,6 +198,35 @@ def test_share_modal_has_client_side_qr(client):
     assert 'Kazuhiko Arase' in vendor
 
 
+def test_share_actions_and_invite_landing_are_prepared(client):
+    script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
+    for marker in ('downloadQr', 'printQr', 'shareLink', 'download-qr',
+                   'print-qr', 'share-qr', 'share-actions', 'print-sheet',
+                   'inviteAdapter', 'inviteError', 'openInvite', 'renderInvite',
+                   'joinInvite', 'invite-join', 'invite-login', 'invite-retry',
+                   'inviteState', 'inviteStatusCopy', 'unverified',
+                   '?invite=', '#/join/', '/api/invites/'):
+        assert marker in script, f'{marker!r} mancante in app.js'
+
+    css = (BASE / 'static' / 'styles.css').read_text(encoding='utf-8')
+    for selector in ('.share-actions', '.share-invite', '.invite-page',
+                     '.invite-status', '.invite-actions', '#print-sheet'):
+        assert selector in css, f'{selector!r} mancante in styles.css'
+    assert 'body.printing > *:not(#print-sheet)' in css
+    assert css.count('{') == css.count('}')
+
+
+def test_invite_landing_only_uses_real_server_data(client):
+    script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
+    # Preview falls back to the existing public endpoint; no fake payloads.
+    assert 'api("/public/"' in script
+    assert 'Adesione non ancora disponibile' in script
+    assert 'pendingInviteToken' in script
+    # No invitatory data is persisted locally.
+    assert 'inviteToken' in script
+    assert 'localStorage.setItem("invite' not in script
+
+
 def test_role_gate_offers_teacher_login_and_student_read_only(client):
     html = client.get('/').text
     assert 'id="role-gate"' in html

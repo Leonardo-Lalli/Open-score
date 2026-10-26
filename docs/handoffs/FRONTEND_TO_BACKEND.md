@@ -14,7 +14,7 @@ Questo documento è l'audit iniziale del frontend e l'elenco delle richieste ver
 - Servita da FastAPI: `GET /` e `GET /public/{token}` restituiscono `static/index.html`; gli asset sono versionati (`?v=0.8.0`) e serviti con `Cache-Control: no-cache, must-revalidate`.
 - **QR**: `static/vendor/qrcode.js` (qrcode-generator 1.4.4, MIT) genera localmente l'SVG della vista spettatore. Nessuna API e nessuna richiesta esterna.
 - **Un solo file JS** (`app.js`, ~1.500 righe) con stato modulare globale, nessun modulo ES.
-- **Routing hash** limitato al catalogo: `#/sport`, `#/sport/{sport}`, `#/sport/{sport}/{variante}`. La navigazione principale (dashboard, torneo, tab) è gestita via stato (`selectedId`, `tab`) e re-render del `<main id="content">`, non via URL.
+- **Routing hash** limitato al catalogo: `#/sport`, `#/sport/{sport}`, `#/sport/{sport}/{variante}`, più l'alias invito `#/join/{token}`. La navigazione principale (dashboard, torneo, tab) è gestita via stato (`selectedId`, `tab`) e re-render del `<main id="content">`, non via URL.
 - **Rendering lato client**: funzioni `render*` che producono stringhe HTML e le assegnano con `innerHTML`; `h()` esegue l'escape; `icon()`/`button()` sono helper.
 - Nessun bundler, nessun framework CSS: `styles.css` (~4.200 righe) con token CSS in `:root`.
 
@@ -29,10 +29,11 @@ Questo documento è l'audit iniziale del frontend e l'elenco delle richieste ver
 | Dashboard | `dashboard`, `refreshList`, `renderNav`, `renderDashboard`, `eventCard` |
 | Torneo | `openTournament`, `renderTournament`, `overview`, `regulationView`, `bracket`, `matches`, `standings`, `teams`, `team view`, `champion` |
 | Wizard | `startWizard`, `sportOptions`, `sportOptionsFor`, `variantOptionsFor`, `syncEditVariant`, `readWizard` |
-| Azioni globali | `actions` map (`new`, `catalog`, `open`, `edit`, `share`, `generate`, `score`, `archive`, `restore`, `print`, `refresh`, `copy`, …) |
+| Azioni globali | `actions` map (`new`, `catalog`, `open`, `edit`, `share`, `download-qr`, `print-qr`, `share-qr`, `invite-join`, `generate`, `score`, `archive`, `restore`, `print`, `refresh`, `copy`, …) |
+| Condivisione e inviti | `share`, `qrSvg`, `downloadQr`, `printQr`, `shareLink`, `inviteAdapter`, `inviteError`, `showInviteShell`, `openInvite`, `renderInvite`, `joinInvite` |
 | Avvio | `init` — carica sessione e catalogo, decide gate vs studente, delega il rendering |
 
-Stato globale: `list`, `sports`, `auth {role, authenticated, teacher}`, `selectedId`, `data`, `tab`, `filter`, `matchFilter`, `search`, `wizard`, `wizardStep`, `catalogMode`, `catalogSport`, `catalogVariant`, `catalogDetail`.
+Stato globale: `list`, `sports`, `auth {role, authenticated, teacher}`, `selectedId`, `data`, `tab`, `filter`, `matchFilter`, `search`, `wizard`, `wizardStep`, `catalogMode`, `catalogSport`, `catalogVariant`, `catalogDetail`, `inviteState`, `pendingInviteToken`.
 
 ### Client HTTP esistente
 
@@ -61,6 +62,8 @@ Stato globale: `list`, `sports`, `auth {role, authenticated, teacher}`, `selecte
 - Dettaglio torneo con tab: panoramica, incontri, classifica, tabellone, regolamento, squadre/partecipanti.
 - Risultati numerici e set per set, correzioni, programmazione, archiviazione, condivisione e CSV.
 - QR del link spettatore, generato nel browser senza servizi esterni.
+- Modale di condivisione con copia link, download del QR in SVG, stampa del solo QR e Web Share API con fallback.
+- Pagina di accettazione invito (`/?invite=<token>`, `#/join/<token>`) con anteprima reale tramite il link pubblico e adesione in attesa dell'API inviti.
 - Riordino dei partecipanti nel wizard con drag & drop (mouse/touch) e tastiera; l'ordine viene inviato al backend in `team_names`.
 - Vista spettatore (`/public/{token}`) in sola lettura con auto-refresh.
 
@@ -124,6 +127,13 @@ Prima del contratto ufficiale, lavoro su attività indipendenti o con mock isola
    - *Contratto proposto*: `GET /api/tournaments/{id}/proposals?status=pending`; `POST /api/tournaments/{id}/matches/{match_id}/proposals` con punteggi o set e `version`; `PATCH /api/proposals/{id}` con `action` `approve`, `reject` o `correct`.
    - *Oggi*: `resultProposalsAdapter.ready` è `false`; la scheda “Da verificare” mostra lo stato di attesa e il pulsante studente è nascosto. Nessun dato finto.
    - *Serve*: identità studente, modello proposte, autore con visibilità, conflitti, cronologia e aggiornamento ufficiale dopo l'approvazione.
+
+12. **Inviti e adesioni tramite QR**.
+   - *Serve*: token di invito per torneo e per squadra, stato dell'invito e adesione con eventuale approvazione del docente. La pagina frontend è già pronta e documentata in [`../QR_SHARING.md`](../QR_SHARING.md).
+   - *Contratto proposto*: `GET /api/invites/{token}` → `{status, kind, tournament, organizer?, team?, available_slots?, requires_approval}`; `POST /api/invites/{token}/join` → `{status, message}`. Errori: `401`, `403`, `404`, `409` (già iscritto/squadra completa), `410` (scaduto).
+   - *Oggi*: `inviteAdapter.ready` è `false`; la pagina usa in sola lettura `GET /api/public/{token}` per l'anteprima e disabilita l'adesione. Nessuna iscrizione simulata.
+   - *Privacità*: l'organizzatore va esposto solo se pubblicabile; il token deve essere opaco (niente email, password o token di sessione).
+   - *Opzionale*: `GET /join/{token}` che restituisce `static/index.html` (come `/public/{token}`); oggi funzionano già `/?invite=<token>` e `#/join/<token>`.
 
 Per QR, infografiche lato client e GitHub Pages **non serve** alcuna nuova API. Il drag & drop del wizard usa già `team_names`; servono API per il riordino post-creazione (punto 1) e per gli aggregati dashboard (punto 7).
 
