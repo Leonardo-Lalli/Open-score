@@ -127,6 +127,14 @@ def test_wizard_reorder_is_accessible_and_uses_existing_contract(client):
     assert 'touch-action: none' in css
 
 
+def test_student_dashboard_is_read_only_and_hides_private_diary(client):
+    script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
+    assert 'renderStudentDashboard' in script
+    assert 'IN SOLA LETTURA' in script
+    assert '!publicToken && canEdit()' in script
+    assert 'Vuoi organizzare anche tu' in script
+
+
 def test_professor_dashboard_has_upcoming_matches(client):
     script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
     assert 'loadUpcoming' in script

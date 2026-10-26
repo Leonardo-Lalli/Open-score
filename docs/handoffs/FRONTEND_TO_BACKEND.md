@@ -110,6 +110,10 @@ Prima del contratto ufficiale, lavoro su attività indipendenti o con mock isola
    - *Serve*: un flusso esplicito “risultato da approvare” e la gestione di campi/arbitri come risorse. Oggi il risultato è inserito direttamente e il campo è solo testo.
    - *Nota*: da concordare con il Team A se introdurre lo stato `pending` e un inventario campi.
 
+9. **Identità studente e visibilità personalizzata**.
+   - *Serve*: account/identità studente e appartenenza a una squadra per mostrare “la mia squadra”, “la mia prossima partita”, l'organizzatore e lo stato delle proprie proposte di risultato.
+   - *Nota visibilità*: oggi `GET /api/tournaments` e `GET /api/tournaments/{id}` espongono `teacher_id`, `public_token` e (nel dettaglio) `audit` anche agli anonimi. Il frontend nasconde l'`audit` ai non docenti, ma il backend dovrebbe non esporre questi campi ai non proprietari o servire una vista “studente” dedicata.
+
 Per QR, infografiche lato client e GitHub Pages **non serve** alcuna nuova API. Il drag & drop del wizard usa già `team_names`; servono API per il riordino post-creazione (punto 1) e per gli aggregati dashboard (punto 7).
 
 ---

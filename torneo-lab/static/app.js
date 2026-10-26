@@ -429,7 +429,31 @@ async function dashboard() {
   if (canEdit()) safely(() => loadUpcoming());
   setMenu(false);
 }
+function renderStudentDashboard() {
+  const active = list.filter((t) => !t.archived_at);
+  const shown = list.filter((t) => {
+    if (!t.name.toLocaleLowerCase("it").includes(search.toLocaleLowerCase("it")))
+      return false;
+    if (filter === "archived") return !!t.archived_at;
+    if (filter === "all") return !t.archived_at;
+    return !t.archived_at && t.status === filter;
+  });
+  const filters = [
+    ["all", "Tutti"],
+    ["active", "In corso"],
+    ["completed", "Conclusi"],
+    ["archived", "Archiviati"],
+  ];
+  $("#content").innerHTML =
+    `<div class="page-heading"><div><p class="eyebrow"><span class="line"></span> IN SOLA LETTURA</p><h1>Segui i tornei.</h1><p>Sport, partite, classifiche e tabelloni: tutto consultabile, senza modifiche.</p></div><span class="date-note">${active.length} tornei disponibili</span></div>
+ <div class="stat-grid">${stat("Tornei", active.length, "Disponibili da seguire", "trophy")}${stat("In corso", active.filter((t) => t.status === "active").length, "In campo adesso", "ball")}${stat("Conclusi", active.filter((t) => t.status === "completed").length, "Già decisi", "check")}</div>
+ <section><div class="section-header"><div><h2>Esplora i tornei <span class="muted">${active.length.toString().padStart(2, "0")}</span></h2><p class="section-sub">Apri un torneo per vedere partite, classifica e tabellone.</p></div><div class="filters" aria-label="Filtra tornei">${filters.map(([v, l]) => `<button class="filter ${filter === v ? "active" : ""}" data-filter="${v}" aria-pressed="${filter === v}">${l}</button>`).join("")}</div></div>
+ <div class="tournament-grid">${shown.map(eventCard).join("") || `<div class="panel empty">${icon("trophy")}<h2>Nessun torneo, per ora.</h2><p>${list.length ? "Nessun torneo con questo filtro." : "Quando un prof crea un torneo lo troverai qui."}</p></div>`}</div></section>
+ <div class="note-banner">${icon("spark")}<div><strong>Vuoi organizzare anche tu?</strong><p>Per creare e gestire i tornei serve un account docente.</p></div><button class="text-button" data-action="login">Accedi come prof</button></div>`;
+  $("#content").setAttribute("aria-busy", "false");
+}
 function renderDashboard() {
+  if (!canEdit()) return renderStudentDashboard();
   const active = list.filter((t) => !t.archived_at);
   const shown = list.filter((t) => {
     if (!t.name.toLocaleLowerCase("it").includes(search.toLocaleLowerCase("it")))
@@ -650,7 +674,7 @@ function overview() {
   const groupsComplete =
     t.format === "groups" && fixtures.some((m) => m.kind === "knockout");
   return `<div class="stat-grid">${stat("Partecipanti", data.teams.length, t.participant_kind === "team" ? "Squadre iscritte" : "Giocatori iscritti", "users")}${stat("Incontri", p.total, "Esclusi i passaggi per BYE", "calendar")}${stat("Completati", p.completed, "Risultati confermati", "check")}${stat("Da giocare", p.total - p.completed, "Il campo vi aspetta", "ball")}</div><div class="overview-grid"><div><div class="panel"><div class="section-header"><h2>${data.status === "completed" ? "Torneo completato" : "Il prossimo passo"}</h2><span class="panel-label">SI SCENDE IN CAMPO</span></div><p class="muted" style="font-size:12px">${publicToken ? "Segui gli incontri e aggiorna la pagina per vedere gli ultimi risultati." : !fixtures.length ? "Aggiungi i partecipanti e genera gli incontri per dare inizio al torneo." : data.status === "completed" ? "Tutte le partite sono state giocate. Puoi rivedere il percorso e i risultati." : t.format === "groups" && !groupsComplete ? "Completa tutte le partite dei gironi: le qualificate passeranno automaticamente alla fase finale." : "Registra il risultato di un incontro: classifica e percorso si aggiornano subito."}</p><div class="steps"><div class="step ${data.teams.length >= 2 ? "done" : ""}">01<b>Partecipanti</b>Le squadre sono pronte</div><div class="step ${fixtures.length ? "done" : ""}">02<b>Si gioca</b>Incontri e risultati</div><div class="step ${data.status === "completed" ? "done" : ""}">03<b>La finale</b>${t.format === "round_robin" ? "Una classifica completa" : "Un campione da celebrare"}</div></div>${!fixtures.length && !publicToken && canManage() ? `<div style="margin-top:25px">${button("Genera incontri", "generate", "primary", "spark")}</div>` : ""}</div><div class="panel"><div class="section-header"><h2>${next.length ? "Pronte da giocare" : "Le ultime partite"}</h2><button class="text-button" data-tab="matches">Vedi tutte ${icon("arrow")}</button></div>${(next.length ? next : fixtures.filter((m) => m.status === "completed").slice(-3)).map(matchRow).join("") || '<p class="muted" style="font-size:12px">Gli incontri compariranno qui dopo la generazione.</p>'}</div></div><div><div class="panel"><h2>Il torneo in breve</h2><dl class="details-list"><div><dt>Sport</dt><dd>${h(t.sport)}</dd></div>${currentVariant() ? `<div><dt>Variante</dt><dd>${h(currentVariant().name)}</dd></div>` : ""}<div><dt>Formato</dt><dd>${label(t.format)}</dd></div><div><dt>Partecipanti</dt><dd>${t.participant_kind === "team" ? "Squadre" : "Giocatori individuali"}</dd></div>${t.format === "groups" ? `<div><dt>Qualificazione</dt><dd>Prime ${t.qualifiers} di ${t.group_count} gironi</dd></div>` : ""}<div><dt>Andata / ritorno</dt><dd>${t.legs === 2 ? "Andata e ritorno" : "Sola andata"}</dd></div>${t.format !== "knockout" ? `<div><dt>Punti V / N / P</dt><dd>${t.win_points} / ${t.draw_points} / ${t.loss_points}</dd></div>` : ""}<div><dt>Orari</dt><dd>Europe/Rome</dd></div></dl></div>${
-    !publicToken
+    !publicToken && canEdit()
       ? `<div class="panel"><h2>Diario del torneo</h2>${(data.audit || [])
           .slice(0, 5)
           .map(
