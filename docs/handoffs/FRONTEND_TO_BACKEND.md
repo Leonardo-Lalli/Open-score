@@ -11,6 +11,7 @@ Questo documento è l'audit iniziale del frontend e l'elenco delle richieste ver
 
 - **SPA vanilla, senza build step**: nessun framework. `torneo-lab/static/index.html` + `torneo-lab/static/app.js` + `torneo-lab/static/styles.css`.
 - Servita da FastAPI: `GET /` e `GET /public/{token}` restituiscono `static/index.html`; gli asset sono versionati (`?v=0.8.0`) e serviti con `Cache-Control: no-cache, must-revalidate`.
+- **QR**: `static/vendor/qrcode.js` (qrcode-generator 1.4.4, MIT) genera localmente l'SVG della vista spettatore. Nessuna API e nessuna richiesta esterna.
 - **Un solo file JS** (`app.js`, ~1.500 righe) con stato modulare globale, nessun modulo ES.
 - **Routing hash** limitato al catalogo: `#/sport`, `#/sport/{sport}`, `#/sport/{sport}/{variante}`. La navigazione principale (dashboard, torneo, tab) è gestita via stato (`selectedId`, `tab`) e re-render del `<main id="content">`, non via URL.
 - **Rendering lato client**: funzioni `render*` che producono stringhe HTML e le assegnano con `innerHTML`; `h()` esegue l'escape; `icon()`/`button()` sono helper.
@@ -58,12 +59,12 @@ Stato globale: `list`, `sports`, `auth {role, authenticated, teacher}`, `selecte
 - Wizard di creazione (sport → variante → formato → partecipanti → riepilogo).
 - Dettaglio torneo con tab: panoramica, incontri, classifica, tabellone, regolamento, squadre/partecipanti.
 - Risultati numerici e set per set, correzioni, programmazione, archiviazione, condivisione e CSV.
+- QR del link spettatore, generato nel browser senza servizi esterni.
 - Vista spettatore (`/public/{token}`) in sola lettura con auto-refresh.
 
 ### Da sviluppare (Team B)
 
 - **Bracket interattivo e drag & drop**: riordino/seeding dei partecipanti e (se il backend lo consente) editing visivo del tabellone.
-- **QR** per il link spettatore (generabile lato client, nessuna API necessaria).
 - **Infografiche/statistiche** più ricche (andamento, marcatori, distribuzione risultati).
 - **Dashboard responsive riprogettata** per telefono (card ridotte, non solo larghezza minore).
 - **GitHub Pages** come vetrina statica del progetto (separata dall'app reale).

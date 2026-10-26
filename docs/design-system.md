@@ -23,6 +23,7 @@ Regole guida:
 | `torneo-lab/static/app.js` | Rendering, stato, routing hash, client HTTP |
 | `torneo-lab/static/styles.css` | Design system e componenti |
 | `torneo-lab/static/fonts/` | DM Sans locale (OFL), nessuna CDN |
+| `torneo-lab/static/vendor/qrcode.js` | Encoder QR locale (qrcode-generator 1.4.4, MIT) |
 | `torneo-lab/static/mark.svg` | Marchio |
 
 `styles.css` contiene **due sezioni storiche**:
@@ -151,6 +152,7 @@ Input su mobile: `font-size: 16px` per evitare lo zoom iOS; touch target ≥44px
 - `dialog::backdrop` con blur; su mobile il dialog diventa full-screen.
 - Focus: il dialog nativo gestisce il focus iniziale; verificare il ritorno del focus all’elemento che ha aperto.
 - Gate iniziale: `.role-gate`, `.role-gate-panel`, `.role-choice` (`.role-teacher`, `.role-student`), `.role-login`, `.role-login-actions`, `.role-switch`.
+- QR di condivisione: `.share-qr`; SVG generato nel browser da `static/vendor/qrcode.js`, con `title`/`description` accessibili.
 
 ### 4.7 Dati e rappresentazioni
 
@@ -229,8 +231,9 @@ Da verificare o completare:
 6. Non introdurre librerie UI o framework CSS: il progetto resta senza build step.
 7. Aggiungi le regole prima del blocco mobile; aggiorna i breakpoint solo se necessario.
 8. Alza `?v=` in `index.html` quando cambi `app.js` o `styles.css`.
-9. Aggiungi o aggiorna un test in `torneo-lab/tests/test_static_ui.py` per le regole strutturali (gate, cache, classi chiave, assenza di contenuti demo).
-10. Verifica con `node --check static/app.js` e con la suite `pytest`.
+9. Le librerie di utilità vanno in `static/vendor/` con licenza e provenienza documentate; nessuna CDN a runtime.
+10. Aggiungi o aggiorna un test in `torneo-lab/tests/test_static_ui.py` per le regole strutturali (gate, cache, classi chiave, assenza di contenuti demo).
+11. Verifica con `node --check static/app.js` e con la suite `pytest`.
 
 ## 8. Debito tecnico noto
 
@@ -239,4 +242,4 @@ Da verificare o completare:
 - Molte dimensioni tipografiche piccole (8–10px) e valori hardcoded fuori dai token di spaziatura.
 - Nessun dark mode / `prefers-color-scheme`.
 - Bracket senza zoom/pan e senza drag & drop (previsto nel piano Team B); il navigatore dei turni su mobile è già presente.
-- Statistiche individuali e QR non ancora presenti.
+- Statistiche individuali non ancora presenti; il QR spettatore è implementato lato client.

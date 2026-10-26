@@ -1034,11 +1034,35 @@ function project() {
     "IL PROGETTO",
   );
 }
+function qrSvg(url) {
+  if (typeof qrcode !== "function") return "";
+  try {
+    const qr = qrcode(0, "M");
+    qr.addData(url);
+    qr.make();
+    return qr.createSvgTag({
+      cellSize: 5,
+      margin: 3,
+      scalable: true,
+      alt: "Codice QR per aprire la vista spettatore",
+      title: "Link spettatore del torneo",
+    });
+  } catch {
+    return "";
+  }
+}
 async function share() {
   const url = location.origin + "/public/" + data.tournament.public_token;
+  const qr = qrSvg(url);
+  const localOnly = ["localhost", "127.0.0.1", "::1"].includes(
+    location.hostname,
+  );
+  const help = localOnly
+    ? "Stai usando localhost: per far funzionare il QR sul telefono apri l'app con l'indirizzo IP del server nella LAN."
+    : "L'app è sul tuo computer: il link funziona sui browser che possono raggiungere questo server locale. Per condividerla online servirà l’hosting previsto nella roadmap.";
   modal(
     "Il torneo è più bello insieme.",
-    `<p class="project-intro">Condividi calendario, risultati e tabellone con chi segue il torneo. Questa vista è di sola lettura.</p><div class="share-url"><input id="share-url" aria-label="Link del torneo" value="${h(url)}" readonly><button class="button primary" data-action="copy">Copia link</button></div><p class="field-help">L'app è sul tuo computer: il link funziona sui browser che possono raggiungere questo server locale. Per condividerla online servirà l’hosting previsto nella roadmap.</p>`,
+    `<p class="project-intro">Condividi calendario, risultati e tabellone con chi segue il torneo. Questa vista è di sola lettura.</p>${qr ? `<div class="share-qr">${qr}<p class="field-help">Inquadra il QR con il telefono per aprire la vista spettatore.</p></div>` : ""}<div class="share-url"><input id="share-url" aria-label="Link del torneo" value="${h(url)}" readonly><button class="button primary" data-action="copy">Copia link</button></div><p class="field-help">${help}</p>`,
     `<a class="button primary" href="${h(url)}" target="_blank" rel="noopener">Apri vista spettatore ${icon("arrow")}</a>`,
     "CONDIVIDI IL GIOCO",
   );

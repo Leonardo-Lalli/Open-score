@@ -1734,6 +1734,26 @@ textarea::placeholder {
   line-height: 1.9;
   color: #74816a;
 }
+.share-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fbfcf8;
+}
+.share-qr svg {
+  width: min(220px, 100%);
+  height: auto;
+  display: block;
+}
+.share-qr .field-help {
+  margin: 0;
+  text-align: center;
+}
 .share-url {
   display: flex;
   gap: 9px;

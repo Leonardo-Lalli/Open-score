@@ -116,6 +116,21 @@ def test_mobile_dashboard_and_bracket_have_dedicated_rules(client):
     assert 'tabindex="0"' in script
 
 
+def test_share_modal_has_client_side_qr(client):
+    html = client.get('/').text
+    assert '/static/vendor/qrcode.js?v=0.8.0' in html
+    assert html.index('vendor/qrcode.js') < html.index('/static/app.js')
+
+    script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
+    assert 'createSvgTag' in script
+    assert 'share-qr' in script
+    assert 'Stai usando localhost' in script
+
+    vendor = (BASE / 'static' / 'vendor' / 'qrcode.js').read_text(encoding='utf-8')
+    assert 'MIT license' in vendor
+    assert 'Kazuhiko Arase' in vendor
+
+
 def test_role_gate_offers_teacher_login_and_student_read_only(client):
     html = client.get('/').text
     assert 'id="role-gate"' in html
