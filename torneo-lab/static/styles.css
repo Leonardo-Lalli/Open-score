@@ -1367,6 +1367,70 @@ td .avatar {
 .inline-form input {
   flex: 1;
 }
+.students-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  margin-bottom: 20px;
+}
+.students-teams,
+.students-detail,
+.students-unassigned {
+  margin: 0;
+  min-width: 0;
+}
+.student-search {
+  width: 100%;
+  margin-bottom: 12px;
+}
+.students-team-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.student-team {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  border: 1px solid var(--line);
+  background: #fbfcf8;
+  border-radius: 9px;
+  padding: 10px 12px;
+  text-align: left;
+  min-height: 44px;
+}
+.student-team span {
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.student-team small {
+  font-size: 9px;
+  color: var(--muted);
+}
+.student-team.active {
+  background: #edf4e2;
+  border-color: #98b76a;
+}
+.student-bulk {
+  margin-top: 18px;
+}
+.student-bulk-body {
+  margin-top: 12px;
+}
+.student-bulk textarea {
+  width: 100%;
+  min-height: 110px;
+  margin-bottom: 10px;
+}
+.student-bulk-preview {
+  margin-top: 12px;
+}
+.student-bulk-preview .button {
+  margin-top: 10px;
+}
 .empty {
   text-align: center;
   padding: 45px 20px;
@@ -4200,6 +4264,9 @@ textarea {
   }
   .share-url input {
     min-width: 0;
+  }
+  .students-layout {
+    grid-template-columns: 1fr;
   }
   .upcoming-row {
     grid-template-columns: 1fr;

@@ -127,6 +127,18 @@ def test_wizard_reorder_is_accessible_and_uses_existing_contract(client):
     assert 'touch-action: none' in css
 
 
+def test_student_management_uses_existing_roster_api(client):
+    script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
+    for marker in ('studentsView', 'loadStudentsDetail', 'parseStudentList',
+                   'bulkImportPanel', 'students-unassigned', 'data-student-team',
+                   'student-form'):
+        assert marker in script
+    assert '/players' in script
+    css = (BASE / 'static' / 'styles.css').read_text(encoding='utf-8')
+    assert '.students-layout' in css
+    assert '.student-team' in css
+
+
 def test_student_dashboard_is_read_only_and_hides_private_diary(client):
     script = (BASE / 'static' / 'app.js').read_text(encoding='utf-8')
     assert 'renderStudentDashboard' in script

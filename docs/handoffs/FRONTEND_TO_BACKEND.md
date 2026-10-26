@@ -114,6 +114,10 @@ Prima del contratto ufficiale, lavoro su attività indipendenti o con mock isola
    - *Serve*: account/identità studente e appartenenza a una squadra per mostrare “la mia squadra”, “la mia prossima partita”, l'organizzatore e lo stato delle proprie proposte di risultato.
    - *Nota visibilità*: oggi `GET /api/tournaments` e `GET /api/tournaments/{id}` espongono `teacher_id`, `public_token` e (nel dettaglio) `audit` anche agli anonimi. Il frontend nasconde l'`audit` ai non docenti, ma il backend dovrebbe non esporre questi campi ai non proprietari o servire una vista “studente” dedicata.
 
+10. **Archivio studenti e assegnazioni**.
+   - *Serve*: elenco studenti non assegnati, spostamento atomico tra squadre, import massivo con esito per riga ed eventuale import Excel.
+   - *Oggi*: le rose usano `GET/POST/DELETE /api/tournaments/{id}/teams/{team_id}/players`; il frontend offre anteprima CSV e salvataggio sequenziale, dichiarato come non atomico. Un endpoint bulk/assign renderebbe l'import sicuro e più veloce.
+
 Per QR, infografiche lato client e GitHub Pages **non serve** alcuna nuova API. Il drag & drop del wizard usa già `team_names`; servono API per il riordino post-creazione (punto 1) e per gli aggregati dashboard (punto 7).
 
 ---

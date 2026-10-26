@@ -72,6 +72,9 @@ let list = [],
   catalogSport = null,
   catalogVariant = null,
   catalogDetail = null,
+  studentTeamId = null,
+  studentSearch = "",
+  bulkState = null,
   toastTimer;
 const sportFor = (name) => sports.find((s) => s.name === name);
 const variantFor = (slug) => {
@@ -648,11 +651,15 @@ function renderTournament() {
   ];
   if (t.format !== "knockout") tabs.push(["standings", "Classifiche"]);
   if (t.format !== "round_robin") tabs.push(["bracket", "Tabellone"]);
+  const teamMode = t.participant_kind === "team";
+  if (teamMode && canEdit()) tabs.splice(2, 0, ["students", "Studenti"]);
   const variant = currentVariant();
   let body =
     tab === "participants"
       ? participants()
-      : tab === "matches"
+      : tab === "students"
+        ? studentsView()
+        : tab === "matches"
         ? matchesView()
         : tab === "standings"
           ? standingsView()
@@ -665,6 +672,7 @@ function renderTournament() {
   $("#content").innerHTML =
     `${!publicToken ? `<button class="back-link" data-action="dashboard">${icon("back")} Tutti i tornei</button>` : '<p class="eyebrow">SEGUI IL TORNEO · SOLA LETTURA</p>'}<div class="tournament-heading"><div><p class="eyebrow">${h(t.sport)} <span>/</span> ${h(variant?.name || "Sport storico")} <span>/</span> ${label(t.format)} ${t.archived_at ? '<span class="tag archived"><i></i>Archiviato</span>' : legacy ? '<span class="tag archived"><i></i>Solo lettura</span>' : `<span class="tag ${data.status}">${stateLabel(data.status)}</span>${!canManage() ? '<span class="tag archived"><i></i>Solo lettura</span>' : ''}`}</p><h1>${h(t.name)}</h1><p>${h(t.description || "Ogni partita, un passo verso una nuova sfida.")}</p></div><div class="toolbar">${publicToken ? button("Aggiorna", "refresh", "", "check") : `${t.archived_at && canManage() ? button("Ripristina", "restore", "primary", "refresh") : ""}${!t.archived_at && !legacy && canManage() ? button("Modifica", "edit", "", "edit") : ""}${button("Condividi", "share", "", "share")}<a class="button" href="/api/tournaments/${t.id}/export.csv" download>${icon("download")}Esporta</a>${!t.archived_at && !legacy && canManage() ? button("Archivia", "archive", "danger") : ""}`}</div></div><div class="tabs" role="tablist" aria-label="Sezioni torneo">${tabs.map(([v, l]) => `<button class="tab ${tab === v ? "active" : ""}" role="tab" id="tab-${v}" aria-controls="tournament-panel" tabindex="${tab === v ? 0 : -1}" aria-selected="${tab === v}" data-tab="${v}">${l}</button>`).join("")}</div><div id="tournament-panel" role="tabpanel" aria-labelledby="tab-${tab}">${champion()}${body}</div>`;
   $("#content").setAttribute("aria-busy", "false");
+  if (tab === "students") safely(() => loadStudentsDetail());
 }
 function overview() {
   const t = data.tournament,
@@ -739,6 +747,126 @@ function participants() {
       : "";
     return `<div class="roster-item"><button type="button" class="roster-info" data-team="${p.id}" aria-label="Apri la scheda di ${h(p.name)}">${avatar(p.name, i)}<span><strong>${h(p.name)}</strong><small>${h(group || "Partecipante " + (i + 1).toString().padStart(2, "0"))}${roster}</small></span></button>${!publicToken && canManage() ? `<button class="icon-button" data-rename="${p.id}" aria-label="Rinomina ${h(p.name)}">${icon("edit")}</button>${!generated ? `<button class="icon-button" data-remove="${p.id}" aria-label="Elimina ${h(p.name)}">${icon("close")}</button>` : ""}` : ""}</div>`;
   }).join("") || '<p class="muted">Aggiungi almeno due partecipanti per cominciare.</p>'}</div>`;
+}
+function studentTeamsListHtml() {
+  const max = currentVariant()?.max_roster || 0;
+  const needle = studentSearch.toLocaleLowerCase("it");
+  const teams = (data.teams || []).filter((t) =>
+    t.name.toLocaleLowerCase("it").includes(needle),
+  );
+  if (!teams.length)
+    return '<p class="muted" style="padding:12px">Nessuna squadra trovata.</p>';
+  return teams
+    .map(
+      (t) =>
+        `<button type="button" class="student-team ${t.id === studentTeamId ? "active" : ""}" data-action="student-team" data-student-team="${t.id}" aria-pressed="${t.id === studentTeamId}"><span>${h(t.name)}</span><small>${t.player_count || 0}/${max} studenti</small></button>`,
+    )
+    .join("");
+}
+function studentsView() {
+  const teams = data.teams || [];
+  const max = currentVariant()?.max_roster || 0;
+  if (!teams.length)
+    return `<div class="panel empty">${icon("users")}<h2>Prima le squadre.</h2><p>Aggiungi almeno due partecipanti nella scheda Partecipanti.</p><button class="button primary" data-tab="participants">Vai ai partecipanti</button></div>`;
+  if (!teams.some((t) => t.id === studentTeamId)) studentTeamId = teams[0].id;
+  const total = teams.reduce((sum, t) => sum + (t.player_count || 0), 0);
+  return `<div class="section-header"><div><h2>Studenti nelle squadre.</h2><p class="section-sub">${total} studenti assegnati · rosa massima ${max} per squadra</p></div></div><div class="students-layout"><section class="panel students-teams"><div class="section-header"><h2>Squadre</h2><span class="panel-label">${teams.length}</span></div><label class="sr-only" for="student-team-search">Cerca squadra</label><input id="student-team-search" class="student-search" type="search" placeholder="Cerca squadra…" value="${h(studentSearch)}"><div class="students-team-list">${studentTeamsListHtml()}</div></section><section class="panel students-detail" id="students-detail"><p class="muted">Caricamento studenti…</p></section></div><section class="panel students-unassigned"><div class="section-header"><div><h2>Studenti non assegnati</h2><p class="section-sub">Spostamento e archivio studenti della scuola</p></div><span class="tag archived"><i></i>In attesa API</span></div><p class="muted">Il backend non espone ancora un elenco separato dalle squadre. Quando sarà disponibile, qui compariranno gli studenti non assegnati e lo spostamento tra squadre.</p><p class="field-help">Richiesta al Team A: elenco studenti, assegnazione/spostamento e import massivo atomico.</p></section>`;
+}
+async function loadStudentsDetail() {
+  const box = $("#students-detail");
+  if (!box || !studentTeamId) return;
+  const info = await api(`/tournaments/${selectedId}/teams/${studentTeamId}`);
+  const max = info.max_roster || currentVariant()?.max_roster || 0;
+  const players = info.players || [];
+  const min = info.min_lineup || 0;
+  const manage = !publicToken && canManage();
+  const missing = min && players.length < min ? min - players.length : 0;
+  const full = max > 0 && players.length >= max;
+  bulkState = { teamId: info.team.id, players, max };
+  box.innerHTML = `<div class="section-header"><div><h2>${h(info.team.name)}</h2><p class="section-sub">${players.length}/${max} studenti${missing ? ` · mancano ${missing} per la lineup` : ""}</p></div><span class="tag ${full ? "completed" : "active"}">${full ? "Rosa completa" : "Spazio disponibile"}</span></div>${manage ? `<form id="student-form" data-team="${info.team.id}" class="inline-form"><input name="name" required maxlength="60" aria-label="Nome dello studente" placeholder="Nome dello studente"><input name="shirt_number" type="number" min="0" max="99" aria-label="Numero di maglia" placeholder="N." style="max-width:80px"><button class="button primary" ${full ? "disabled" : ""}>Aggiungi</button></form>` : ""}<div class="roster">${players.map((p) => `<div class="roster-item"><div class="roster-info">${avatar(p.name, p.id)}<span><strong>${h(p.name)}</strong><small>${p.shirt_number !== null ? "Maglia " + p.shirt_number : "Studente"}</small></span></div>${manage ? `<button type="button" class="icon-button" data-remove-player="${p.id}" data-player-team="${info.team.id}" aria-label="Rimuovi ${h(p.name)}">${icon("close")}</button>` : ""}</div>`).join("") || '<p class="muted" style="padding:16px">Nessuno studente assegnato. Aggiungi il primo nome.</p>'}</div>${manage ? bulkImportPanel() : ""}`;
+}
+function bulkImportPanel() {
+  return `<details class="result-schedule student-bulk"><summary>Inserimento rapido</summary><div class="student-bulk-body"><p class="field-help">Incolla un nome per riga, oppure carica un CSV con colonne <code>nome</code> e, se vuoi, <code>numero</code>. L'anteprima non salva nulla.</p><textarea id="bulk-names" rows="5" placeholder="Mario Rossi&#10;Giulia Bianchi, 7"></textarea><div class="inline-form"><input type="file" id="bulk-file" accept=".csv,text/csv" aria-label="Carica un CSV di studenti"><button type="button" class="button ghost" data-action="bulk-parse">Anteprima</button></div><div id="bulk-preview" class="student-bulk-preview"></div><p class="field-help">Il salvataggio usa l'API di aggiunta singola per ogni studente: non è atomico. L'import massivo lato backend è in attesa del Team A.</p></div></details>`;
+}
+function parseStudentList(text, existing, max) {
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length && /^(nome|name)\b/i.test(lines[0])) lines.shift();
+  const seen = new Set(existing.map((p) => p.name.toLocaleLowerCase("it")));
+  const rows = [];
+  for (const line of lines) {
+    const parts = line
+      .split(/[,;\t]/)
+      .map((part) => part.trim().replace(/^"|"$/g, ""));
+    const name = (parts[0] || "").trim();
+    const shirtText = (parts[1] || "").trim();
+    const shirt = shirtText === "" ? null : Number(shirtText);
+    let status = "ok";
+    let message = "";
+    const validCount = rows.filter((row) => row.status === "ok").length;
+    const full = max > 0 && existing.length + validCount >= max;
+    if (!name || name.length > 60) {
+      status = "error";
+      message = "Nome non valido";
+    } else if (seen.has(name.toLocaleLowerCase("it"))) {
+      status = "duplicate";
+      message = "Già presente";
+    } else if (
+      shirt !== null &&
+      (!Number.isInteger(shirt) || shirt < 0 || shirt > 99)
+    ) {
+      status = "error";
+      message = "Numero non valido";
+    } else if (full) {
+      status = "limit";
+      message = "Rosa completa";
+    } else {
+      seen.add(name.toLocaleLowerCase("it"));
+    }
+    rows.push({ name, shirt_number: shirt, status, message });
+  }
+  return rows;
+}
+function renderBulkPreview() {
+  const box = $("#bulk-preview");
+  if (!box || !bulkState) return;
+  const text = $("#bulk-names")?.value || "";
+  const rows = parseStudentList(text, bulkState.players, bulkState.max);
+  const valid = rows.filter((row) => row.status === "ok");
+  if (!rows.length) {
+    box.innerHTML =
+      '<p class="muted">Incolla almeno un nome per vedere l\'anteprima.</p>';
+    return;
+  }
+  box.innerHTML = `<p class="field-help">${valid.length} da aggiungere · ${rows.length - valid.length} da correggere</p><div class="table-wrap"><table><thead><tr><th>#</th><th>Studente</th><th>Numero</th><th>Stato</th></tr></thead><tbody>${rows.map((row, i) => `<tr><td>${i + 1}</td><td>${h(row.name || "–")}</td><td>${row.shirt_number ?? "–"}</td><td>${row.status === "ok" ? "Pronto" : h(row.message)}</td></tr>`).join("")}</tbody></table></div><button type="button" class="button primary" data-action="bulk-save" ${valid.length ? "" : "disabled"}>Aggiungi ${valid.length} studenti</button><p class="field-help">Salvataggio sequenziale tramite l'API di aggiunta singola; non è atomico. L'import massivo backend è in attesa del Team A.</p>`;
+}
+async function saveBulk() {
+  if (!bulkState) return;
+  const text = $("#bulk-names")?.value || "";
+  const rows = parseStudentList(text, bulkState.players, bulkState.max).filter(
+    (row) => row.status === "ok",
+  );
+  if (!rows.length) return;
+  let added = 0;
+  let failed = 0;
+  for (const row of rows) {
+    try {
+      await api(`/tournaments/${selectedId}/teams/${bulkState.teamId}/players`, {
+        method: "POST",
+        body: JSON.stringify({
+          name: row.name,
+          shirt_number: row.shirt_number,
+        }),
+      });
+      added++;
+    } catch {
+      failed++;
+    }
+  }
+  await openTournament(selectedId, true);
+  notify(`${added} studenti aggiunti${failed ? `, ${failed} non salvati` : ""}.`);
 }
 function standingsTable(rows, qualifiers = 0) {
   return `<div class="table-wrap"><table><thead><tr><th>#</th><th>Partecipante</th><th>G</th><th>V</th><th>N</th><th>P</th><th>F</th><th>S</th><th>DR</th><th>PT</th></tr></thead><tbody>${rows.map((r, i) => `<tr class="${i < qualifiers ? "qualifier" : ""}"><td>${i + 1}</td><td>${avatar(r.name, r.team_id)}${h(r.name)}</td><td>${r.played}</td><td>${r.won}</td><td>${r.drawn}</td><td>${r.lost}</td><td>${r.goals_for}</td><td>${r.goals_against}</td><td>${r.goal_difference}</td><td>${r.points}</td></tr>`).join("")}</tbody></table></div>`;
@@ -1321,6 +1449,12 @@ const actions = {
       chip.setAttribute("aria-pressed", String(active));
     });
   },
+  "student-team": (el) => {
+    studentTeamId = Number(el.dataset.studentTeam);
+    renderTournament();
+  },
+  "bulk-parse": () => renderBulkPreview(),
+  "bulk-save": () => saveBulk(),
   copy: async () => {
     const el = $("#share-url");
     try {
@@ -1460,7 +1594,25 @@ document.addEventListener("click", (e) => {
       notify("Risultato cancellato.");
     });
 });
+document.addEventListener("input", (e) => {
+  if (e.target.id !== "student-team-search") return;
+  studentSearch = e.target.value;
+  const list = document.querySelector(".students-team-list");
+  if (list) list.innerHTML = studentTeamsListHtml();
+});
 document.addEventListener("change", (e) => {
+  if (e.target.id === "bulk-file") {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const textarea = $("#bulk-names");
+      if (textarea) textarea.value = String(reader.result || "");
+      renderBulkPreview();
+    };
+    reader.readAsText(file);
+    return;
+  }
   if (e.target.id === "wizard-sport") {
     readWizard();
     const sport = sportFor(wizard.sport);
@@ -1534,6 +1686,22 @@ document.addEventListener("submit", (e) => {
         await openTournament(selectedId, true);
         await teamModal(form.dataset.team);
         notify("Giocatore aggiunto alla rosa.");
+      }
+      if (form.id === "student-form") {
+        await api(
+          `/tournaments/${selectedId}/teams/${form.dataset.team}/players`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              name: fd.get("name"),
+              shirt_number: fd.get("shirt_number")
+                ? Number(fd.get("shirt_number"))
+                : null,
+            }),
+          },
+        );
+        await openTournament(selectedId, true);
+        notify("Studente aggiunto alla squadra.");
       }
       if (form.id === "rename-form") {
         await api(`/tournaments/${selectedId}/teams/${form.dataset.id}`, {
