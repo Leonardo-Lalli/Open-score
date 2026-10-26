@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Open Score · Il tuo campo di gioco</title>
+    <meta
+      name="description"
+      content="Open Score organizza i tornei di scienze motorie a scuola: sei sport, sedici varianti, squadre, risultati, classifiche, calendario e tabellone. Progetto scolastico di Leonardo Lalli e Maximiliam Cichello."
+    />
+    <meta name="theme-color" content="#182923" />
+    <meta name="color-scheme" content="light" />
+    <link rel="canonical" href="https://leonardo-lalli.github.io/Open-score/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Open Score · Il tuo campo di gioco" />
+    <meta
+      property="og:description"
+      content="Tornei di scienze motorie a scuola: sport, squadre, partite, risultati e classifiche in un unico posto."
+    />
+    <meta property="og:url" content="https://leonardo-lalli.github.io/Open-score/" />
+    <meta property="og:locale" content="it_IT" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="icon" type="image/svg+xml" href="assets/mark.svg" />
+    <link
+      rel="preload"
+      href="assets/fonts/dm-sans-normal-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="script.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#contenuto">Vai al contenuto</a>
+
+    <header class="site-header">
+      <div class="shell header-inner">
+        <a class="brand" href="#top" aria-label="Open Score, torna all'inizio">
+          <img src="assets/mark.svg" alt="" width="40" height="40" />
+          <span
+            >open<span class="brand-light">score</span
+            ><small>IL TUO CAMPO DI GIOCO</small></span
+          >
+        </a>
+
+        <button
+          class="nav-toggle"
+          id="nav-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="site-nav"
+          aria-label="Apri il menu"
+        >
+          <span></span><span></span><span></span>
+        </button>
+
+        <nav class="site-nav" id="site-nav" aria-label="Navigazione principale">
+          <a href="#problema">Il problema</a>
+          <a href="#soluzione">La soluzione</a>
+          <a href="#funzionalita">Funzionalità</a>
+          <a href="#come-funziona">Come funziona</a>
+          <a href="#roadmap">Roadmap</a>
+          <a href="#team">Team</a>
+          <a
+            class="nav-github"
+            href="https://github.com/Leonardo-Lalli/Open-score"
+            target="_blank"
+            rel="noopener"
+            >GitHub <span aria-hidden="true">↗</span></a
+          >
+        </nav>
+      </div>
+    </header>
+
+    <main id="contenuto">
+      <section class="hero" id="top">
+        <div class="shell hero-grid">
+          <div class="hero-copy">
+            <p class="eyebrow">
+              <span class="eyebrow-dot"></span> PROGETTO SCOLASTICO · CODICE
+              PUBBLICO
+            </p>
+            <h1>Il tuo campo<br /><em>di gioco.</em></h1>
+            <p class="hero-sub">
+              Open Score organizza i tornei di scienze motorie: sport, squadre,
+              partite, risultati e classifiche in un unico posto. Pensata per la
+              LAN della scuola, da desktop e da smartphone.
+            </p>
+            <div class="hero-actions">
+              <a class="button primary" href="#funzionalita"
+                >Scopri le funzionalità</a
+              >
+              <a
+                class="button ghost"
+                href="https://github.com/Leonardo-Lalli/Open-score"
+                target="_blank"
+                rel="noopener"
+                >Vedi su GitHub <span aria-hidden="true">↗</span></a
+              >
+            </div>
+            <p class="hero-note">
+              La demo pubblica non è ancora disponibile: l'applicazione operativa
+              vive sulla rete della scuola e sarà pubblicata separatamente.
+            </p>
+            <ul class="hero-facts" aria-label="Numeri del progetto">
+              <li><strong>6</strong><span>sport</span></li>
+              <li><strong>16</strong><span>varianti</span></li>
+              <li><strong>2</strong><span>ruoli</span></li>
+              <li><strong>0</strong><span>dati dimostrativi</span></li>
+            </ul>
+          </div>
+
+          <div class="hero-visual" aria-hidden="true">
+            <div class="board">
+              <div class="board-top">
+                <span>OPEN SCORE</span>
+                <span class="board-live"><i></i> LIVE</span>
+              </div>
+              <div class="board-court">
+                <span class="court-line"></span>
+                <span class="court-circle"></span>
+              </div>
+              <div class="board-score">
+                <span>SQUADRA A</span>
+                <strong>12 <b>:</b> 9</strong>
+                <span>SQUADRA B</span>
+              </div>
+              <p class="board-meta">Calcio a 5 · Girone A · 2° tempo</p>
+              <div class="board-chips">
+                <span>Gironi</span><span>Tabellone</span><span>Classifica</span>
+              </div>
+              <span class="board-note">illustrazione</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="problema">
+        <div class="shell">
+          <div class="section-heading">
+            <p class="eyebrow">IL PROBLEMA</p>
+            <h2>Un torneo non dovrebbe vivere su tre fogli di calcolo.</h2>
+            <p class="section-lead">
+              Organizzare un torneo scolastico significa tenere insieme regole
+              diverse, persone, orari e risultati. Quando cambia una partita,
+              cambiano anche la classifica, il tabellone e le risposte da dare
+              agli studenti.
+            </p>
+          </div>
+          <div class="grid-3">
+            <article class="card">
+              <span class="card-icon" aria-hidden="true">01</span>
+              <h3>Regole diverse per ogni sport</h3>
+              <p>
+                Calcio a 5, basket 3x3 e pallavolo non si organizzano allo stesso
+                modo: cambiano durata, punteggio, set, numero di giocatori e
+                criteri di classifica.
+              </p>
+            </article>
+            <article class="card">
+              <span class="card-icon" aria-hidden="true">02</span>
+              <h3>Squadre, studenti e rose</h3>
+              <p>
+                Chi gioca, chi è in panchina, quanti studenti per squadra e chi
+                non è ancora assegnato: senza un unico elenco il torneo diventa
+                un puzzle.
+              </p>
+            </article>
+            <article class="card">
+              <span class="card-icon" aria-hidden="true">03</span>
+              <h3>Partite, campi e classifiche</h3>
+              <p>
+                Incastrare orari e campi, aggiornare i risultati e spiegare perché
+                una squadra è passata richiede tempo che si vorrebbe passare in
+                palestra.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section-alt" id="soluzione">
+        <div class="shell">
+          <div class="section-heading">
+            <p class="eyebrow">LA SOLUZIONE</p>
+            <h2>Un solo posto, dall'iscrizione alla finale.</h2>
+            <p class="section-lead">
+              Open Score tiene insieme quello che serve per far giocare la
+              scuola. Il professore configura, gli studenti consultano, il
+              tabellone racconta il percorso.
+            </p>
+          </div>
+          <div class="solution-grid">
+            <div class="solution-item">
+              <span class="solution-mark" aria-hidden="true">A</span>
+              <div>
+                <h3>Sport e regole</h3>
+                <p>
+                  Sei sport e sedici varianti. La variante porta con sé durata,
+                  composizione della squadra, punteggio e regolamento.
+                </p>
+              </div>
+            </div>
+            <div class="solution-item">
+              <span class="solution-mark" aria-hidden="true">B</span>
+              <div>
+                <h3>Squadre e studenti</h3>
+                <p>
+                  Rose con limiti della variante, ricerca, aggiunta rapida e
+                  anteprima di importazione da elenco o CSV.
+                </p>
+              </div>
+            </div>
+            <div class="solution-item">
+              <span class="solution-mark" aria-hidden="true">C</span>
+              <div>
+                <h3>Tornei e tabellone</h3>
+                <p>
+                  Gironi, eliminazione diretta e gironi con fase finale. BYE,
+                  qualificazioni e campione sono calcolati dal motore.
+                </p>
+              </div>
+            </div>
+            <div class="solution-item">
+              <span class="solution-mark" aria-hidden="true">D</span>
+              <div>
+                <h3>Risultati e classifiche</h3>
+                <p>
+                  Punteggi numerici o set per set, correzioni controllate,
+                  criteri a parità e classifica aggiornata.
+                </p>
+              </div>
+            </div>
+            <div class="solution-item">
+              <span class="solution-mark" aria-hidden="true">E</span>
+              <div>
+                <h3>Calendario</h3>
+                <p>
+                  Partite per giorno, filtri per torneo, squadra, campo e stato.
+                  I conflitti visibili sono segnalati prima del salvataggio.
+                </p>
+              </div>
+            </div>
+            <div class="solution-item">
+              <span class="solution-mark" aria-hidden="true">F</span>
+              <div>
+                <h3>Condivisione</h3>
+                <p>
+                  Link spettatore in sola lettura, QR, stampa e infografica
+                  esportabile in SVG o PNG.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="funzionalita">
+        <div class="shell">
+          <div class="section-heading">
+            <p class="eyebrow">FUNZIONALITÀ</p>
+            <h2>Quello che c'è, quello che arriva.</h2>
+            <p class="section-lead">
+              Solo funzioni realmente presenti nel codice attuale. Le voci in
+              sviluppo hanno già una base nell'interfaccia, ma aspettano
+              un'integrazione backend o una verifica sul campo.
+            </p>
+          </div>
+
+          <div class="feature-group">
+            <div class="feature-group-head">
+              <h3>Disponibili</h3>
+              <span class="status done">Nel codice attuale</span>
+            </div>
+            <div class="feature-grid">
+              <article class="feature-card">
+                <span class="feature-icon" aria-hidden="true">◎</span>
+                <h4>Sei sport, sedici varianti</h4>
+                <p>
+                  Calcio a 5/7/11, basket 5v5 e 3x3, pallavolo 6v6/4v4/beach,
+                  badminton, ping pong e biliardino. Ogni variante ha regole,
+                  durata e composizione proprie.
+                </p>
+              </article>
+              <article class="feature-card">
+                <span class="feature-icon" aria-hidden="true">◉</span>
+                <h4>Squadre, studenti e rose</h4>
+                <p>
+                  Rosa massima, lineup minima, numero di maglia, aggiunta rapida
+                  e gestione degli studenti per squadra.
+                </p>
+              </article>
+              <article class="feature-card">
+                <span class="feature-icon" aria-hidden="true">◇</span>
+                <h4>Gironi, eliminazione e multifase</h4>
+                <p>
+                  Girone unico anche con numero dispari, knockout da 2 a 32,
+                  gironi uguali con qualificazione alle finali.
+                </p>
+              </article>
+              <article class="feature-card">
+                <span class="feature-icon" aria-hidden="true">▤</span>
+                <h4>Risultati e classifiche</h4>
+                <p>
+                  Punteggi numerici o set, correzioni con controllo versione,
+                  invalidazione degli incontri dipendenti e criteri a parità.
+                </p>
+              </article>
+              <article class="feature-card">
+                <span class="feature-icon" aria-hidden="true">⌁</span>
+                <h4>Tabellone a eliminazione</h4>
+                <p>
+                  Collegamenti reali tra gli incontri, BYE, colonna Campione,
+                  risultati ufficiali e navigazione per turni su telefono.
+                </p>
+              </article>
+              <article class="feature-card">
+                <span class="feature-icon" aria-hidden="true">▦</span>
+                <h4>Calendario</h4>
+                <p>
+                  Partite per giorno con filtri per torneo, squadra, campo e
+                  stato. I conflitti visibili sono un'anteprima: il server resta
+                  l'autorità.
+                </p>
+              </article>
+              <article class="feature-card">
+                <span class="feature-icon" aria-hidden="true">◐</span>
+                <h4>Ruoli prof e studente</h4>
+                <p>
+                  Login docente, tornei separati per proprietario e modalità
+                  studente in sola lettura, bloccata anche lato API.
+                </p>
+              </article>
+              <article class="feature-card">
+                <span class="feature-icon" aria-hidden="true">↗</span>
+                <h4>Condivisione e QR</h4>
+                <p>
+                  Link spettatore, QR generato nel browser, stampa del QR,
+                  condivisione nativa con fallback alla copia del link.
+                </p>
+              </article>
+              <article class="feature-card">
+                <span class="feature-icon" aria-hidden="true">▥</span>
+                <h4>Statistiche e infografica</h4>
+                <p>
+                  KPI del torneo, podio, qualificati e campione in una
+                  composizione esportabile in SVG o PNG. Nessun nome di studente.
+                </p>
+              </article>
+            </div>
+          </div>
+
+          <div class="feature-group">
+            <div class="feature-group-head">
+              <h3>In sviluppo</h3>
+              <span class="status wip">Interfaccia pronta, integrazione in corso</span>
+            </div>
+            <div class="feature-grid compact">
+              <article class="feature-card">
+                <h4>Proposte di risultato</h4>
+                <p>
+                  Gli studenti potranno proporre un risultato; il professore
+                  approva, respinge o corregge. La scheda è pronta, manca l'API.
+                </p>
+              </article>
+              <article class="feature-card">
+                <h4>Campi come risorsa</h4>
+                <p>
+                  Nome, sede, sport supportati e disponibilità. Oggi il campo è
+                  un testo; la schermata attende la persistenza lato server.
+                </p>
+              </article>
+              <article class="feature-card">
+                <h4>Calendario e conflitti lato server</h4>
+                <p>
+                  L'aggregato attuale è costruito dal browser sui tornei
+                  leggibili. L'API dedicata porterà conflitti calcolati dal
+                  server.
+                </p>
+              </article>
+              <article class="feature-card">
+                <h4>Import massivo studenti</h4>
+                <p>
+                  Incolla elenco e CSV sono disponibili in anteprima; il
+                  salvataggio è sequenziale. Manca l'operazione atomica.
+                </p>
+              </article>
+              <article class="feature-card">
+                <h4>Statistiche individuali</h4>
+                <p>
+                  Marcatori e dettagli giocatore. Oggi le statistiche sono
+                  aggregate per squadra e torneo.
+                </p>
+              </article>
+              <article class="feature-card">
+                <h4>Verifica su dispositivi reali</h4>
+                <p>
+                  L'interfaccia è ottimizzata e verificata staticamente; manca
+                  una prova sistematica su iPhone e Android della scuola.
+                </p>
+              </article>
+            </div>
+          </div>
+
+          <div class="feature-group">
+            <div class="feature-group-head">
+              <h3>Prospettive future</h3>
+              <span class="status next">Da discutere con il professore</span>
+            </div>
+            <div class="future-list">
+              <span>Doppia eliminazione</span>
+              <span>Formato Swiss</span>
+              <span>Cup &amp; Consolation</span>
+              <span>Scheduler automatico</span>
+              <span>Campi e arbitri come risorse</span>
+              <span>Forfait, ritiri e rigori</span>
+              <span>Più scuole e società sportive</span>
+              <span>Hosting oltre la LAN</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section-alt" id="come-funziona">
+        <div class="shell">
+          <div class="section-heading">
+            <p class="eyebrow">COME FUNZIONA</p>
+            <h2>Due modi di entrare, un solo torneo.</h2>
+            <p class="section-lead">
+              Il professore prepara e gestisce. Lo studente consulta. La
+              separazione non è solo visiva: ogni scrittura è protetta lato
+              server.
+            </p>
+          </div>
+          <div class="flow-grid">
+            <article class="flow-card teacher">
+              <div class="flow-head">
+                <span class="flow-badge">PROF</span>
+                <h3>Organizzare</h3>
+              </div>
+              <ol class="steps">
+                <li><span>01</span>Accedi con email e password.</li>
+                <li>
+                  <span>02</span>Scegli sport e variante: regole e durata si
+                  adattano.
+                </li>
+                <li><span>03</span>Crea squadre e assegna gli studenti.</li>
+                <li>
+                  <span>04</span>Genera gironi o tabellone e programma le
+                  partite.
+                </li>
+                <li>
+                  <span>05</span>Registra i risultati: classifica e percorso si
+                  aggiornano.
+                </li>
+                <li>
+                  <span>06</span>Condividi link, QR e infografica con chi segue
+                  il torneo.
+                </li>
+              </ol>
+            </article>
+            <article class="flow-card student">
+              <div class="flow-head">
+                <span class="flow-badge">STUDENTE</span>
+                <h3>Seguire</h3>
+              </div>
+              <ol class="steps">
+                <li><span>01</span>Entra come studente, senza password.</li>
+                <li><span>02</span>Apri il torneo dalla panoramica.</li>
+                <li>
+                  <span>03</span>Trova prossima partita, calendario, risultati,
+                  classifica e tabellone.
+                </li>
+                <li>
+                  <span>04</span>Consulta tutto in sola lettura: nessun pulsante
+                  di modifica.
+                </li>
+              </ol>
+              <p class="flow-note">
+                Il link spettatore funziona anche senza account e si aggiorna
+                ogni 30 secondi.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="per-chi">
+        <div class="shell">
+          <div class="section-heading">
+            <p class="eyebrow">PER CHI È PENSATA</p>
+            <h2>La scuola prima, poi lo sport.</h2>
+          </div>
+          <div class="grid-3 audience">
+            <article class="card">
+              <span class="card-icon" aria-hidden="true">A</span>
+              <h3>Professori</h3>
+              <p>
+                Per chi organizza il torneo d'istituto, la fase di educazione
+                fisica o il pomeriggio sportivo senza ricostruire ogni volta
+                tabelle e regolamenti.
+              </p>
+            </article>
+            <article class="card">
+              <span class="card-icon" aria-hidden="true">B</span>
+              <h3>Studenti</h3>
+              <p>
+                Per sapere quando si gioca, contro chi e com'è la classifica,
+                senza chiedere in corridoio e senza poter modificare nulla.
+              </p>
+            </article>
+            <article class="card">
+              <span class="card-icon" aria-hidden="true">C</span>
+              <h3>Scuole</h3>
+              <p>
+                Per ospitare l'installazione su un computer della LAN, con account
+                docenti separati, backup e dati che restano a scuola.
+              </p>
+            </article>
+          </div>
+          <p class="perspective">
+            <strong>Prospettiva futura.</strong> Lo stesso modello può essere
+            esteso a società sportive e tornei extrascolastici, ma oggi il
+            progetto è tarato sulla scuola e sul confronto con il professore.
+          </p>
+        </div>
+      </section>
+
+      <section class="section section-alt" id="screenshot">
+        <div class="shell">
+          <div class="section-heading">
+            <p class="eyebrow">SCREENSHOT</p>
+            <h2>Uno sguardo dentro il torneo.</h2>
+            <p class="section-lead">
+              Gli screenshot reali saranno aggiunti qui appena disponibili. Per
+              ora la struttura è pronta: nessuna immagine inventata e nessun
+              nome reale di studente.
+            </p>
+          </div>
+          <div class="screenshot-grid" data-screenshot-placeholder>
+            <figure class="screenshot-card">
+              <div class="screenshot-frame" aria-hidden="true">
+                <span class="frame-bar"></span>
+                <span class="frame-line wide"></span>
+                <span class="frame-line"></span>
+                <span class="frame-tiles"><i></i><i></i><i></i></span>
+              </div>
+              <figcaption>
+                <strong>Dashboard del professore</strong>
+                <span>Tornei, prossime partite e avanzamento.</span>
+              </figcaption>
+            </figure>
+            <figure class="screenshot-card">
+              <div class="screenshot-frame" aria-hidden="true">
+                <span class="frame-bar"></span>
+                <span class="frame-line wide"></span>
+                <span class="frame-bracket"><i></i><i></i><i></i></span>
+              </div>
+              <figcaption>
+                <strong>Tabellone e calendario</strong>
+                <span>Percorso verso la finale, giorno per giorno.</span>
+              </figcaption>
+            </figure>
+            <figure class="screenshot-card">
+              <div class="screenshot-frame" aria-hidden="true">
+                <span class="frame-bar"></span>
+                <span class="frame-line wide"></span>
+                <span class="frame-chart"><i></i><i></i><i></i><i></i></span>
+              </div>
+              <figcaption>
+                <strong>Statistiche e infografica</strong>
+                <span>Numeri del torneo pronti da condividere.</span>
+              </figcaption>
+            </figure>
+          </div>
+          <p class="screenshot-note">
+            Come aggiungerli: salva i file in
+            <code>website/assets/screenshots/</code> e sostituisci il riquadro
+            corrispondente con un <code>&lt;img&gt;</code>. Usa dati di prova,
+            senza nomi reali.
+          </p>
+        </div>
+      </section>
+
+      <section class="section" id="roadmap">
+        <div class="shell">
+          <div class="section-heading">
+            <p class="eyebrow">ROADMAP</p>
+            <h2>Un passo alla volta, in palestra.</h2>
+            <p class="section-lead">
+              Le date non sono promesse: il percorso dipende dal confronto con il
+              professore e dalla disponibilità dei due studenti.
+            </p>
+          </div>
+          <ol class="timeline">
+            <li class="timeline-item done">
+              <span class="timeline-tag">Fatto</span>
+              <div>
+                <h3>Versione 0.8.0</h3>
+                <p>
+                  Catalogo sport, tornei, risultati, classifiche, tabellone,
+                  ruoli prof/studente, mobile, link spettatore e statistiche.
+                </p>
+              </div>
+            </li>
+            <li class="timeline-item wip">
+              <span class="timeline-tag">In corso</span>
+              <div>
+                <h3>Integrazione delle API</h3>
+                <p>
+                  Proposte di risultato, campi come risorsa, calendario
+                  aggregato, import massivo e statistiche individuali.
+                </p>
+              </div>
+            </li>
+            <li class="timeline-item next">
+              <span class="timeline-tag">Prossimo</span>
+              <div>
+                <h3>Formati e automazione</h3>
+                <p>
+                  Doppia eliminazione, Swiss, Cup &amp; Consolation e scheduler
+                  con campi, arbitri e disponibilità.
+                </p>
+              </div>
+            </li>
+            <li class="timeline-item future">
+              <span class="timeline-tag">Prospettiva</span>
+              <div>
+                <h3>Oltre la scuola</h3>
+                <p>
+                  Più istituti, società sportive e hosting oltre la LAN, quando
+                  il progetto sarà pronto e i regolamenti condivisi.
+                </p>
+              </div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="section section-alt" id="team">
+        <div class="shell team-grid">
+          <div>
+            <p class="eyebrow">IL TEAM</p>
+            <h2>Due studenti, un professore, un torneo.</h2>
+            <p class="section-lead">
+              Open Score è un progetto di <strong>Leonardo Lalli</strong> e
+              <strong>Maximiliam Cichello</strong>, nato per il professore di
+              scienze motorie. Nome e scelte di prodotto restano provvisori e
+              crescono con il confronto in palestra.
+            </p>
+            <p class="team-note">
+              Il lavoro è diviso in due aree che si incontrano nello stesso
+              repository: interfaccia ed esperienza da un lato, motore e dati
+              dall'altro. Revisioni, regole e prove restano condivise.
+            </p>
+          </div>
+          <div class="team-card">
+            <img src="assets/mark.svg" alt="" width="56" height="56" />
+            <p class="team-card-title">Open Score</p>
+            <p class="team-card-sub">Progetto scolastico · 2026</p>
+            <ul>
+              <li>Sei sport, sedici varianti</li>
+              <li>Prof e studenti separati</li>
+              <li>Dati che restano a scuola</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="final-cta">
+        <div class="shell final-cta-inner">
+          <div>
+            <p class="eyebrow">IL PROSSIMO FISCHIO D'INIZIO</p>
+            <h2>Porta il torneo in campo.</h2>
+            <p>
+              Il codice, la documentazione e il piano di sviluppo sono pubblici.
+              La piattaforma operativa sarà pubblicata separatamente.
+            </p>
+          </div>
+          <div class="final-actions">
+            <a
+              class="button primary"
+              href="https://github.com/Leonardo-Lalli/Open-score"
+              target="_blank"
+              rel="noopener"
+              >Apri il repository <span aria-hidden="true">↗</span></a
+            >
+            <a
+              class="button ghost-light"
+              href="https://github.com/Leonardo-Lalli/Open-score/tree/main/docs"
+              target="_blank"
+              rel="noopener"
+              >Leggi la documentazione</a
+            >
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-grid">
+        <div>
+          <a class="brand footer-brand" href="#top" aria-label="Open Score">
+            <img src="assets/mark.svg" alt="" width="36" height="36" />
+            <span
+              >open<span class="brand-light">score</span
+              ><small>IL TUO CAMPO DI GIOCO</small></span
+            >
+          </a>
+          <p class="footer-note">
+            Progetto scolastico di Leonardo Lalli e Maximiliam Cichello.
+            Nessun nome reale di studente è pubblicato su questo sito.
+          </p>
+        </div>
+        <nav class="footer-links" aria-label="Link del progetto">
+          <a
+            href="https://github.com/Leonardo-Lalli/Open-score"
+            target="_blank"
+            rel="noopener"
+            >Repository</a
+          >
+          <a
+            href="https://github.com/Leonardo-Lalli/Open-score/blob/main/README.md"
+            target="_blank"
+            rel="noopener"
+            >README</a
+          >
+          <a
+            href="https://github.com/Leonardo-Lalli/Open-score/tree/main/docs"
+            target="_blank"
+            rel="noopener"
+            >Documentazione</a
+          >
+          <a
+            href="https://github.com/Leonardo-Lalli/Open-score/issues"
+            target="_blank"
+            rel="noopener"
+            >Segnalazioni</a
+          >
+        </nav>
+        <div class="footer-meta">
+          <p>Licenza da definire.</p>
+          <p>© <span id="year">2026</span> Open Score</p>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

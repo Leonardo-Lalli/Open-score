@@ -6,6 +6,8 @@ Open Score è una web app per organizzare i tornei di scienze motorie a scuola: 
 
 Progetto di **Leonardo Lalli e Maximiliam Cichello**, da discutere con il professore di scienze motorie. Nome e scelte di prodotto restano provvisori.
 
+Sito di presentazione (GitHub Pages, dopo la pubblicazione): [leonardo-lalli.github.io/Open-score](https://leonardo-lalli.github.io/Open-score/). La piattaforma operativa vive in `torneo-lab/` e va pubblicata separatamente.
+
 ## Avvio rapido
 
 ### Windows
