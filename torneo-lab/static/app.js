@@ -668,7 +668,11 @@ const fieldsAdapter = {
     return body.fields || [];
   },
   async save(payload, fieldId = null) {
-    if (fieldId) payload.version = fieldsCache.find((field) => field.id === fieldId)?.version;
+    if (fieldId) {
+      const current = fieldsCache.find((field) => field.id === fieldId);
+      payload.version = current?.version;
+      payload.availability_intervals ??= current?.availability_intervals || [];
+    }
     if (!this.ready)
       throw new Error("Salvataggio dei campi non ancora disponibile.");
     return apiWithMessages(
@@ -698,7 +702,13 @@ const calendarAdapter = {
     if (!this.ready) return null;
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(filters)) {
-      if (value && value !== "all") params.set(key, value);
+      if (value && value !== "all") {
+        if (key === "team") {
+          const [tournamentId, teamId] = value.split(":");
+          params.set("team", teamId || tournamentId);
+          if (teamId) params.set("tournament", tournamentId);
+        } else params.set(key, value);
+      }
     }
     return apiWithMessages(`/calendar?${params}`, {}, CALENDAR_MESSAGES);
   },
@@ -1101,7 +1111,7 @@ async function joinInvite() {
   }
   if (!auth.authenticated) {
     pendingInviteToken = inviteToken;
-    showRoleGate("login");
+    studentAccount();
     return;
   }
   const result = await inviteAdapter.join(inviteToken);
@@ -1374,9 +1384,13 @@ function normalizeCalendarEvent(event) {
     fieldId: event.field_id ?? null,
     duration: Number(event.duration) || 20,
     status: event.status || "waiting",
-    score: event.score || null,
+    score: event.score && typeof event.score === "object"
+      ? `${event.score.home}–${event.score.away}` : event.score || null,
     group: event.group || null,
   };
+}
+function normalizeCalendarTeam(team) {
+  return { ...team, tournamentId: team.tournament_id ?? team.tournamentId };
 }
 function intervalFor(event) {
   const start = new Date(event.scheduled_at).getTime();
@@ -1432,6 +1446,7 @@ async function reloadCalendar() {
   if (calendarLoading) return;
   calendarLoading = true;
   calendarError = "";
+  const requestedFilters = JSON.stringify(calendarFilters);
   try {
     await refreshList();
     const remote = await calendarAdapter.list(calendarFilters);
@@ -1440,7 +1455,8 @@ async function reloadCalendar() {
       calendarState = {
         events,
         conflicts: remote.conflicts || [],
-        teams: remote.teams || [],
+        teams: (remote.teams || []).map(normalizeCalendarTeam),
+        tournaments: remote.tournaments || list,
         fields:
           remote.fields ||
           [...new Set(events.map((event) => event.location).filter(Boolean))],
@@ -1460,6 +1476,7 @@ async function reloadCalendar() {
       calendarState = {
         events,
         conflicts: detectCalendarConflicts(events),
+        tournaments: details.map((detail) => detail.tournament),
         teams: details.flatMap((detail) =>
           (detail.teams || []).map((team) => ({
             tournamentId: detail.tournament.id,
@@ -1479,6 +1496,8 @@ async function reloadCalendar() {
   } finally {
     calendarLoading = false;
   }
+  if (calendarMode && requestedFilters !== JSON.stringify(calendarFilters))
+    return reloadCalendar();
   if (calendarMode) renderCalendar();
 }
 function filterCalendarEvents(events) {
@@ -1497,11 +1516,8 @@ function filterCalendarEvents(events) {
     }
     if (filters.field !== "all" && event.location !== filters.field) return false;
     if (filters.status !== "all") {
-      const bucket = !event.scheduled_at
-        ? "unscheduled"
-        : event.status === "completed"
-          ? "played"
-          : "to-play";
+      const bucket = event.status === "completed" ? "played"
+        : !event.scheduled_at ? "unscheduled" : "to-play";
       if (bucket !== filters.status) return false;
     }
     return true;
@@ -1564,7 +1580,8 @@ function renderCalendar() {
     : "";
   const tournamentOptions = [
     ...new Map(
-      calendarState.events.map((event) => [event.tournamentId, event.tournamentName]),
+      (calendarState.tournaments || []).map((item) => [item.id, item.name])
+        .concat(calendarState.events.map((event) => [event.tournamentId, event.tournamentName])),
     ).entries(),
   ].sort((a, b) => String(a[1]).localeCompare(String(b[1]), "it"));
   const teamOptions = calendarState.teams
@@ -3088,7 +3105,7 @@ const actions = {
       field: "all",
       status: "all",
     };
-    renderCalendar();
+    return reloadCalendar();
   },
   "calendar-open": async (el) => {
     await openTournament(Number(el.dataset.tournament));
@@ -3434,7 +3451,7 @@ document.addEventListener("change", (e) => {
     const key = calendarFilter.dataset.calendarFilter;
     calendarFilters[key] = calendarFilter.value;
     if (key === "tournament") calendarFilters.team = "all";
-    renderCalendar();
+    safely(() => reloadCalendar());
     return;
   }
   if (e.target.closest("#schedule-form")) updateScheduleConflictHint();

@@ -70,7 +70,7 @@ def create_app(db_path: str | Path | None = None, seed: bool = False, *,
                       os.environ.get('TORNEO_ALLOWED_HOSTS', '').split(',') if host.strip()]
     hosts = list(dict.fromkeys(default_hosts + list(configured)))
 
-    api = FastAPI(title='Open Score · API', version='0.9.0',
+    api = FastAPI(title='Open Score · API', version='0.9.1',
                   description='Applicazione originale per i tornei scolastici. Nessun collegamento alle API di Score7.')
     api.state.db_path = path
     api.state.mode = mode
@@ -184,7 +184,7 @@ def create_app(db_path: str | Path | None = None, seed: bool = False, *,
 
     @api.get('/api/health')
     def health():
-        return {'status':'ok','version':'0.9.0',
+        return {'status':'ok','version':'0.9.1',
                 'mode':'service' if mode=='service' else 'school-lan','auth':'teacher-login'}
 
     @api.get('/api/auth/session')

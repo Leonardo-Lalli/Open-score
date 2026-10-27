@@ -17,6 +17,7 @@ def enroll(db, user, tid, team_id=None, invite=None, team_version=None):
     t = svc.required(db, tid)
     if invite is None and not t['published']:
         fail(404, 'not_found', 'Torneo non disponibile per iscrizione diretta')
+    auth.require_active(t)
     existing = db.execute('SELECT * FROM enrollments WHERE tournament_id=? AND user_id=?', (tid, user['id'])).fetchone()
     if existing:
         if invite is not None and existing['invite_id'] == invite['id'] and existing['status'] != 'rejected':
@@ -94,7 +95,7 @@ def create_invite(db, user, tid, data, origin):
             (tid, data.team_id, auth.digest(token), expiry.isoformat(), data.max_uses, int(data.require_approval))).lastrowid
     audit(db, user, tid, 'invite_created', {'invite_id': ident})
     return dict(invite_dto(db.execute('SELECT * FROM invites WHERE id=?', (ident,)).fetchone()),
-                token=token, url=origin.rstrip('/')+'/join#'+token)
+                token=token, url=origin.rstrip('/')+'/#/join/'+token)
 
 
 def find_invite(db, token, allow_exhausted=False):
@@ -173,7 +174,9 @@ def edit_field(db, user, fid, data):
 
 
 def check_field(field, variant_id, start, duration):
-    if variant_id not in json.loads(field['variants_json']):
+    from identity_bridge import VARIANT_SLUGS
+    canonical=lambda value:VARIANT_SLUGS.get(value,value)
+    if canonical(variant_id) not in {canonical(value) for value in json.loads(field['variants_json'])}:
         fail(422, 'sport_incompatible', 'Campo non compatibile con la variante')
     end = start+timedelta(minutes=duration)
     slots = json.loads(field['availability_json'])

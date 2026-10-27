@@ -58,6 +58,7 @@ def proposal_dto(db, item):
 
 def propose(db, user, tid, mid, data):
     tournament = auth.access(db, user, tid)
+    auth.require_active(tournament)
     if user['role'] != 'student':
         fail(403, 'student_required', 'Le proposte sono riservate agli studenti partecipanti')
     game = match(db, tid, mid, data.match_version)

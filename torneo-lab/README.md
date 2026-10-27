@@ -57,7 +57,11 @@ Il database parte vuoto: non ci sono tornei dimostrativi. Dopo il primo accesso 
 
 I dati restano in `data/open_score.sqlite3` e sopravvivono al riavvio. Non ci sono dati preinstallati né una scadenza.
 
-## Funzioni della versione 0.9.0
+## Funzioni della versione 0.9.1
+
+Audit del 27 ottobre: corretti filtri e dati del calendario, link inviti V1,
+scritture sui tornei archiviati e compatibilità/vincoli dei campi. Prove e limiti
+nel [report di verifica](../docs/APP_AUDIT_2026_10_27.md).
 
 L'integrazione con il backend Team A attiva gli adapter per proposte, inviti,
 riordino, campi e calendario; aggiunge import CSV atomico e identità studenti.

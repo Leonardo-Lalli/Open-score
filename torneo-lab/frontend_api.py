@@ -144,7 +144,9 @@ def field_row(db, item):
         if item["venue_id"]
         else None
     )
-    variants = item["sport_variant_ids"]
+    from identity_bridge import VARIANT_SLUGS
+
+    variants = {VARIANT_SLUGS.get(value, value) for value in item["sport_variant_ids"]}
     names = []
     for row in db.execute(
         "SELECT v.slug,s.name FROM sport_variants v JOIN sport_configs s ON s.id=v.sport_id"
@@ -297,6 +299,9 @@ def calendar_data(db, request):
         event.pop("teacher_id", None)
     return {
         "events": events,
+        "tournaments": [
+            {"id": t["id"], "name": t["name"]} for t in tournaments.values()
+        ],
         "teams": [
             {"id": t["id"], "name": t["name"], "tournament_id": t["tournament_id"]}
             for t in teams.values()
@@ -525,11 +530,18 @@ def create_router(path):
                     (user["id"], user["organization_id"], data.venue.strip()),
                 ).lastrowid
             )
+        if fid is not None and set(data.sports) == set(
+            field_row(db, current)["sports"]
+        ):
+            variants = json.loads(current["variants_json"])
+        availability = data.availability_intervals
+        if fid is not None and "availability_intervals" not in data.model_fields_set:
+            availability = json.loads(current["availability_json"])
         value = schema.FieldInput(
             name=data.name,
             venue_id=venue,
             sport_variant_ids=variants,
-            availability=data.availability_intervals,
+            availability=availability,
         )
         if fid is None:
             fid = resources.create_field(db, user, value)["id"]
@@ -611,8 +623,18 @@ def create_router(path):
                 not status
                 or status == "all"
                 or e["status"] == status
+                or (status == "played" and e["status"] == "completed")
+                or (
+                    status == "to-play"
+                    and e["scheduled_at"]
+                    and e["status"] != "completed"
+                )
                 or (status == "pending" and e["status"] != "completed")
-                or (status == "unscheduled" and not e["scheduled_at"])
+                or (
+                    status == "unscheduled"
+                    and not e["scheduled_at"]
+                    and e["status"] != "completed"
+                )
             )
         ]
         ids = {e["match_id"] for e in value["events"]}

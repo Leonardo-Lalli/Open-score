@@ -183,19 +183,24 @@ def manages(db, user, tournament):
     )
 
 
+def require_active(tournament):
+    if tournament.get("archived_at"):
+        fail(409, "tournament_archived", "Ripristinare il torneo prima di modificarlo")
+
+
 def access(db, user, tid, write=False):
     record = db.execute("SELECT * FROM tournaments WHERE id=?", (tid,)).fetchone()
     if not record:
         fail(404, "not_found", "Torneo non trovato")
     tournament = dict(record)
-    if write and tournament.get("archived_at"):
-        fail(409, "tournament_archived", "Ripristinare il torneo prima di modificarlo")
     manager = manages(db, user, tournament)
     enrolled = db.execute(
         "SELECT 1 FROM students WHERE tournament_id=? AND user_id=?", (tid, user["id"])
     ).fetchone()
     if not manager and not enrolled:
         fail(404, "not_found", "Torneo non trovato")
+    if write:
+        require_active(tournament)
     if write and not manager:
         fail(403, "teacher_required", "Operazione riservata al professore")
     return tournament

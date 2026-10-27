@@ -18,7 +18,7 @@
     <img src="https://github.com/Leonardo-Lalli/Open-score/actions/workflows/tests.yml/badge.svg" alt="Stato dei test" />
   </a>
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10 o successivo" />
-  <img src="https://img.shields.io/badge/versione-0.9.0-informational" alt="Versione 0.9.0" />
+  <img src="https://img.shields.io/badge/versione-0.9.1-informational" alt="Versione 0.9.1" />
   <img src="https://img.shields.io/badge/licenza-da%20definire-lightgrey" alt="Licenza da definire" />
 </p>
 
@@ -40,7 +40,7 @@
 | **Cos'è** | Una web app per creare e gestire tornei sportivi scolastici. |
 | **A chi serve** | Professori di scienze motorie, studenti e scuole. |
 | **Dove gira** | Su un computer della LAN scolastica. Il sito GitHub Pages è solo una vetrina statica. |
-| **Stato** | Versione applicativa 0.8.0; interfaccia e sito in evoluzione. |
+| **Stato** | Versione applicativa 0.9.1; backend e frontend integrati, verifiche funzionali in `docs/APP_AUDIT_2026_10_27.md`. |
 | **Demo** | La demo pubblica non è ancora disponibile. |
 | **Licenza** | Da definire. |
 
