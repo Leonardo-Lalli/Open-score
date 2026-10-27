@@ -7,9 +7,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY torneo-lab/requirements.txt torneo-lab/requirements.txt
-RUN python -m pip install --no-cache-dir -r torneo-lab/requirements.txt
+RUN python -m pip install --no-cache-dir pip==26.2.2 \
+    && python -m pip install --no-cache-dir -r torneo-lab/requirements.txt
 
 COPY torneo-lab torneo-lab
+
+RUN mkdir -p torneo-lab/data \
+    && chown 10001:10001 torneo-lab/data
+USER 10001:10001
 
 EXPOSE 8000
 
