@@ -11,16 +11,16 @@
 
 ## Stato corrente
 
-- Branch: `max-develop` (HEAD `e0dfd26`), working tree con questo aggiornamento del registro.
-- Base: `f0eedf9` (`main` / `origin/main`).
-- Frontend, sito e documentazione: modificati dal Team B.
-- Backend: **eccezione autorizzata** dal committente. Tre correzioni in `app.py` e `services.py` descritte nella sezione 8 di `FRONTEND_TO_BACKEND.md`; migrazioni, schemi e contratti invariati.
-- GitHub Pages: workflow pronto con build in `_site/`, **non ancora pubblicato** (manca Settings → Pages → Source: GitHub Actions).
-- Dominio Aruba: sito predisposto con `site.config.json`; **nessun DNS modificato** e nessuna credenziale nel repository.
-- Suite: **252 passed** (warning Starlette/httpx del TestClient, innocuo).
-- Diagnostica editor: **0 errori, 0 warning** su tutto il progetto.
-- Lint: `ruff check --select I,C4,UP,F,E9 .` pulito; `node --check` su `static/app.js` e `website/script.js` OK.
-- Push: nessuno; il branch resta locale finché il team non lo richiede.
+- Branch: `main` (HEAD `d8ad2a7`), working tree con questo aggiornamento del registro.
+- Base: `f0eedf9`; `leo-develop` (`d7a6840`) unito in `main` con `c9e9453`.
+- `origin/main`: aggiornato con il merge; fix contrattuale e registro seguiti nello stesso push.
+- Frontend, sito e documentazione: Team B; backend e API V1: Team A.
+- Backend: integrazione Team A (schema 8, account studenti, CSRF) più le correzioni autorizzate.
+- GitHub Pages: workflow pronto; `deploy` fermo su `configure-pages` finché non si attiva Settings → Pages → Source: GitHub Actions.
+- Dominio Aruba: predisposto, **nessun DNS modificato**.
+- Suite: **311 passed** su Python 3.11 e 3.13 (Team A: 3.14).
+- Diagnostica editor: **0 errori, 0 warning**.
+- Lint: `ruff check --select I,C4,UP,F,E9 .` pulito; `node --check` OK.
 
 ## Commit del Team B
 
@@ -52,6 +52,8 @@
 | `95255e3` | 26/10 16:39 | Sito portabile e dominio Aruba predisposto | `website/site.config.json`, `website/index.html`, `website/404.html`, `.github/scripts/build_site.py`, `.github/workflows/pages.yml`, `.gitignore`, `tests/test_website.py`, `docs/GITHUB_PAGES_DOMAIN.md`, `website/README.md`, `README.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | Segnaposto `__SITE_BASE__`/`__SITE_URL__` risolti in `_site`; deploy di `_site`; DNS, verifica dominio e rollback documentati; nessun DNS reale toccato | 246 passed |
 | `34d71c6` | 26/10 16:47 | Un solo design system e un solo client HTTP | `static/styles.css`, `static/app.js`, `tests/test_static_ui.py`, `tests/test_quality.py`, `docs/design-system.md`, `docs/QUALITY.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md` | CSS da 5.225 a 3.732 righe; `fetch(` una sola volta; adapter su `apiWithMessages`; guardie su azioni, classifiche, QR e dati demo | 252 passed |
 | `e0dfd26` | 26/10 16:51 | Zero errori e warning di diagnostica | `tests/test_quality.py`, `tests/test_website.py` | Nomi estesi `re.DOTALL`/`IGNORECASE`/`MULTILINE`; controllo `None` prima di `group()` | 252 passed |
+| `c9e9453` | 26/10 21:45 | Merge di `leo-develop` in `main` | `main` (104 file) | Integra backend Team A e frontend Team B; app 0.9.0, schema 8 | 311 passed su 3.13; CI 3.11 corretta in `d8ad2a7` |
+| `d8ad2a7` | 26/10 22:02 | Contratto OpenAPI stabile tra versioni | `scripts/export_openapi.py`, `tests/test_contract.py` | Normalizza la descrizione 422; snapshot invariato | 311 passed su 3.11 e 3.13 |
 
 ## File toccati da `f0eedf9`
 
@@ -61,7 +63,7 @@
 - Test UI: `torneo-lab/tests/test_static_ui.py`, `test_bracket_layout.py`, `bracket_layout_probe.js`, `test_infographic.py`, `infographic_probe.js`, `test_website.py`, `test_privacy.py`, `test_summary.py`, `test_quality.py`.
 - Documentazione: `docs/design-system.md`, `docs/QUALITY.md`, `docs/PROFESSOR_DASHBOARD.md`, `docs/STUDENT_DASHBOARD.md`, `docs/STUDENT_MANAGEMENT.md`, `docs/DRAG_DROP_ORDERING.md`, `docs/RESULT_APPROVALS.md`, `docs/QR_SHARING.md`, `docs/FIELDS_AND_CALENDAR.md`, `docs/SPORT_RULES_CONFIG.md`, `docs/BRACKET.md`, `docs/INFOGRAPHICS.md`, `docs/GITHUB_PAGES_DOMAIN.md`, `docs/handoffs/FRONTEND_TO_BACKEND.md`, `website/README.md`, questo registro.
 
-Eccezione autorizzata dal committente: `torneo-lab/app.py` e `torneo-lab/services.py` contengono le tre correzioni descritte in [`FRONTEND_TO_BACKEND.md`](FRONTEND_TO_BACKEND.md), sezione 8. `schemas.py`, `db.py`, `migrations/`, `deploy/` e workflow CI restano invariati.
+Eccezione autorizzata dal committente: `torneo-lab/app.py` e `torneo-lab/services.py` contengono le tre correzioni descritte in [`FRONTEND_TO_BACKEND.md`](FRONTEND_TO_BACKEND.md), sezione 8. Il fix `d8ad2a7` riguarda `scripts/export_openapi.py` e `tests/test_contract.py`. `schemas.py`, `db.py`, `migrations/`, `deploy/` e workflow CI restano invariati.
 
 ## API consumate (già esistenti)
 

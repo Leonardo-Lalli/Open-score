@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from scripts.export_openapi import normalize
+
 SNAPSHOT = Path(__file__).resolve().parents[2] / 'docs/contracts/openapi.yaml'
 
 
@@ -12,7 +14,8 @@ def test_openapi_matches_published_contract(client):
     response = client.get('/openapi.json')
     assert response.status_code == 200
     # The .yaml artifact uses JSON syntax, valid in YAML 1.2 as well.
-    assert response.json() == json.loads(SNAPSHOT.read_text(encoding='utf-8'))
+    assert normalize(response.json()) == json.loads(
+        SNAPSHOT.read_text(encoding='utf-8'))
 
 
 def test_export_check_does_not_open_configured_database(tmp_path):
