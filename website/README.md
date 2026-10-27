@@ -94,7 +94,7 @@ Il sito supporta tre scelte: **Chiaro**, **Scuro** e **Sistema**. Il selettore �
 
 ## Screenshot
 
-La sezione `#screenshot` contiene tre segnaposto. Per inserire le immagini reali:
+La sezione `#screenshot` contiene il tabellone reale di collaudo e due segnaposto dichiarati. Per inserire le immagini reali:
 
 1. Salva i file in `assets/screenshots/` (vedi il README della cartella).
 2. Sostituisci il `<div class="screenshot-frame">…</div>` corrispondente con:
@@ -125,3 +125,12 @@ I test controllano sezioni e link, assenza di demo/licenze inventate, asset loca
 ## Design
 
 Il sito riusa i token dell'app: sfondo `#f6f7f2`, inchiostro `#182923`, verde `#2d694d`, lime `#d6f473`, raggi generosi e DM Sans locale. Non introdurre una nuova identità visiva: il marchio è `assets/mark.svg`.
+
+## Revisione locale 0.9.2
+
+Il sito disponibile è solo italiano: versione inglese ancora assente, non
+dichiarare completezza bilingue. Roadmap aggiornata alle API integrate.
+La build rifiuta sorgenti/antenati, symlink/junction e output non vuoti non
+riconosciuti. Per una vecchia build priva del marker usare una nuova directory
+--out; le build successive riconoscono .open-score-site-build. Non cancellare
+cartelle estranee per far passare la build. Verifiche e limiti: [audit finale](../docs/FINAL_AUDIT.md).

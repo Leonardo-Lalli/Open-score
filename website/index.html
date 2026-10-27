@@ -368,9 +368,9 @@
             <p class="eyebrow">FUNZIONALITÀ</p>
             <h2>Quello che c'è, quello che arriva.</h2>
             <p class="section-lead">
-              Solo funzioni realmente presenti nel codice attuale. Le voci in
-              sviluppo hanno già una base nell'interfaccia, ma aspettano
-              un'integrazione backend o una verifica sul campo.
+              Funzioni presenti nel codice e integrazioni disponibili. Il
+              collaudo scolastico e le funzioni ancora future sono indicati
+              separatamente.
             </p>
           </div>
 
@@ -426,16 +426,16 @@
                 <h4>Calendario</h4>
                 <p>
                   Partite per giorno con filtri per torneo, squadra, campo e
-                  stato. I conflitti visibili sono un'anteprima: il server resta
-                  l'autorità.
+                  stato. Conflitti di campo e squadra verificati dal server,
+                  programmazione manuale persistente.
                 </p>
               </article>
               <article class="feature-card">
                 <span class="feature-icon" aria-hidden="true">◐</span>
                 <h4>Ruoli prof e studente</h4>
                 <p>
-                  Login docente, tornei separati per proprietario e modalità
-                  studente in sola lettura, bloccata anche lato API.
+                  Account docente e studente, tornei protetti per appartenenza.
+                  Gli studenti propongono; solo il professore approva.
                 </p>
               </article>
               <article class="feature-card">
@@ -459,44 +459,43 @@
 
           <div class="feature-group">
             <div class="feature-group-head">
-              <h3>In sviluppo</h3>
-              <span class="status wip">Interfaccia pronta, integrazione in corso</span>
+              <h3>Integrazione e collaudo</h3>
+              <span class="status wip">API collegate · testing controllato</span>
             </div>
             <div class="feature-grid compact">
               <article class="feature-card">
                 <h4>Proposte di risultato</h4>
                 <p>
-                  Gli studenti potranno proporre un risultato; il professore
-                  approva, respinge o corregge. La scheda è pronta, manca l'API.
+                  Gli studenti iscritti propongono; il professore approva,
+                  respinge o corregge. Solo l’approvazione aggiorna i risultati.
                 </p>
               </article>
               <article class="feature-card">
                 <h4>Campi come risorsa</h4>
                 <p>
-                  Nome, sede, sport supportati e disponibilità. Oggi il campo è
-                  un testo; la schermata attende la persistenza lato server.
+                  Nome, sede, sport supportati e disponibilità persistenti.
+                  Creazione, modifica e disattivazione con controllo versione.
                 </p>
               </article>
               <article class="feature-card">
                 <h4>Calendario e conflitti lato server</h4>
                 <p>
-                  L'aggregato attuale è costruito dal browser sui tornei
-                  leggibili. L'API dedicata porterà conflitti calcolati dal
-                  server.
+                  Calendario aggregato con filtri e conflitti sul server.
+                  La programmazione resta manuale: nessuno scheduler automatico.
                 </p>
               </article>
               <article class="feature-card">
                 <h4>Import massivo studenti</h4>
                 <p>
-                  Incolla elenco e CSV sono disponibili in anteprima; il
-                  salvataggio è sequenziale. Manca l'operazione atomica.
+                  Import da elenco o CSV validato e salvato in una transazione.
+                  Nessun inserimento parziale; import Excel ancora futuro.
                 </p>
               </article>
               <article class="feature-card">
                 <h4>Statistiche individuali</h4>
                 <p>
-                  Marcatori e dettagli giocatore. Oggi le statistiche sono
-                  aggregate per squadra e torneo.
+                  API per prestazioni registrate dal docente e aggregati.
+                  Interfaccia dedicata ai marcatori ancora da realizzare.
                 </p>
               </article>
               <article class="feature-card">
@@ -519,8 +518,8 @@
               <span>Formato Swiss</span>
               <span>Cup &amp; Consolation</span>
               <span>Scheduler automatico</span>
-              <span>Campi e arbitri come risorse</span>
-              <span>Forfait, ritiri e rigori</span>
+              <span>Gestione avanzata campi e arbitri</span>
+              <span>Gestione ritiri e rigori</span>
               <span>Più scuole e società sportive</span>
               <span>Hosting oltre la LAN</span>
             </div>
@@ -534,7 +533,7 @@
             <p class="eyebrow">COME FUNZIONA</p>
             <h2>Due modi di entrare, un solo torneo.</h2>
             <p class="section-lead">
-              Il professore prepara e gestisce. Lo studente consulta. La
+              Il professore prepara e approva. Lo studente consulta e propone. La
               separazione non è solo visiva: ogni scrittura è protetta lato
               server.
             </p>
@@ -572,7 +571,7 @@
                 <h3>Seguire</h3>
               </div>
               <ol class="steps">
-                <li><span>01</span>Entra come studente, senza password.</li>
+                <li><span>01</span>Consulta i tornei pubblicati; accedi al tuo account per partecipare.</li>
                 <li><span>02</span>Apri il torneo dalla panoramica.</li>
                 <li>
                   <span>03</span>Trova prossima partita, calendario, risultati,
@@ -613,7 +612,7 @@
               <h3>Studenti</h3>
               <p>
                 Per sapere quando si gioca, contro chi e com'è la classifica,
-                senza chiedere in corridoio e senza poter modificare nulla.
+                con proposte di risultato separate dagli esiti ufficiali.
               </p>
             </article>
             <article class="card">
@@ -639,9 +638,8 @@
             <p class="eyebrow">SCREENSHOT</p>
             <h2>Uno sguardo dentro il torneo.</h2>
             <p class="section-lead">
-              Gli screenshot reali saranno aggiunti qui appena disponibili. Per
-              ora la struttura è pronta: nessuna immagine inventata e nessun
-              nome reale di studente.
+              Il tabellone è una schermata reale del collaudo locale con dati sintetici.
+              Gli altri due riquadri sono segnaposto dichiarati. Nessun nome reale di studente.
             </p>
           </div>
           <div class="screenshot-grid" data-screenshot-placeholder>
@@ -658,14 +656,12 @@
               </figcaption>
             </figure>
             <figure class="screenshot-card">
-              <div class="screenshot-frame" aria-hidden="true">
-                <span class="frame-bar"></span>
-                <span class="frame-line wide"></span>
-                <span class="frame-bracket"><i></i><i></i><i></i></span>
-              </div>
+              <img src="assets/screenshots/bracket.png"
+                   alt="Tabellone del collaudo: risultato approvato 3 a 1 e vincitore in finale, con squadre sintetiche"
+                   width="1265" height="712" loading="lazy" />
               <figcaption>
-                <strong>Tabellone e calendario</strong>
-                <span>Percorso verso la finale, giorno per giorno.</span>
+                <strong>Tabellone verificato</strong>
+                <span>App 0.9.2, dati sintetici, approvazione e avanzamento reali.</span>
               </figcaption>
             </figure>
             <figure class="screenshot-card">
@@ -703,7 +699,7 @@
             <li class="timeline-item done">
               <span class="timeline-tag">Fatto</span>
               <div>
-                <h3>Versione 0.8.0</h3>
+                <h3>App integrata</h3>
                 <p>
                   Catalogo sport, tornei, risultati, classifiche, tabellone,
                   ruoli prof/studente, mobile, link spettatore e statistiche.
@@ -713,10 +709,10 @@
             <li class="timeline-item wip">
               <span class="timeline-tag">In corso</span>
               <div>
-                <h3>Integrazione delle API</h3>
+                <h3>Testing con il professore</h3>
                 <p>
-                  Proposte di risultato, campi come risorsa, calendario
-                  aggregato, import massivo e statistiche individuali.
+                  Flussi integrati da collaudare sui dispositivi della scuola;
+                  verifica dei regolamenti, TLS, backup e primo rilascio.
                 </p>
               </div>
             </li>

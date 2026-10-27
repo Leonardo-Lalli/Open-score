@@ -61,7 +61,9 @@ def test_site_does_not_promise_what_does_not_exist():
         assert claim not in HTML
     # Features are grouped by real status.
     assert 'Disponibili' in HTML
-    assert 'In sviluppo' in HTML
+    assert 'Integrazione e collaudo' in HTML
+    assert "manca l'API" not in HTML
+    assert 'salvataggio è sequenziale' not in HTML
     assert 'Prospettive future' in HTML
     assert 'Score7' not in HTML
 

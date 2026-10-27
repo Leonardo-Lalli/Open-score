@@ -1,3 +1,7 @@
+Schermata presente: bracket.png, acquisita nel browser il 27 ottobre 2026
+su app 0.9.2 e DB sintetico isolato. Nessun dato reale, credenziale o token.
+Dashboard e statistiche restano segnaposto dichiarati.
+
 # Screenshot del sito
 
 Questa cartella è pronta per le immagini reali dell'applicazione. Finché è vuota, il sito mostra segnaposto dichiarati nella sezione `#screenshot`.
