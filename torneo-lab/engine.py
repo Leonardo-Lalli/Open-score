@@ -45,7 +45,7 @@ def knockout_plan(team_ids: list[int], seed: int | None = None) -> list[dict]:
         total = len(order)*2 + 1
         order = [slot for value in order for slot in (value, total-value)]
     slots = [ids[s-1] if s <= len(ids) else None for s in order]
-    plan = []
+    plan: list[dict[str, int | None]] = []
     previous = []
     for position in range(size//2):
         home, away = slots[2*position:2*position+2]

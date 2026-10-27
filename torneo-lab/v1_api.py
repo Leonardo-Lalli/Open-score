@@ -8,7 +8,6 @@ from fastapi import (
     APIRouter,
     Depends,
     Header,
-    HTTPException,
     Query,
     Request,
     Response,
@@ -129,18 +128,7 @@ def create_router(path, secure_cookies=False, public_origin=None):
     @router.get('/tournaments', response_model=dto.Page[dto.Summary], response_model_exclude_unset=True)
     def tournaments(cursor: Cursor = 0, limit: Limit = 50, status: str | None = None, ctx=Depends(context)):
         db, user = ctx
-        items = []
-        for t in svc.rows(db, 'SELECT * FROM tournaments WHERE owner_id IS NOT NULL ORDER BY id'):
-            try:
-                state = domain.detail(db, user, t['id'])
-            except HTTPException as exc:
-                if exc.status_code == 404:
-                    continue
-                raise
-            if status is None or state['status'] == status:
-                items.append(dict(state['tournament'], status=state['status'], progress=state['progress'],
-                                  team_count=len(state['teams']), champion_team_id=state['champion_team_id']))
-        return domain.page(items, cursor, limit)
+        return domain.page(domain.summaries(db, user, status), cursor, limit)
 
     @router.post('/tournaments', status_code=201, response_model=dto.Id)
     def create_tournament(data: schema.TournamentCreate, ctx=Depends(context)):

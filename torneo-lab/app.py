@@ -14,6 +14,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 import platform_auth
 import services as svc
 import sport_rules
+from access_logging import install_access_filter
 from auth import COOKIE_NAME, authenticate, ensure_teacher
 from auth import build as build_auth
 from db import BASE, database, initialize
@@ -39,6 +40,7 @@ def create_app(db_path: str | Path | None = None, seed: bool = False, *,
                session_secret: str | bytes | None = None,
                allowed_hosts: list[str] | None = None,
                cookie_secure: bool | None = None, mode: str | None = None) -> FastAPI:
+    install_access_filter()
     mode = mode or os.environ.get('TORNEO_MODE', 'demo')
     public_origin = os.environ.get('TORNEO_PUBLIC_ORIGIN') if mode == 'service' else None
     if mode not in ('demo', 'service'):
@@ -70,7 +72,7 @@ def create_app(db_path: str | Path | None = None, seed: bool = False, *,
                       os.environ.get('TORNEO_ALLOWED_HOSTS', '').split(',') if host.strip()]
     hosts = list(dict.fromkeys(default_hosts + list(configured)))
 
-    api = FastAPI(title='Open Score · API', version='0.9.1',
+    api = FastAPI(title='Open Score · API', version='0.9.2',
                   description='Applicazione originale per i tornei scolastici. Nessun collegamento alle API di Score7.')
     api.state.db_path = path
     api.state.mode = mode
@@ -184,7 +186,7 @@ def create_app(db_path: str | Path | None = None, seed: bool = False, *,
 
     @api.get('/api/health')
     def health():
-        return {'status':'ok','version':'0.9.1',
+        return {'status':'ok','version':'0.9.2',
                 'mode':'service' if mode=='service' else 'school-lan','auth':'teacher-login'}
 
     @api.get('/api/auth/session')

@@ -698,8 +698,10 @@ def save_result(db, tid, mid, version, home=None, away=None, invalidate=False, s
                         (mid,))
     current_normalised = [{'home': s['home_points'], 'away': s['away_points']}
                           for s in current_sets]
+    current_score = json.loads(m['score_json']) if m.get('score_json') else None
     changed = ((home, away) != (m['home_score'], m['away_score'])
-               or normalised != current_normalised)
+               or normalised != current_normalised
+               or bool(current_score and current_score.get('type') == 'forfeit'))
     if changed and affected:
         if (m['kind'] == 'round_robin' or any(g['home_score'] is not None for g in affected)) and not invalidate:
             raise HTTPException(409, 'La correzione modifica le fasi successive. Conferma l’annullamento dei risultati dipendenti')

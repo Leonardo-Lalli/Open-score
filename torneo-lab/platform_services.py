@@ -264,6 +264,10 @@ def generate(db, tid):
 
 def qualify(db, tid):
     t = required(db, tid)
+    if t.get("variant_id") and not t.get("platform_variant_id"):
+        import services
+
+        return services.qualify(db, tid)
     if t["format"] != "groups":
         return
     fixtures = games(db, tid)

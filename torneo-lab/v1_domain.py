@@ -166,33 +166,62 @@ def assign_student(db, user, tid, sid, data):
     return dict(db.execute('SELECT * FROM students WHERE id=?', (sid,)).fetchone())
 
 
-def detail(db, user, tid, public=False):
-    tournament = svc.required(db, tid) if public else auth.access(db, user, tid)
-    state = svc.detail(db, tid)
-    # Explicit DTOs keep new private columns out of every visitor/student response.
+def tournament_dto(tournament, manager=False):
+    """Shared whitelist for details and summaries; never expose identity columns."""
     visible = ('id', 'name', 'sport', 'format', 'description', 'participant_kind',
                'win_points', 'draw_points', 'loss_points', 'legs', 'group_count',
                'qualifiers', 'created_at')
-    state['tournament'] = {k: tournament[k] for k in visible}
-    state['tournament']['variant_id'] = tournament['platform_variant_id']
-    state['tournament']['rules'] = json.loads(tournament['rules_json']) if tournament['rules_json'] else None
+    result = {k: tournament[k] for k in visible}
+    result['variant_id'] = tournament['platform_variant_id']
+    result['rules'] = json.loads(tournament['rules_json']) if tournament['rules_json'] else None
+    if manager:
+        result.update(version=tournament['version'], order_version=tournament['order_version'],
+                      published=bool(tournament['published']), public_slug=tournament['public_slug'])
+    return result
+
+
+def summaries(db, user, status=None):
+    # Match access(): owners/collaborators or an explicit student membership.
+    # Publication alone never makes a tournament visible in authenticated V1 lists.
+    items = svc.rows(db, '''SELECT t.*,
+        (:teacher AND (t.owner_id=:uid OR (t.organization_id=:oid AND EXISTS
+            (SELECT 1 FROM tournament_collaborators c WHERE c.tournament_id=t.id AND c.user_id=:uid)))) AS manager
+        FROM tournaments t WHERE t.owner_id IS NOT NULL AND
+        ((:teacher AND (t.owner_id=:uid OR (t.organization_id=:oid AND EXISTS
+            (SELECT 1 FROM tournament_collaborators c WHERE c.tournament_id=t.id AND c.user_id=:uid))))
+        OR EXISTS (SELECT 1 FROM students s WHERE s.tournament_id=t.id AND s.user_id=:uid))
+        ORDER BY t.id''', {'uid': user['id'], 'oid': user['organization_id'], 'teacher': user['role'] == 'teacher'})
+    if not items:
+        return []
+    from services import summary_states
+    states = summary_states(db)
+    counts = {r['tournament_id']: r['n'] for r in db.execute(
+        'SELECT tournament_id,count(*) AS n FROM teams WHERE archived=0 GROUP BY tournament_id')}
+    return [dict(tournament_dto(t, bool(t['manager'])), **states[t['id']], team_count=counts.get(t['id'], 0))
+            for t in items if status is None or states[t['id']]['status'] == status]
+
+
+def detail(db, user, tid, public=False):
+    tournament = svc.required(db, tid) if public else auth.access(db, user, tid)
+    state = svc.detail(db, tid)
+    manager = not public and auth.manages(db, user, tournament)
+    state['tournament'] = tournament_dto(tournament, manager)
     state['teams'] = [{k: t[k] for k in ('id', 'name', 'group_id', 'display_order')}
                       for t in ordered_teams(db, tid)]
     state.pop('audit', None)
     state['public'] = public
+    fields = {f['id']: dict(f) for f in db.execute(
+        'SELECT DISTINCT f.id,f.name,f.venue_id FROM fields f JOIN matches m ON m.field_id=f.id WHERE m.tournament_id=?', (tid,))}
     for match in state['matches']:
         match.pop('source_id', None)
         raw = match.pop('score_json', None)
         match['score'] = json.loads(raw) if raw else None
         if public and match['score'] and match['score']['type'] == 'forfeit':
             match['score'] = {k: v for k, v in match['score'].items() if k != 'reason'}
-        field = db.execute('SELECT id,name,venue_id FROM fields WHERE id=?', (match['field_id'],)).fetchone() if match['field_id'] else None
-        match['field'] = dict(field) if field else None
+        match['field'] = fields.get(match['field_id'])
     for stage in state['stages']:
         stage.pop('source_id', None)
-    if not public and auth.manages(db, user, tournament):
-        state['tournament'].update(version=tournament['version'], order_version=tournament['order_version'],
-                                  published=bool(tournament['published']), public_slug=tournament['public_slug'])
+    if manager:
         state['audit'] = svc.rows(db, 'SELECT id,action,created_at,actor_id FROM audit_logs WHERE tournament_id=? ORDER BY id DESC LIMIT 30', (tid,))
     return state
 

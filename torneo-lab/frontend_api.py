@@ -250,14 +250,18 @@ def calendar_data(db, request):
             }
         )
     conflicts = []
-    scheduled = [e for e in events if e["scheduled_at"]]
-    for index, a in enumerate(scheduled):
-        start = datetime.fromisoformat(a["scheduled_at"])
+    # Parse once and sort actual instants, not ISO strings with different offsets.
+    scheduled = sorted(
+        ((datetime.fromisoformat(e["scheduled_at"]), index, e)
+         for index, e in enumerate(events) if e["scheduled_at"]),
+        key=lambda item: (item[0], item[1]),
+    )
+    for index, (start, original_index, a) in enumerate(scheduled):
         end = start + timedelta(minutes=a["duration"])
-        for b in scheduled[index + 1 :]:
-            other = datetime.fromisoformat(b["scheduled_at"])
-            if start >= other + timedelta(minutes=b["duration"]) or other >= end:
-                continue
+        for other_index in range(index + 1, len(scheduled)):
+            other, original_other, b = scheduled[other_index]
+            if other >= end:
+                break
             same_field = (
                 a["field_id"] is not None and a["field_id"] == b["field_id"]
             ) or (
@@ -283,11 +287,13 @@ def calendar_data(db, request):
                 )
             )
             if kind:
+                # Preserve the existing pair orientation/order for API consumers.
+                first, second = (a, b) if original_index < original_other else (b, a)
                 conflicts.append(
                     {
                         "kind": kind,
-                        "match_id": a["match_id"],
-                        "other_match_id": b["match_id"],
+                        "match_id": first["match_id"],
+                        "other_match_id": second["match_id"],
                         "message": {
                             "field": "Campo occupato due volte",
                             "team": "Squadra in doppio impegno",
@@ -295,6 +301,8 @@ def calendar_data(db, request):
                         }[kind],
                     }
                 )
+    positions = {e["match_id"]: i for i, e in enumerate(events)}
+    conflicts.sort(key=lambda c: (positions[c["match_id"]], positions[c["other_match_id"]]))
     for event in events:
         event.pop("teacher_id", None)
     return {

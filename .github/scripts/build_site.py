@@ -22,6 +22,8 @@ CONFIG = SITE / 'site.config.json'
 PLACEHOLDERS = ('__SITE_BASE__', '__SITE_URL__')
 DOMAIN = re.compile(
     r'^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$')
+BUILD_MARKER = '.open-score-site-build'
+BUILD_OWNER = 'Open Score generated website\n'
 
 
 def load_config() -> dict:
@@ -49,8 +51,21 @@ def load_config() -> dict:
 
 
 def render(out: Path) -> None:
+    # Resolve and check before any recursive removal, including callers that
+    # import render() rather than using the CLI.
+    if out.is_symlink() or getattr(out, 'is_junction', lambda: False)():
+        raise SystemExit('Output rifiutato: collegamento a un’altra directory')
+    out = out.resolve()
+    root, source = ROOT.resolve(), SITE.resolve()
+    if out == root or out in root.parents or out == source or source in out.parents:
+        raise SystemExit('Output rifiutato: sorgente del sito o directory del repository')
     config = load_config()
     if out.exists():
+        marker = out / BUILD_MARKER
+        if not out.is_dir() or (any(out.iterdir()) and (
+                not marker.is_file() or marker.is_symlink()
+                or marker.read_text(encoding='utf-8') != BUILD_OWNER)):
+            raise SystemExit('Output non vuoto non riconosciuto: scegliere una nuova directory')
         shutil.rmtree(out)
     shutil.copytree(SITE, out, ignore=shutil.ignore_patterns(
         'site.config.json', '*.md'))
@@ -62,6 +77,7 @@ def render(out: Path) -> None:
         if any(marker in text for marker in PLACEHOLDERS):
             raise SystemExit(f'placeholder non risolto in {path}')
         path.write_text(text, encoding='utf-8', newline='\n')
+    (out / BUILD_MARKER).write_text(BUILD_OWNER, encoding='utf-8', newline='\n')
     print(f'Sito generato in {out} (base {config["base"]}, url {config["url"]})')
 
 
