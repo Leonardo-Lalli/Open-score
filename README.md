@@ -18,7 +18,7 @@
     <img src="https://github.com/Leonardo-Lalli/Open-score/actions/workflows/tests.yml/badge.svg" alt="Stato dei test" />
   </a>
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10 o successivo" />
-  <img src="https://img.shields.io/badge/versione-0.9.1-informational" alt="Versione 0.9.1" />
+  <img src="https://img.shields.io/badge/versione-0.9.2-informational" alt="Versione 0.9.2" />
   <img src="https://img.shields.io/badge/licenza-da%20definire-lightgrey" alt="Licenza da definire" />
 </p>
 
@@ -40,7 +40,7 @@
 | **Cos'è** | Una web app per creare e gestire tornei sportivi scolastici. |
 | **A chi serve** | Professori di scienze motorie, studenti e scuole. |
 | **Dove gira** | Su un computer della LAN scolastica. Il sito GitHub Pages è solo una vetrina statica. |
-| **Stato** | Versione applicativa 0.9.1; backend e frontend integrati, verifiche funzionali in `docs/APP_AUDIT_2026_10_27.md`. |
+| **Stato** | Versione applicativa 0.9.2; backend e frontend integrati, verifiche funzionali in `docs/APP_AUDIT_2026_10_27.md`. |
 | **Demo** | La demo pubblica non è ancora disponibile. |
 | **Licenza** | Da definire. |
 
@@ -77,39 +77,29 @@ progetto e non contiene backend, database o API.
 | **Persone** | Squadre e partecipanti individuali, rose con limiti della variante, numero di maglia, ricerca, aggiunta e rimozione degli studenti. |
 | **Risultati** | Punteggi numerici o set per set, correzioni con controllo versione, invalidazione controllata degli incontri dipendenti, criteri a parità e classifica. |
 | **Tabellone** | Collegamenti reali tra gli incontri, BYE, risultati ufficiali, colonna Campione e navigazione per turni su telefono. |
-| **Calendario** | Partite per giorno, filtri per torneo, squadra, giorno, campo e stato. Programmazione manuale di data, ora, campo e durata, con anteprima dei conflitti visibili. |
-| **Ruoli e sicurezza** | Ingresso come prof o studente, account docenti separati, isolamento dei tornei per proprietario e scritture bloccate lato API per gli studenti. |
+| **Calendario** | Partite per giorno, filtri per torneo, squadra, giorno, campo e stato. Programmazione manuale di data, ora, campo e durata, con conflitti calcolati dal server. |
+| **Ruoli e sicurezza** | Ingresso come prof o studente, account docenti separati, isolamento dei tornei per proprietario e studenti autorizzati a proporre per la propria squadra, senza approvare o gestire tornei. |
 | **Condivisione** | Link spettatore in sola lettura con aggiornamento automatico, QR generato nel browser, stampa e infografica esportabile in SVG o PNG. |
 | **Statistiche** | KPI del torneo, podio/classifica, qualificati, campione e QR. I file SVG e PNG sono reali; il PDF si ottiene dalla stampa del browser. |
 | **Dati e deploy** | SQLite persistente con schema versionato, nessun dato dimostrativo preinstallato, backup, avvio in LAN, systemd/Windows Task Scheduler e Docker. |
 | **Mobile** | Interfaccia responsive, safe area, drawer, modali full-screen e touch target da 44 px. La verifica sistematica su dispositivi reali è ancora in corso. |
 
-### In sviluppo
+### Integrazione disponibile e collaudo
 
-Queste parti hanno già una base nell'interfaccia, ma aspettano un'integrazione
-backend o una verifica sul campo. Non vanno considerate complete.
+Proposte/approvazioni, account studenti e inviti, campi persistenti, calendario
+con conflitti server, import CSV atomico e riordino versionato sono collegati.
+Le proposte non modificano risultati ufficiali finché il docente non approva.
+Le statistiche individuali hanno API di registrazione/lettura ma manca una UI dedicata.
 
-- **Proposte di risultato**: gli studenti potranno proporre un risultato; il
-  professore approva, respinge o corregge. La scheda è pronta, manca l'API.
-- **Campi come risorsa**: nome, sede, sport supportati e disponibilità. Oggi il
-  campo è un testo; la schermata attende la persistenza lato server.
-- **Calendario e conflitti lato server**: oggi il client aggrega i tornei
-  leggibili e mostra un'anteprima dei conflitti; l'API dedicata porterà il
-  calcolo definitivo.
-- **Import massivo studenti**: anteprima da elenco o CSV già presente, ma il
-  salvataggio è sequenziale; manca l'operazione atomica e l'import Excel.
-- **Statistiche individuali**: marcatori e dettagli giocatore.
-- **Persistenza del riordino squadre nel torneo già creato** con drag & drop:
-  il wizard salva già l'ordine in `team_names`, mentre la tabella del torneo è
-  un'anteprima locale in attesa dell'API dedicata.
-- **Verifica su iPhone e Android reali** e test browser automatizzati.
-- **Export PDF nativo** dell'infografica: oggi si usa la stampa del browser.
+Restano prova con il professore e dispositivi reali, import Excel, recupero email,
+export PDF nativo e verifiche operative del server. Evidenze e limiti della
+revisione locale in [FINAL_AUDIT.md](docs/FINAL_AUDIT.md).
 
 ### Prospettive future
 
 - Doppia eliminazione, formato Swiss e Cup & Consolation.
 - Scheduler automatico con campi, arbitri e disponibilità.
-- Forfait, ritiri, rigori e penalità.
+- Ritiri e rigori; tavolino e penalità sono già disponibili via V1, con limiti documentati.
 - Più istituti, società sportive e hosting oltre la LAN, quando il progetto
   sarà pronto e i regolamenti condivisi.
 - Nuovi sport e varianti quando il backend li esporrà nel catalogo.
@@ -124,7 +114,7 @@ cartella [`website/assets/screenshots/`](website/assets/screenshots/README.md)
 | Anteprima | Contenuto previsto | Stato |
 | --- | --- | --- |
 | Dashboard del professore | Tornei, prossime partite e avanzamento | Da aggiungere |
-| Tabellone | Quarti → semifinali → finale → campione, con BYE | Da aggiungere |
+| Tabellone | App 0.9.2, approvazione e avanzamento su dati sintetici | [Schermata reale](website/assets/screenshots/bracket.png) |
 | Statistiche | KPI, podio, qualificati e infografica | Da aggiungere |
 
 Quando saranno disponibili, gli screenshot useranno dati di prova e non
@@ -136,7 +126,7 @@ mostreranno nomi reali di studenti.
 | --- | --- |
 | **Backend** | Python 3.10+, FastAPI 0.162.0, Uvicorn 0.54.0, Pydantic 2.14.1 |
 | **Dati** | SQLite, schema 8, migrazione compatibile con i database dei due team (`008_team_integration.sql`) |
-| **Autenticazione** | Password con PBKDF2-SHA256 (260.000 iterazioni), sessioni firmate HMAC-SHA256, ruoli prof/studente |
+| **Autenticazione** | PBKDF2-SHA256 storico/V1 (260.000/600.000), sessioni server revocabili, cookie HttpOnly, CSRF e ruoli |
 | **Frontend** | HTML, CSS e JavaScript vanilla; SPA senza build step; DM Sans locale (OFL); qrcode-generator 1.4.4 (MIT) |
 | **Test e qualità** | pytest, httpx TestClient, ruff |
 | **Deploy** | Uvicorn in LAN, systemd/Windows Task Scheduler, Docker Compose, backup |
@@ -208,7 +198,7 @@ documentati:
 python manage.py create-teacher prof@scuola.it --name "Nome Cognome"
 ```
 
-Chi non accede resta in sola lettura, come gli studenti. La guida completa per
+Chi non accede consulta solo i tornei pubblicati. Gli studenti autenticati e iscritti possono proporre risultati per la propria squadra. La guida completa per
 LAN, firewall, avvio automatico, backup e ripristino è in
 [`torneo-lab/README.md`](torneo-lab/README.md) e in
 [`docs/DEPLOY.md`](docs/DEPLOY.md).
@@ -223,10 +213,10 @@ python -m pytest -q
 python -m ruff check --select I,C4,UP,F .
 ```
 
-Stato al 26 ottobre 2026: **236 test superati localmente**, con 1 warning noto
-di Starlette/httpx nel TestClient. La CI esegue `pytest` su Python 3.11 e 3.14.
-Il badge in alto riflette l'ultima esecuzione della CI, non un risultato
-statico.
+Baseline del checkpoint main `d7a2dab`: **320 test passati localmente**.
+Esito aggiornato della revisione, warning e limiti in [FINAL_AUDIT.md](docs/FINAL_AUDIT.md).
+La CI esegue pytest su Python 3.11 e 3.14; il badge riflette l'ultima CI remota,
+non valida automaticamente le nuove correzioni rimaste locali.
 
 La suite copre API, motori dei tornei, avanzamenti, correzioni, autenticazione,
 persistenza, backup, UI statica, geometria del tabellone, infografica SVG e
@@ -261,7 +251,7 @@ Open-score/
 | --- | --- |
 | `torneo-lab/README.md` | Guida completa all'app, LAN, account, backup e Docker |
 | `torneo-lab/static/` | SPA unica, senza build step |
-| `torneo-lab/migrations/` | Schema versionato, dalla 001 alla 007 |
+| `torneo-lab/migrations/` | Schema 8 integrato, migrazioni delle due linee storiche |
 | `website/` | Vetrina statica, tema chiaro/scuro, configurazione del dominio e workflow Pages |
 | `docs/` | Architettura, API, database, deploy, sicurezza, specifiche e design |
 | `deploy/` | Configurazione LAN e script di manutenzione |
@@ -295,8 +285,8 @@ Aruba, con record DNS e rollback, è descritto in
 
 | Stato | Contenuto |
 | --- | --- |
-| **Fatto** | Versione 0.8.0: catalogo sport, tornei, risultati, classifiche, tabellone, ruoli prof/studente, mobile, link spettatore, statistiche, sito pubblico. |
-| **In corso** | API per proposte di risultato, campi, calendario aggregato; import massivo studenti; statistiche individuali; verifica su dispositivi reali. |
+| **Fatto** | Catalogo, tornei, risultati/classifiche/bracket, account, inviti, proposte/approvazioni, campi, calendario server, import CSV atomico e riordino persistente. |
+| **In corso** | Testing controllato con il professore, dispositivi reali, UI statistiche individuali e scelta del server/TLS/backup. |
 | **Prossimo** | Formati avanzati (doppia eliminazione, Swiss, Cup & Consolation) e scheduler automatico. |
 | **Prospettiva** | Più scuole e società sportive, hosting oltre la LAN. |
 
@@ -331,6 +321,6 @@ La piattaforma operativa è pensata per la **LAN scolastica** e non è esposta
 pubblicamente. Il sito GitHub Pages è una presentazione statica e non contiene
 dati, account o API. La demo pubblica non è disponibile.
 
-Alcune funzioni hanno già l'interfaccia ma attendono le API del backend: sono
-elencate in [In sviluppo](#in-sviluppo) e non vanno considerate complete. Nome e
+Le integrazioni funzionanti non equivalgono a un rilascio scolastico già collaudato;
+restano le verifiche descritte nell’audit finale. Nome e
 scelte di prodotto restano provvisori.

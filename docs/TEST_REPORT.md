@@ -1,3 +1,14 @@
+# Verifica finale locale — 27 ottobre 2026
+
+Baseline d7a2dab: 320 passed, 1 warning, 807.45 s. Revisione locale 0.9.2:
+**338 passed, 1 warning, 1006.63 s**, Windows/Python 3.14.3. Il warning
+Starlette/httpx è invariato. Prove incrementali successive su etichette/tipi,
+sito aggiornato e Docker descritte nel [report finale](FINAL_AUDIT.md).
+Non attribuire la CI verde di main alle correzioni ancora locali.
+I report successivi sono storico delle rispettive consegne.
+
+---
+
 # Report di verifica — 26 ottobre 2026
 
 ## Incremento backend 0.3 — 26 ottobre 2026

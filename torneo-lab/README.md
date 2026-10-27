@@ -57,7 +57,7 @@ Il database parte vuoto: non ci sono tornei dimostrativi. Dopo il primo accesso 
 
 I dati restano in `data/open_score.sqlite3` e sopravvivono al riavvio. Non ci sono dati preinstallati né una scadenza.
 
-## Funzioni della versione 0.9.1
+## Funzioni della versione 0.9.2
 
 Audit del 27 ottobre: corretti filtri e dati del calendario, link inviti V1,
 scritture sui tornei archiviati e compatibilità/vincoli dei campi. Prove e limiti
@@ -71,8 +71,8 @@ Stato completo e limiti: [report integrazione](../docs/TEAM_B_INTEGRATION_REPORT
 - Nessun dato dimostrativo preinstallato: il database parte vuoto e mostra solo i tornei creati dagli utenti.
 - Interfaccia unica SPA: le vecchie pagine mockup sono state rimosse e i relativi URL reindirizzano alla dashboard; gli asset sono versionati per evitare cache stantia.
 - Ottimizzazione mobile iPhone/Android: safe area, viewport con notch, topbar sticky, drawer con scrim, touch target da 44 px, modali full-screen e input a 16 px.
-- Ingresso con due scelte: **Sono un prof** (login email/password) e **Sono uno studente** (sola lettura). Gli studenti non possono creare, modificare o eliminare tornei né da UI né da API.
-- Account docenti separati: ogni prof vede e gestisce solo i propri tornei; i tornei altrui restano leggibili ma non modificabili (403 lato API).
+- Ingresso con due scelte: **Sono un prof** (login email/password) e **Sono uno studente** (consultazione e accesso account). Gli studenti non possono creare, modificare o eliminare tornei né da UI né da API.
+- Account docenti separati: ogni prof vede e gestisce solo i propri tornei; i tornei altrui sono leggibili solo se pubblicati o autorizzati.
 - Sei sport con sedici varianti: Calcio, Basket, Pallavolo, Badminton, Ping pong e Biliardino. Catalogo navigabile con schermate dedicate e link diretti alle regole.
 - La variante determina composizione della squadra, durata, punteggio, classifica e regolamento; il torneo conserva uno snapshot delle regole scelte.
 - La scheda squadra mostra giocatori in campo, lineup minima, rosa massima e giocatori mancanti; la pagina partecipanti riepiloga le rose pronte rispetto al minimo della variante.
@@ -91,11 +91,11 @@ Stato completo e limiti: [report integrazione](../docs/TEAM_B_INTEGRATION_REPORT
 - Accesso docenti con email e password, sessioni firmate, scritture protette, host della LAN ammessi e limite ai tentativi di accesso.
 - Database SQLite persistente, backup consistenti, avvio automatico e API documentate.
 
-**È un'applicazione per la LAN scolastica, non l'intera piattaforma del master prompt.** Non ci sono ruoli amministrativi oltre ai docenti, statistiche individuali, rigori, doppia eliminazione, Swiss, consolazione o scheduler automatico. Gli sport non più in catalogo restano leggibili solo per i tornei storici ma non sono selezionabili. I regolamenti delle varianti sono scelte del progetto e vanno confermati con il professore.
+**È un'applicazione per la LAN scolastica, non l'intera piattaforma del master prompt.** Non ci sono ruoli amministrativi oltre ai docenti, UI per le statistiche individuali, rigori, doppia eliminazione, Swiss, consolazione o scheduler automatico. Gli sport non più in catalogo restano leggibili solo per i tornei storici ma non sono selezionabili. I regolamenti delle varianti sono scelte del progetto e vanno confermati con il professore.
 
-Con `TORNEO_ADMIN_EMAIL` e `TORNEO_ADMIN_PASSWORD` viene creato il primo account docente; altri account si aggiungono con `python manage.py create-teacher`. Chi non accede resta in sola lettura, come gli studenti. Ogni docente può gestire solo i tornei della propria utenza; il link spettatore è di sola lettura. Il server può essere raggiunto dalla LAN, ma non è destinato a Internet: installazione, firewall, backup e limiti sono in [DEPLOY.md](../docs/DEPLOY.md) e [SECURITY.md](../docs/SECURITY.md).
+Con `TORNEO_ADMIN_EMAIL` e `TORNEO_ADMIN_PASSWORD` viene creato il primo account docente; altri account si aggiungono con `python manage.py create-teacher`. Chi non accede consulta solo tornei pubblicati. Gli studenti autenticati e iscritti possono proporre per la propria squadra; il professore approva. Ogni docente può gestire solo i tornei della propria utenza; il link spettatore è di sola lettura. Il server può essere raggiunto dalla LAN, ma non è destinato a Internet: installazione, firewall, backup e limiti sono in [DEPLOY.md](../docs/DEPLOY.md) e [SECURITY.md](../docs/SECURITY.md).
 
-**Prof e studenti:** all'ingresso si sceglie **Sono un prof** (login email/password) o **Sono uno studente** (sola lettura). Ogni docente gestisce solo i propri tornei. I link spettatore mostrano i dati dello stesso server locale; non esiste ancora un servizio online o una sincronizzazione tra collaboratori.
+**Prof e studenti:** all'ingresso si sceglie **Sono un prof** (login email/password) o **Sono uno studente** (consultazione e accesso account). Ogni docente gestisce solo i propri tornei. I link spettatore mostrano i dati dello stesso server locale; non esiste ancora un servizio online o una sincronizzazione tra collaboratori.
 
 ## Hosting sulla LAN scolastica
 
@@ -198,3 +198,7 @@ Sono verificati algoritmi, avanzamenti, multifase, correzioni, concorrenza, pers
 | [Changelog](../docs/CHANGELOG.md) | Incrementi 0.4 → 0.7 |
 
 Il codice è originale e non dipende dai server di Score7. La licenza per il rilascio open source stabile va concordata tra gli autori; non è ancora stata assegnata. Database, credenziali e ambienti locali non sono inclusi nella repository.
+
+Revisione finale locale: [FINAL_AUDIT.md](../docs/FINAL_AUDIT.md).
+La CLI con --email/--organization crea account V1 con password 12–128 caratteri;
+la sintassi storica posizionale resta compatibile. Nessuna registrazione docente pubblica.

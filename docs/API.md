@@ -2,8 +2,10 @@
 
 Contratto operativo corrente: [report integrazione Team B](TEAM_B_INTEGRATION_REPORT.md),
 [API V1](contracts/API_V1.md) e [OpenAPI generato](contracts/openapi.yaml).
-Gli adapter prima indicati come predisposti sono ora attivi; versione app 0.9.0,
-database schema 8. Le descrizioni della base Team B seguono come riferimento.
+Gli adapter prima indicati come predisposti sono ora attivi; versione app 0.9.2,
+database schema 8. Le descrizioni della base Team B seguono come riferimento storico: non usare
+le parti su letture anonime, studenti sempre read-only o revoca assente come
+regole correnti. Visibilità, sessioni e proposte: [SECURITY.md](SECURITY.md).
 
 ---
 

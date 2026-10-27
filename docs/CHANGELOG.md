@@ -1,3 +1,16 @@
+# 0.9.2 — revisione locale del 27 ottobre 2026
+
+Durata delle finali coerente col catalogo anche via V1; correzione da tavolino
+a giocato con punteggio identico; riepiloghi V1 aggregati e conflitti calendario
+per finestre temporali; token minimizzati nei log; build Pages protetta;
+conteggi proposte per torneo e notifica dashboard; contrasto corretto.
+Docker senza privilegi, pip corretto e Starlette fissata alla versione verificata.
+Documentazione/sito riallineati, screenshot sintetico reale. Nessuna migrazione
+DB né modifica incompatibile delle API. Nuove correzioni non pubblicate:
+[FINAL_AUDIT.md](FINAL_AUDIT.md) contiene prove, limiti e preparazione al rilascio.
+
+---
+
 # Integrazione locale 0.9.0 — 26 ottobre 2026
 
 Integrato `max-develop` @ `0896096` in `leo-develop`, senza push/deploy.

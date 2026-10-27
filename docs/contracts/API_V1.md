@@ -1,8 +1,8 @@
-# Contratto API V1 — integrazione 0.9.0
+# Contratto API V1 — integrazione 0.9.2
 
 26 ottobre 2026, branch **leo-develop**, baseline della prima specifica `4e15385`.
-Implementazione locale richiesta dall'utente, senza push. Integrato `max-develop`
-@ `0896096` in `leo-develop`; nessuna integrazione in main.
+Integrazione Team B già pubblicata in main al checkpoint `d7a2dab`.
+Revisione 0.9.2 solo locale su review/final-optimization; contratto compatibile.
 Adapter e UI collegati descritti nel [report integrazione](../TEAM_B_INTEGRATION_REPORT.md).
 
 ## Specifica autorevole
@@ -166,11 +166,12 @@ attive idempotenti; ultimo posto/uso controllati atomicamente. Pending prenota u
 review riverifica capienza, rifiuto restituisce uso se invito ancora valido.
 Richieste respinte non si riaprono automaticamente con lo stesso invito.
 
-URL invito `/join#TOKEN`: frammento escluso dagli access log. **La pagina join
-resta da realizzare dal Team B**; provare ora validate/accept. public_url è una URL
-API JSON già funzionante e stabile, senza token segreto. La pagina grafica pubblica
-resta al Team B. Nessuna email, rosa, audit, owner, proposta o motivo del tavolino
-nella proiezione pubblica.
+URL invito `/#/join/TOKEN`, pagina SPA di anteprima e adesione implementata.
+public_url V1 resta una API JSON stabile; la pagina grafica integrata usa
+`/public/{token}` tramite l'adapter storico e rispetta pubblicazione/revoca.
+Niente email, rose, audit, owner, proposte o motivi privati del tavolino nelle
+proiezioni pubbliche. Anche le API invito contengono token nel percorso:
+minimizzazione Uvicorn e proxy descritta in [SECURITY.md](../SECURITY.md).
 
 ## Campi e calendario
 
@@ -239,7 +240,8 @@ dependency_conflict; 410 invite_unavailable; 422 validation_error/invalid_rules/
 invalid_score/invalid_team_order/sport_incompatible/outside_availability; 429 rate_limited.
 Il motore conservato può ancora restituire conflict/invalid_input generici.
 
-Restano: UI/QR, recupero email automatico, import studenti massivo, cancellazione
+UI/QR e import CSV atomico sono integrati negli adapter /api. Restano recupero
+email automatico, import Excel, cancellazione
 definitiva tornei/studenti, CRUD completo sedi, modifica regole dopo generazione,
 revisione penalità dopo qualificazione, scheduler, altre discipline, adapter
-PostgreSQL e deployment reale. Il contratto va revisionato con Team B prima del merge.
+PostgreSQL e deployment reale. Ogni modifica incompatibile richiede coordinamento dei due sviluppatori.

@@ -1,3 +1,5 @@
+> Documento di consegna storico: le parti su adapter mancanti/ready:false, schema e ruoli descrivono la versione indicata. Per il comportamento integrato corrente usare [FINAL_AUDIT.md](FINAL_AUDIT.md), [ARCHITECTURE.md](ARCHITECTURE.md) e [TEAM_B_INTEGRATION_REPORT.md](TEAM_B_INTEGRATION_REPORT.md).
+
 # Drag and drop per l'ordine delle squadre
 
 > Documento del Team B. Descrive la vista tabellare, l'accessibilità e l'adapter di salvataggio in attesa dell'API del Team A.

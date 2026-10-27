@@ -61,8 +61,8 @@ account. Per un torneo precedente serve una scelta esplicita, dopo il backup:
 Preserva ID, risultati e punteggi classifica; valida gli score rispetto al preset.
 Nessuna reinterpretazione di incontri numerici come set. Risultati precedenti
 restano con provenienza legacy, approvatore e timestamp di approvazione null.
-Dopo l'assegnazione le API demo non espongono più quel torneo, e il professore
-lo legge via V1. La vecchia UI non mostra tornei V1: passaggio da coordinare col Team B.
+Dopo l'assegnazione le letture anonime restano bloccate finché non pubblicato.
+Il docente accede da V1 e dalla SPA integrata.
 Per autorizzare un collaboratore già nello stesso contesto:
 
 ```powershell
@@ -156,17 +156,17 @@ backup e confronto dei conteggi. Non basta impostare una connection string.
 
 ## Rilascio, monitoraggio e rollback
 
-Prima di un deploy autorizzato: revisione Team B, test/contratto sincronizzato,
-UI V1 integrata, backup verificato e prova in staging. Usare versione/commit
+Prima di un deploy autorizzato: revisione congiunta, test/contratto sincronizzato,
+backup verificato e prova in staging. La UI è integrata; non equivale a un collaudo Aruba. Usare versione/commit
 identificabile, dipendenze runtime fissate, utente sistema senza privilegi,
 directory dati fuori dal document root e processo supervisionato con riavvio.
 
-Health: GET `/api/health`, versione 0.3.0/mode service. Affiancare controllo
+Health: GET `/api/health`, versione 0.9.2/mode service. Affiancare controllo
 read-only del DB e verifica backup, non dedurre l'integrità dei dati dal solo
 health HTTP. Monitorare 5xx, 401/429 anomali, tempi, lock SQLite, spazio disco,
 riavvii e scadenza TLS. Limitare access log e retention; niente body contenenti
-password, token o dati studenti. URL invito usa frammento proprio per non passare
-il token negli access log. L'audit applicativo registra autore e operazioni importanti.
+password, token o dati studenti. Gli URL nuovi usano frammenti, ma anche le chiamate API contengono il token:
+Uvicorn applica la minimizzazione descritta in SECURITY.md. Configurare anche il proxy. L'audit applicativo registra autore e operazioni importanti.
 
 Rollback: arrestare il processo; conservare sia DB attuale sia backup precedente;
 se lo schema resta compatibile tornare al codice precedente. Un codice schema 2

@@ -1,3 +1,5 @@
+> Documento di consegna storico: le parti su adapter mancanti/ready:false, schema e ruoli descrivono la versione indicata. Per il comportamento integrato corrente usare [FINAL_AUDIT.md](FINAL_AUDIT.md), [ARCHITECTURE.md](ARCHITECTURE.md) e [TEAM_B_INTEGRATION_REPORT.md](TEAM_B_INTEGRATION_REPORT.md).
+
 # Matrice funzionale — 0.8
 
 Stati ammessi: **Non analizzata**, **Documentata**, **Progettata**, **Implementata**, **Testata**, **Verificata end-to-end**. Lo stato indica il livello massimo raggiunto per il perimetro scritto nella riga. Una funzione parziale non diventa completa per la presenza di una schermata. `tests/` e i file applicativi sono nella cartella `torneo-lab`.

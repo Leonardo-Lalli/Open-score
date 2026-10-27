@@ -1,3 +1,5 @@
+> Documento di consegna storico: le parti su adapter mancanti/ready:false, schema e ruoli descrivono la versione indicata. Per il comportamento integrato corrente usare [FINAL_AUDIT.md](FINAL_AUDIT.md), [ARCHITECTURE.md](ARCHITECTURE.md) e [TEAM_B_INTEGRATION_REPORT.md](TEAM_B_INTEGRATION_REPORT.md).
+
 # Schede funzionali
 
 Perimetro: 0.8 e funzioni future chiaramente distinte. Le regole sono scelte originali, non una ricostruzione certa del backend di Score7. Fonti e link completi in [REFERENCE_ANALYSIS.md](REFERENCE_ANALYSIS.md); stato di copertura in [FEATURE_MATRIX.md](FEATURE_MATRIX.md). P0 = nucleo della demo, P1 = passo vicino o prerequisito per uso pubblico, P2 = evoluzione.

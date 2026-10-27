@@ -123,12 +123,14 @@ Dal computer server aprire `http://127.0.0.1:8000`, da un altro dispositivo
 della LAN `http://192.168.1.50:8000` (con l'IP reale). Verificare:
 
 1. Compare il gate **Sono un prof** / **Sono uno studente**.
-2. **Sono uno studente** apre la dashboard in sola lettura: **Nuovo torneo** ed
-   eventuali comandi di modifica sono nascosti.
+2. **Sono uno studente** apre la consultazione pubblicata. Da **Account studente**
+   si accede con identità reale: iscritti alla propria squadra possono proporre
+   risultati, senza approvarli o modificare la struttura.
 3. **Sono un prof** apre il login email/password; dopo l'accesso compaiono il
    nome del docente, **Esci** e **Nuovo torneo**, ma solo i propri tornei sono
    modificabili.
-4. Un altro dispositivo vede il torneo e il link **Condividi** in sola lettura.
+4. Un altro dispositivo vede solo i tornei pubblicati o autorizzati;
+   **Condividi** resta disponibile al docente gestore.
 
 Per creare altri docenti, dalla cartella `torneo-lab`:
 
@@ -228,7 +230,7 @@ cd C:\OpenScore\torneo-lab
 .venv\Scripts\python.exe -c "import sqlite3,sys; db=sqlite3.connect(sys.argv[1]); print(db.execute('PRAGMA integrity_check').fetchone()[0], db.execute('PRAGMA user_version').fetchone()[0], db.execute('SELECT count(*) FROM tournaments').fetchone()[0])" C:\OpenScore\torneo-lab\backup\open_score-....sqlite3
 ```
 
-Deve stampare `ok`, la versione dello schema (6) e il numero di tornei
+Deve stampare `ok`, la versione dello schema (8) e il numero di tornei
 atteso.
 
 ### Ripristinare un backup
@@ -274,7 +276,8 @@ non forzare la versione, aggiornare l'applicazione.
 - [ ] IP del server prenotato nel router e presente in `TORNEO_ALLOWED_HOSTS`.
 - [ ] Porta 8000 aperta solo sul profilo di rete privato.
 - [ ] Accesso verificato da un secondo dispositivo della LAN.
-- [ ] Uno studente non vede i pulsanti di modifica e riceve 401 se tenta una scrittura.
+- [ ] Studente/anonimo non possono approvare risultati o modificare tornei;
+  lo studente autenticato può proporre soltanto per la propria squadra.
 - [ ] Un secondo docente non può modificare i tornei del primo (403).
 - [ ] Backup manuale riuscito e integrità verificata.
 - [ ] Backup giornaliero attivo e copia esterna configurata.
@@ -283,3 +286,33 @@ non forzare la versione, aggiornare l'applicazione.
 
 Per il modello di minacce e i limiti di questa configurazione vedere
 [SECURITY.md](SECURITY.md).
+
+Per credenziali e dati reali predisporre TLS anche in LAN. La configurazione
+HTTP descritta serve alle prove controllate. Per service/HTTPS e il modello
+attuale di account, sessioni e inviti: [DEPLOYMENT_BACKEND.md](DEPLOYMENT_BACKEND.md)
+e [SECURITY.md](SECURITY.md). La revisione 0.9.2 non ha installato servizi o aperto porte.
+
+## Docker 0.9.2: permessi e backup
+
+Il processo nell'immagine usa UID/GID **10001:10001**, non root. Su Linux
+preparare la directory persistente con questi proprietari prima dell'avvio:
+
+```bash
+sudo install -d -m 0700 -o 10001 -g 10001 torneo-lab/data
+```
+
+Per un volume esistente eseguire prima un backup e verificare con l'amministratore
+che UID 10001 possa leggere/scrivere DB, WAL, SHM e segreto. L'immagine non cambia
+ricorsivamente i permessi dei dati del professore. Su Docker Desktop Windows
+il bind mount sintetico è stato verificato; ciò non prova le ACL di ogni server.
+
+Backup manuale del DB predefinito, dentro il volume persistente:
+
+```bash
+docker compose exec open-score python torneo-lab/backup.py --out torneo-lab/data/backups --keep 14
+```
+
+Copiare anche fuori dal server. La cartella backup predefinita interna al
+container non è il bind mount: specificare --out come sopra. Non usare
+--reload in servizio; un solo worker. Build/health/ricreazione/backup del
+container isolato sono registrati in FINAL_AUDIT.md; nessun deploy scolastico.

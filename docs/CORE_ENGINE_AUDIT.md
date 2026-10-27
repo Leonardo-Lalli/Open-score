@@ -1,3 +1,5 @@
+> Documento di consegna storico: le parti su adapter mancanti/ready:false, schema e ruoli descrivono la versione indicata. Per il comportamento integrato corrente usare [FINAL_AUDIT.md](FINAL_AUDIT.md), [ARCHITECTURE.md](ARCHITECTURE.md) e [TEAM_B_INTEGRATION_REPORT.md](TEAM_B_INTEGRATION_REPORT.md).
+
 # Audit core engine — incremento A0/A1
 
 > Snapshot dell'audit iniziale al commit `4e15385`. L'utente ha successivamente

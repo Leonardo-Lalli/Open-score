@@ -18,7 +18,7 @@ Le schermate applicative mostrano: scelta di sport/partecipanti/formato, due squ
 
 ## Campione JSON fornito
 
-Il file [score7_sample.json](../torneo-lab/fixtures/score7_sample.json) conserva i dati forniti, separando la lista di fasi e l'oggetto del partecipante in un contenitore locale:
+Il file `score7_sample.json` (conservato nella cronologia Git precedente alla rimozione dei dati demo 0.8) conserva i dati forniti, separando la lista di fasi e l'oggetto del partecipante in un contenitore locale:
 
 | Dato | Valore verificabile nel campione | Interpretazione nella demo |
 | --- | --- | --- |

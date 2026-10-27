@@ -1,59 +1,45 @@
-# Architettura dell'applicazione
+# Architettura — integrazione 0.9.2
 
-## Estensione backend 0.3
+FastAPI/Pydantic, SQLite schema **8** e SPA vanilla sullo stesso origin.
+Nessun framework frontend, ORM o servizio remoto necessario. `website/` è una
+vetrina separata: GitHub Pages non esegue l'applicazione.
 
-La struttura sotto è la baseline conservata. Il backend attuale aggiunge
-`v1_api.py` (route), `v1_schemas.py` (input), `v1_dto.py` (risposte), `auth.py`
-(sessioni/CSRF/permessi), `v1_domain.py`, `v1_results.py`, `v1_resources.py`
-(operazioni transazionali) e `sports.py` (regole pure). `manage.py` gestisce
-account professore, migrazione/assegnazione legacy e backup/restore.
+| Moduli | Responsabilità |
+| --- | --- |
+| app.py, access_logging.py | Factory, Host/Origin, cookie, statici, CSV, minimizzazione log |
+| frontend_api.py, schemas.py | Adapter usati dalla SPA: studenti, import, proposte, campi/calendario/dashboard |
+| v1_api.py, v1_schemas.py, v1_dto.py | API autenticate, input rigorosi, risposte con whitelist e paginazione |
+| auth.py, platform_auth.py, identity_bridge.py | Login storico, utenti/sessioni e collegamento dei due namespace |
+| services.py, sport_rules.py | Catalogo di sei sport/sedici varianti e snapshot dei tornei |
+| platform_services.py, sports.py | Preset V1, risultati, delega al catalogo quando autorevole |
+| v1_domain.py, v1_results.py, v1_resources.py | Permessi, squadre/studenti, revisioni, inviti e prenotazioni |
+| roster_bridge.py | Sincronizzazione atomica fra profili e rose |
+| engine.py | Gironi, seeding/BYE, knockout e classifica |
+| db.py, migrations/ | Migrazioni conservative, FK, WAL, lock e rollback |
+| manage.py, platform_manage.py, backup.py | Amministrazione locale e copie consistenti |
+| static/ | UI italiana; bracket e infografica in moduli puri testabili con Node |
 
-Le route V1 riutilizzano engine e servizi esistenti con estensioni compatibili:
-classifiche sportive, score completo a set e invalidazione dei dati ufficiali.
-Ogni richiesta possiede una connessione; le scritture prendono il lock prima
-della lettura. Le approvazioni comprendono audit, risultato e progressione nella
-stessa transazione. Il calendario viene riverificato dopo l'avanzamento.
+Il browser invia una richiesta al router; i servizi verificano permessi e
+versioni e usano il motore puro; `db.py` gestisce la transazione SQLite.
+Ogni richiesta possiede una connessione. Le scritture prendono `BEGIN IMMEDIATE`
+prima della lettura. Revisione, risultato, audit, classifica, avanzamento e
+controllo calendario condividono la transazione. Il client rilegge dopo il commit.
+Conferma esplicita per invalidare risultati dipendenti; l'ordine visuale delle
+squadre ha una versione separata e non cambia il seed.
 
-La modalità demo mantiene la UI precedente su dati non assegnati; la modalità
-service esclude le API anonime. Le route legacy non possono leggere/modificare
-tornei assegnati. API pubbliche con whitelist separata, senza rose personali.
-Schema 4, nessun cambio framework/DB. Nessun frontend o deploy modificato.
-Dettagli: [contratto](contracts/API_V1.md), [database](DATABASE.md),
-[deployment](DEPLOYMENT_BACKEND.md), [report](CORE_ENGINE_REPORT.md).
+I due cookie sono revocabili sul server; `teacher_user_links` collega ID distinti.
+`team_players.student_id` collega rose e profili. Classifiche derivate senza cache;
+riepiloghi V1 aggregati e calendario con confronto delle finestre sovrapposte.
+La doppia linea di servizi/regole rimane debito di manutenzione: non è stata
+unificata con un refactoring esteso durante la revisione.
 
-## Architettura storica della demo
+`demo` indica configurazione locale, non scritture anonime o dati dimostrativi.
+`service` richiede origin HTTPS e host espliciti e mantiene SPA e autorizzazioni.
+Proprietari, collaboratori V1 e iscritti hanno accessi distinti; i collaboratori
+non hanno ancora tutte le azioni nella SPA storica. Pubblicazione revocabile,
+proiezioni pubbliche senza rose, email, audit o proposte.
 
-Questa è l'architettura originale di Open Score, non l'architettura interna di Score7.
-
-```mermaid
-flowchart TD
-  UI[HTML + CSS + JavaScript] <--> HTTP[app.py: FastAPI / OpenAPI]
-  HTTP --> Validation[schemas.py: Pydantic]
-  HTTP --> Service[services.py: regole applicative]
-  Service --> Engine[engine.py: algoritmi puri]
-  HTTP --> DB[db.py: transazioni SQLite]
-  DB --> Data[(data/open_score.sqlite3)]
-```
-
-## Responsabilità
-
-- `torneo-lab/app.py`: application factory, endpoint, file statici, controllo Host/Origin, CSV.
-- `schemas.py`: contratti in ingresso, limiti, nomi ripuliti, punteggi interi rigorosi.
-- `services.py`: creazione, generazione, qualificazioni, avanzamenti, correzioni, calendario e diario.
-- `engine.py`: metodo del cerchio per i gironi, albero knockout con seeding e BYE, classifica derivata.
-- `db.py` e `migrations/001_initial.sql`: schema versionato e transazione per operazione.
-- `static/`: interfaccia italiana responsive, finestre native `dialog`, tabellone SVG/HTML con collegamenti reali.
-
-## Una modifica attraversa il sistema
-
-Il browser invia punteggio e `version`. La transazione acquisisce il lock SQLite prima della lettura. Il servizio verifica torneo, incontro, versione e avversari; salva il risultato e lo storico, invalida eventuali dipendenze con conferma e propaga i vincitori. Solo dopo il commit il browser rilegge i dati. Non mostra un salvataggio riuscito se il server lo rifiuta.
-
-Il tabellone esiste interamente dalla generazione: gli incontri futuri hanno riferimenti `source_home`/`source_away`, non squadre inventate. Un BYE non è uno 0–0 e non conta tra le partite giocate. Se cambia il vincitore, tutti gli incontri discendenti perdono risultati e programmazione; i rami indipendenti restano intatti.
-
-Nei tornei multifase, tutte le partite dei gironi devono essere complete prima di creare i knockout. Le prime 1 o 2 di ciascun girone vengono ordinate per posizione e girone, poi distribuite dal seeding standard. Correggere un girone dopo la qualificazione richiede conferma e ricostruisce la fase finale; lo storico precedente resta nel diario.
-
-## Confine di questa consegna
-
-È un'applicazione per uno spazio di lavoro scolastico, utilizzabile sulla LAN. La pagina spettatore e il suo endpoint sono di sola lettura. All'ingresso si sceglie **Sono un prof** (login email/password) o **Sono uno studente** (sola lettura). Ogni docente ha un account in `teachers` e gestisce solo i tornei con il proprio `teacher_id`; i tornei altrui restano leggibili ma non modificabili. Il server può ascoltare sulla LAN, ma non è destinato a Internet; installazione, host ammessi e backup sono descritti in [DEPLOY.md](DEPLOY.md) e [SECURITY.md](SECURITY.md).
-
-Frontend senza build e SQLite riducono i passaggi per presentarla a scuola. React/TypeScript, SQLAlchemy/Alembic e PostgreSQL restano opzioni per la piattaforma successiva; ruoli amministrativi, recupero password e revoca centralizzata richiederebbero un servizio di identità più completo.
+Un'istanza, un worker, disco persistente locale. TLS, riavvio e backup restano
+responsabilità dell'installazione. Vedere [sicurezza](SECURITY.md),
+[database](DATABASE.md), [API V1](contracts/API_V1.md),
+[deployment](DEPLOYMENT_BACKEND.md) e [audit finale](FINAL_AUDIT.md).
