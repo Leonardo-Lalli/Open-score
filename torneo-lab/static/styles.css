@@ -36,7 +36,7 @@
   --bg: #f6f7f2;
   --paper: #fff;
   --ink: #1c3028;
-  --muted: #738077;
+  --muted: #57675c;
   --line: #e3e8df;
   --lime: #d6f473;
   --dark: #182923;
@@ -769,7 +769,7 @@ p {
   padding: 5px 8px;
   border-radius: 5px;
   background: #f2f4ec;
-  color: #78866c;
+  color: #5a674f;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -783,7 +783,7 @@ p {
 }
 .tag.active {
   background: #edf4e2;
-  color: #5b7d32;
+  color: #526f2c;
 }
 .tag.completed {
   background: #e9f2ed;
@@ -791,7 +791,7 @@ p {
 }
 .tag.draft {
   background: #f6f0e2;
-  color: #987630;
+  color: #806025;
 }
 .tag.archived {
   background: #eceef1;

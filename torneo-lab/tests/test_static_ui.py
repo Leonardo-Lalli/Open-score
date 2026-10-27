@@ -44,8 +44,8 @@ def test_static_ui_has_no_out_of_catalog_sports(client):
 def test_index_references_versioned_assets_and_disables_cache(client):
     response = client.get('/')
     assert response.status_code == 200
-    assert 'app.js?v=0.9.1' in response.text
-    assert 'styles.css?v=0.8.0' in response.text
+    assert 'app.js?v=0.9.2' in response.text
+    assert 'styles.css?v=0.9.2' in response.text
     assert 'no-cache' in response.headers['cache-control']
 
 

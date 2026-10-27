@@ -58,8 +58,7 @@ const tieLabel = (v) =>
 const publicToken = location.pathname.startsWith("/public/")
   ? location.pathname.split("/")[2]
   : null;
-// The invite landing page is client-only until Team A ships the invite API:
-// `/?invite=<token>` and `#/join/<token>` open the same read-only view.
+// Historical /?invite=<token> and current /#/join/<token> use the same invite API flow.
 const inviteToken = (() => {
   const query = new URLSearchParams(location.search).get("invite");
   if (query) return query;
@@ -92,6 +91,8 @@ let list = [],
   studentSearch = "",
   bulkState = null,
   approvalsCache = [],
+  approvalsTournamentId = null,
+  approvalSummary = { tournamentId: null, count: null },
   inviteState = null,
   pendingInviteToken = null,
   calendarMode = false,
@@ -593,6 +594,8 @@ const resultProposalsAdapter = {
     );
   },
   async decide(proposalId, action, payload = {}) {
+      if (approvalsTournamentId !== selectedId)
+        throw new Error("Ricarica le proposte di questo torneo prima di revisionarle.");
     const proposal = approvalsCache.find((item) => String(item.id) === String(proposalId));
     if (!proposal) throw new Error("Ricarica le proposte prima di revisionarle.");
     payload = { ...payload, version: proposal.version, match_version: proposal.match_version };
@@ -858,7 +861,7 @@ function renderAuthControl() {
   if (publicToken || inviteToken) return;
   const access = canEdit()
     ? `<span class="auth-user">${icon("check")}${h(auth.teacher?.display_name || auth.teacher?.email || "Prof")}</span><button class="button ghost compact" data-action="logout">Esci</button>`
-    : `<span class="auth-user">${icon("users")}Studente · sola lettura</span><button class="button ghost compact" data-action="login">Accedi come prof</button>`;
+    : `<span class="auth-user">${icon("users")}${auth.authenticated ? "Studente · account attivo" : "Studente · sola lettura"}</span><button class="button ghost compact" data-action="login">Accedi come prof</button>`;
   $(".top-actions").innerHTML = `${access}${canEdit() ? "" : auth.authenticated ? button("Esci", "logout", "ghost compact") : button("Account studente", "student-account", "ghost compact")}<button class="button primary compact ${canEdit() ? "" : "hidden"}" data-action="new">${icon("plus")}Nuovo torneo</button>`;
   document
     .querySelectorAll(".sidebar [data-action='new']")
@@ -972,7 +975,6 @@ async function dashboard() {
   if (location.hash) history.replaceState(null, "", location.pathname);
   $("#breadcrumb").textContent = "Panoramica";
   renderDashboard();
-  if (canEdit()) safely(() => loadUpcoming());
   setMenu(false);
 }
 function showInviteShell() {
@@ -1139,7 +1141,7 @@ function renderStudentDashboard() {
     ["archived", "Archiviati"],
   ];
   $("#content").innerHTML =
-    `<div class="page-heading"><div><p class="eyebrow"><span class="line"></span> IN SOLA LETTURA</p><h1>Segui i tornei.</h1><p>Sport, partite, classifiche e tabelloni: tutto consultabile, senza modifiche.</p></div><span class="date-note">${active.length} tornei disponibili</span></div>
+    `<div class="page-heading"><div><p class="eyebrow"><span class="line"></span> ${auth.authenticated ? "SPAZIO STUDENTE" : "IN SOLA LETTURA"}</p><h1>Segui i tornei.</h1><p>${auth.authenticated ? "Consulta i tuoi tornei e proponi risultati per la tua squadra. Il professore li rende ufficiali." : "Sport, partite, classifiche e tabelloni: tutto consultabile, senza modifiche."}</p></div><span class="date-note">${active.length} tornei disponibili</span></div>
  <div class="stat-grid">${stat("Tornei", active.length, "Disponibili da seguire", "trophy")}${stat("In corso", active.filter((t) => t.status === "active").length, "In campo adesso", "ball")}${stat("Conclusi", active.filter((t) => t.status === "completed").length, "Già decisi", "check")}</div>
  <section><div class="section-header"><div><h2>Esplora i tornei <span class="muted">${active.length.toString().padStart(2, "0")}</span></h2><p class="section-sub">Apri un torneo per vedere partite, classifica e tabellone.</p></div><div class="filters" aria-label="Filtra tornei">${filters.map(([v, l]) => `<button class="filter ${filter === v ? "active" : ""}" data-filter="${v}" aria-pressed="${filter === v}">${l}</button>`).join("")}</div></div>
  <div class="tournament-grid">${shown.map(eventCard).join("") || `<div class="panel empty">${icon("trophy")}<h2>Nessun torneo, per ora.</h2><p>${list.length ? "Nessun torneo con questo filtro." : "Quando un prof crea un torneo lo troverai qui."}</p></div>`}</div></section>
@@ -1162,7 +1164,7 @@ function renderDashboard() {
     `<div class="page-heading"><div><p class="eyebrow"><span class="line"></span> MENO ORGANIZZAZIONE, PIÙ GIOCO</p><h1>Ogni torneo comincia qui.</h1><p>Metti in campo le tue idee. Noi teniamo il punteggio.</p></div><span class="date-note">Uno spazio, tutte le tue sfide.</span></div>
  <section class="hero" aria-label="Inizia a organizzare"><div class="hero-copy"><p class="eyebrow">IL PROSSIMO FISCHIO D’INIZIO</p><h2>Lo sport unisce.<br><em>Organizzarlo è semplice.</em></h2><p>Dalle partite in palestra alla coppa d’istituto: squadre, incontri e risultati, tutti nello stesso posto.</p><div class="hero-buttons">${canEdit() ? button("Crea il tuo torneo", "new", "primary", "plus") : button("Accedi per organizzare", "login", "primary", "check")}${button("Sport e regole", "catalog", "ghost", "ball")}</div></div><div class="hero-art" aria-hidden="true"><div class="court"><div class="court-circle"></div></div><div class="hero-score"><div class="score-kicker">IL TUO PROSSIMO TORNEO <span>● SI GIOCA</span></div><div class="score-line">${avatar("A", 2)}La tua squadra <b>—</b></div><div class="score-line">${avatar("B", 1)}Una nuova sfida <b>—</b></div></div><div class="hero-sticker">${icon("trophy")}</div></div></section>
  <div class="stat-grid">${stat("Tornei creati", active.length, "Tutte le tue competizioni", "trophy")}${stat("Partecipanti", totalTeams, "Pronti a scendere in campo", "users")}${stat("Tornei in corso", active.filter((t) => t.status === "active").length, "Il gioco continua", "ball")}${stat("Risultati registrati", done, "Ogni partita conta", "check")}</div>
- ${canEdit() ? `<section class="upcoming-section" aria-label="Prossime partite"><div class="section-header"><div><h2>Prossime partite</h2><p class="section-sub">I prossimi incontri da giocare o da programmare.</p></div></div><div id="upcoming-matches" class="upcoming-grid"><p class="muted">Caricamento prossime partite…</p></div></section>` : ""}
+ ${canEdit() ? `<section class="upcoming-section" aria-label="Prossime partite"><div class="section-header"><div><h2>Prossime partite</h2><p class="section-sub">I prossimi incontri da giocare o da programmare.</p></div></div><p id="pending-proposals" class="note-banner" role="status">Caricamento proposte…</p><div id="upcoming-matches" class="upcoming-grid"><p class="muted">Caricamento prossime partite…</p></div></section>` : ""}
  <section><div class="section-header"><div><h2>I tuoi tornei <span class="muted">${active.length.toString().padStart(2, "0")}</span></h2><p class="section-sub">Scegli una competizione e porta avanti il gioco.</p></div><div class="filters" aria-label="Filtra tornei">${[
    ["all", "Tutti"],
    ["active", "In corso"],
@@ -1177,16 +1179,17 @@ function renderDashboard() {
  <div class="tournament-grid">${shown.map(eventCard).join("") || `<div class="panel empty">${icon("trophy")}<h2>Il campo è libero.</h2><p>${filter === "archived" ? "Nessun torneo archiviato, per ora." : list.length ? "Nessun torneo con questo filtro." : "Crea il primo torneo per iniziare."}</p>${filter === "archived" ? "" : canEdit() ? button("Nuovo torneo", "new", "primary") : button("Accedi per organizzare", "login", "primary", "check")}</div>`}</div></section>
  <div class="note-banner">${icon("spark")}<div><strong>Un progetto aperto, anche alle tue idee.</strong><p>Il prossimo passo lo scegliamo insieme.</p></div><button class="text-button" data-action="project">Il progetto ${icon("arrow")}</button></div>`;
   $("#content").setAttribute("aria-busy", "false");
+  safely(() => loadUpcoming());
 }
 async function loadUpcoming() {
   const box = $("#upcoming-matches");
   if (!box) return;
-  const targets = list.filter((t) => !t.archived_at && t.can_manage);
-  if (!targets.length) {
-    box.innerHTML = '<p class="muted">Nessun torneo attivo da seguire.</p>';
-    return;
-  }
   const summary = await api("/dashboard?mine=1");
+  if ($("#upcoming-matches") !== box) return;
+  const pending = $("#pending-proposals");
+  if (pending) pending.textContent = summary.pending_proposals
+    ? `${summary.pending_proposals} proposte da verificare. Apri il torneo e scegli “Da verificare”.`
+    : "Nessuna proposta di risultato in attesa.";
   const upcoming = summary.upcoming.map((event) => ({ ...event, id: event.tournament_id, tournament: event.tournament_name }));
   box.innerHTML = upcoming.length
     ? upcoming
@@ -1761,6 +1764,9 @@ async function openTournament(id, keepTab = false) {
       : "/tournaments/" + id,
   );
   selectedId = next.tournament.id;
+  approvalsCache = [];
+  approvalsTournamentId = null;
+  approvalSummary = { tournamentId: null, count: null };
   data = next;
   catalogMode = false;
   calendarMode = false;
@@ -1821,6 +1827,7 @@ function renderTournament() {
   $("#content").setAttribute("aria-busy", "false");
   if (tab === "students") safely(() => loadStudentsDetail());
   if (tab === "approvals") safely(() => loadApprovals());
+  if (tab === "stats" && canManage()) safely(() => loadPendingCount());
   if (tab === "participants")
     enableReorder(
       $("#team-order-body"),
@@ -2254,7 +2261,8 @@ function buildInfographicPayload() {
     completed,
     remaining,
     progress,
-    pending: resultProposalsAdapter.ready ? approvalsCache.length : null,
+    pending: canManage() && approvalSummary.tournamentId === t.id
+      ? approvalSummary.count : null,
     podium: infographicPodium(),
     podiumLabel:
       t.format === "round_robin" && data.status !== "completed"
@@ -2439,15 +2447,31 @@ function proposalRow(proposal) {
     : "";
   return `<tr><td>${h(proposal.tournament_name || data.tournament.name)}</td><td>${h(proposal.home_name || "–")} – ${h(proposal.away_name || "–")}</td><td><strong>${h(score)}</strong></td><td>${proposal.author ? h(proposal.author) : "–"}</td><td>${proposal.created_at ? h(dateText(proposal.created_at)) : "–"}</td><td><span class="tag">${h(proposal.status || "pending")}</span>${conflicts}</td><td><div class="proposal-actions"><button type="button" class="button compact primary" data-action="approve-proposal" data-proposal="${proposal.id}">Approva</button><button type="button" class="button compact danger" data-action="reject-proposal" data-proposal="${proposal.id}">Respingi</button><button type="button" class="button compact ghost" data-action="correct-proposal" data-proposal="${proposal.id}">Correggi</button></div></td></tr>`;
 }
+async function loadPendingCount() {
+  const tid = selectedId;
+  if (!resultProposalsAdapter.ready || !canManage() || approvalSummary.tournamentId === tid) return;
+  const pendingState = { tournamentId: tid, count: null };
+  approvalSummary = pendingState;
+  const summary = await api(`/v1/tournaments/${tid}/statistics`);
+  if (selectedId !== tid || approvalSummary !== pendingState || !canManage()) return;
+  approvalSummary = { tournamentId: tid, count: summary.pending_proposals ?? null };
+  if (tab === "stats") renderTournament();
+}
 async function loadApprovals() {
   const box = $("#approvals-list");
   if (!box || !resultProposalsAdapter.ready) return;
+  const tid = selectedId;
   try {
-    approvalsCache = await resultProposalsAdapter.list(selectedId);
+    const proposals = await resultProposalsAdapter.list(tid);
+    if (selectedId !== tid || $("#approvals-list") !== box) return;
+    approvalsCache = proposals;
+    approvalsTournamentId = tid;
+    approvalSummary = { tournamentId: tid, count: proposals.length };
     box.innerHTML = approvalsCache.length
       ? `<div class="table-wrap"><table><thead><tr><th>Torneo</th><th>Partita</th><th>Risultato proposto</th><th>Autore</th><th>Data</th><th>Stato</th><th>Azioni</th></tr></thead><tbody>${approvalsCache.map(proposalRow).join("")}</tbody></table></div>`
       : '<div class="panel empty">Nessuna proposta in attesa.</div>';
   } catch (e) {
+    if (selectedId !== tid || $("#approvals-list") !== box) return;
     box.innerHTML = `<div class="panel empty">${h(proposalErrorMessage(e))}</div>`;
     if (e.status === 401) handleProposalError(e);
   }
